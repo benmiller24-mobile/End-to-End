@@ -43,17 +43,17 @@ const C = {
 
 // ─── HELPERS ──────────────────────────────────────────────────────────
 
-/** Numbered diamond tag (like professional shop drawings) */
-function CabTag({ cx, cy, num }) {
-  const r = 5.5;
+/** Numbered cabinet tag — circle with KD prefix per NKBA Ch.2 convention */
+function CabTag({ cx, cy, num, prefix = 'KD' }) {
+  const r = 7;
+  const label = `${prefix}${num}`;
   return (
     <g>
-      <polygon
-        points={`${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`}
+      <circle cx={cx} cy={cy} r={r}
         fill={C.tagFill} stroke={C.tagStroke} strokeWidth={0.5} />
       <text x={cx} y={cy + 1.8} fill={C.dimText}
-        fontSize={4.5} fontFamily="Helvetica,Arial,sans-serif"
-        textAnchor="middle" fontWeight="600">{num}</text>
+        fontSize={label.length > 3 ? 3.5 : 4} fontFamily="Helvetica,Arial,sans-serif"
+        textAnchor="middle" fontWeight="600">{label}</text>
     </g>
   );
 }
@@ -195,7 +195,22 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
       style={{ width: '100%', height: 'auto', maxHeight: 580, background: C.bg, borderRadius: 4, marginBottom: 16 }}
       xmlns="http://www.w3.org/2000/svg">
 
-      {/* Title */}
+      {/* ── TITLE BLOCK (NKBA Ch.2 Fig 2.2 style) ── */}
+      <g>
+        {/* Title line */}
+        <line x1={-40} y1={totalH + 22} x2={80} y2={totalH + 22}
+          stroke={C.line} strokeWidth={0.6} />
+        <text x={-40} y={totalH + 18} fill={C.dimText} fontSize={5.5} fontWeight="700"
+          fontFamily="Helvetica,Arial,sans-serif">
+          ELEV. - KITCHEN WALL {wallId}
+        </text>
+        <text x={-40} y={totalH + 28} fill={C.dimText} fontSize={3.8}
+          fontFamily="Helvetica,Arial,sans-serif" opacity={0.7}>
+          Scale: 1/2" = 1'-0" (approx)
+        </text>
+      </g>
+
+      {/* Wall ID Header */}
       <text x={wW / 2} y={-6} fill={C.dimText} fontSize={9} fontWeight="700"
         fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
         Wall {wallId} Elevation
