@@ -1,37 +1,32 @@
 import React, { useMemo } from 'react';
 
 /**
- * ElevationView â Professional SVG front elevation of each wall
- * Shows base cabinets, uppers, tall units, appliances, range hood,
- * with door/drawer detail, dimensions, and SKU labels.
- * Renders each wall as a separate elevation panel.
+ * ElevationView — Professional kitchen elevation drawing
+ * Renders architectural-style front elevations of kitchen walls.
+ * Shows cabinet details (door/drawer panels), appliances with recognizable symbols,
+ * countertops, trim, and dimension annotations in a professional design studio style.
  */
 
 const COLORS = {
-  wall: '#475569',
-  wallFill: '#0f172a',
-  base: '#3b82f6',
-  baseFill: '#1e3a5f',
-  baseStroke: '#3b82f6',
-  upper: '#8b5cf6',
-  upperFill: '#2d1f5e',
-  upperStroke: '#8b5cf6',
-  tall: '#f59e0b',
-  tallFill: '#422006',
-  tallStroke: '#f59e0b',
-  appliance: '#10b981',
-  applianceFill: '#064e3b',
-  corner: '#ef4444',
-  cornerFill: '#451a1a',
-  hood: '#06b6d4',
-  hoodFill: '#083344',
-  dim: '#94a3b8',
-  dimLine: '#475569',
-  text: '#f1f5f9',
-  bg: '#0f172a',
-  floor: '#334155',
-  counter: '#f59e0b',
-  toekick: '#1e293b',
+  // Architectural palette - muted, professional
+  cabinetStroke: '#333333',    // Dark gray for cabinet lines
+  cabinetFill: '#f5f3f0',      // Warm off-white/natural
+  drawerLine: '#888888',       // Medium gray for drawer pulls
+  appliance: '#4a4a4a',        // Dark gray for appliances
+  applFill: '#eeeeee',         // Light gray appliance fill
+  counterStroke: '#333333',    // Dark stroke
+  counterFill: '#d4ccc4',      // Warm gray countertop
+  toekick: '#222222',          // Very dark for toe kick
+  backsplash: '#e8e6e3',       // Light warm neutral
+  wallBg: '#fafaf8',           // Off-white background
+  dimLine: '#555555',          // Dark gray for dimensions
+  dimText: '#555555',          // Dark gray text
+  crownFill: '#d9cfc6',        // Warm wood tone for crown
+  crownStroke: '#8b7f78',      // Darker wood tone
+  lightRail: '#9d9590',        // Medium wood tone
+  floor: '#333333',            // Dark gray floor
+  hoodStroke: '#333333',       // Dark lines
+  hoodFill: '#e0ddd9',         // Light warm fill
 };
 
 // Standard heights in inches
@@ -43,67 +38,251 @@ const UPPER_H = 36;
 const TALL_H = 96;
 const SCALE = 2.2; // SVG pixels per inch
 
-function elevColor(type, sku) {
-  if (type === 'appliance') return { stroke: COLORS.appliance, fill: COLORS.applianceFill };
-  if (type === 'tall') return { stroke: COLORS.tallStroke, fill: COLORS.tallFill };
-  if (type === 'rangeHood' || type === 'hood') return { stroke: COLORS.hood, fill: COLORS.hoodFill };
-  if (type === 'corner' || type === 'wall_corner') return { stroke: COLORS.corner, fill: COLORS.cornerFill };
-  if (sku && /^[WS]/.test(sku) && !/^WSC/.test(sku)) return { stroke: COLORS.upperStroke, fill: COLORS.upperFill };
-  return { stroke: COLORS.baseStroke, fill: COLORS.baseFill };
-}
+// Draw cabinet with raised/recessed panel detail and door/drawer divisions
+function CabinetPanel({ x, y, w, h, doorCount, drawerCount }) {
+  const elements = [];
+  const inset = 3 * SCALE;
+  const panelBorder = 0.5 * SCALE;
 
-// Draw door lines on a cabinet rect
-function DoorDetail({ x, y, w, h, doorCount, drawerCount, type }) {
-  const lines = [];
-  const inset = 2 * SCALE;
+  // Cabinet main outline
+  elements.push(
+    <rect key="outline" x={x} y={y} width={w} height={h}
+      fill={COLORS.cabinetFill} stroke={COLORS.cabinetStroke} strokeWidth={0.6} />
+  );
 
-  if (type === 'appliance') {
-    // X pattern
-    lines.push(<line key="x1" x1={x + inset} y1={y + inset} x2={x + w - inset} y2={y + h - inset} stroke={COLORS.appliance} strokeWidth={0.4} opacity={0.4} />);
-    lines.push(<line key="x2" x1={x + w - inset} y1={y + inset} x2={x + inset} y2={y + h - inset} stroke={COLORS.appliance} strokeWidth={0.4} opacity={0.4} />);
-    return <>{lines}</>;
-  }
+  // Add shadow on bottom and right for depth
+  elements.push(
+    <line key="bottomShadow" x1={x} y1={y + h - 0.2} x2={x + w} y2={y + h - 0.2}
+      stroke="#cccccc" strokeWidth={0.3} opacity={0.6} />
+  );
+  elements.push(
+    <line key="rightShadow" x1={x + w - 0.2} y1={y} x2={x + w - 0.2} y2={y + h}
+      stroke="#cccccc" strokeWidth={0.3} opacity={0.6} />
+  );
 
-  if (drawerCount > 0 && h > 20) {
-    // Draw drawer lines from top
-    const drawerH = Math.min(h * 0.4, drawerCount * 6 * SCALE) / drawerCount;
+  // Draw drawers from top
+  if (drawerCount > 0 && h > 15 * SCALE) {
+    const drawerH = Math.min(h * 0.35, (drawerCount * 8) * SCALE) / drawerCount;
     for (let i = 0; i < drawerCount; i++) {
       const dy = y + inset + i * drawerH;
-      lines.push(<rect key={`dr${i}`} x={x + inset} y={dy} width={w - 2 * inset} height={drawerH - 1}
-        fill="none" stroke={COLORS.dim} strokeWidth={0.3} rx={0.5} />);
-      // Pull
-      lines.push(<line key={`drp${i}`} x1={x + w / 2 - 4} y1={dy + drawerH / 2} x2={x + w / 2 + 4} y2={dy + drawerH / 2}
-        stroke={COLORS.dim} strokeWidth={0.6} />);
+      // Drawer panel outline
+      elements.push(
+        <rect key={`dr-bg${i}`} x={x + inset} y={dy} width={w - 2 * inset} height={drawerH - 1}
+          fill="none" stroke={COLORS.drawerLine} strokeWidth={0.3} />
+      );
+      // Horizontal pull handle - centered
+      const pullY = dy + drawerH / 2;
+      elements.push(
+        <line key={`drp${i}`} x1={x + w / 2 - 6 * SCALE} y1={pullY} x2={x + w / 2 + 6 * SCALE} y2={pullY}
+          stroke={COLORS.drawerLine} strokeWidth={0.5} />
+      );
     }
-    // Door(s) below drawers
+
+    // Door panel(s) below drawers
     const doorY = y + inset + drawerCount * drawerH + 1;
     const doorH = h - inset * 2 - drawerCount * drawerH - 1;
-    if (doorH > 5) {
-      const dc = doorCount || (w > 30 * SCALE ? 2 : 1);
+    if (doorH > 5 * SCALE) {
+      const dc = Math.max(doorCount, 1);
       const dw = (w - 2 * inset) / dc;
       for (let i = 0; i < dc; i++) {
-        lines.push(<rect key={`d${i}`} x={x + inset + i * dw} y={doorY} width={dw - 1} height={doorH}
-          fill="none" stroke={COLORS.dim} strokeWidth={0.3} rx={0.5} />);
+        const dx = x + inset + i * dw;
+        // Panel outline
+        elements.push(
+          <rect key={`d${i}`} x={dx} y={doorY} width={dw - 1} height={doorH}
+            fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.4} />
+        );
+        // Inner panel border (raised/recessed effect)
+        elements.push(
+          <rect key={`d-inner${i}`} x={dx + panelBorder} y={doorY + panelBorder}
+            width={dw - 1 - 2 * panelBorder} height={doorH - 2 * panelBorder}
+            fill="none" stroke={COLORS.drawerLine} strokeWidth={0.25} opacity={0.5} />
+        );
       }
     }
-  } else if (doorCount > 0 || w > 15) {
-    // Just doors
-    const dc = doorCount || (w > 30 * SCALE ? 2 : 1);
+  } else if (h > 15 * SCALE) {
+    // Just door panels, no drawers
+    const dc = Math.max(doorCount, 1);
     const dw = (w - 2 * inset) / dc;
     for (let i = 0; i < dc; i++) {
-      lines.push(<rect key={`d${i}`} x={x + inset + i * dw} y={y + inset} width={dw - 1} height={h - 2 * inset}
-        fill="none" stroke={COLORS.dim} strokeWidth={0.3} rx={0.5} />);
+      const dx = x + inset + i * dw;
+      // Panel outline
+      elements.push(
+        <rect key={`d${i}`} x={dx} y={y + inset} width={dw - 1} height={h - 2 * inset}
+          fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.4} />
+      );
+      // Inner panel border (raised/recessed effect)
+      elements.push(
+        <rect key={`d-inner${i}`} x={dx + panelBorder} y={y + inset + panelBorder}
+          width={dw - 1 - 2 * panelBorder} height={h - 2 * inset - 2 * panelBorder}
+          fill="none" stroke={COLORS.drawerLine} strokeWidth={0.25} opacity={0.5} />
+      );
     }
   }
 
-  return <>{lines}</>;
+  return <>{elements}</>;
+}
+
+// Draw appliance symbols for different types
+function ApplianceSymbol({ x, y, w, h, applianceType }) {
+  const elements = [];
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const inset = 3 * SCALE;
+
+  // Main appliance box
+  elements.push(
+    <rect key="bg" x={x} y={y} width={w} height={h}
+      fill={COLORS.applFill} stroke={COLORS.appliance} strokeWidth={0.6} />
+  );
+
+  if (applianceType === 'range' || applianceType === 'cooktop') {
+    // Cooktop burners - 4 circles
+    const margin = 4 * SCALE;
+    const bw = (w - 2 * margin) / 2;
+    const bh = (h - 2 * margin) / 2;
+    const r = Math.min(bw, bh) * 0.35;
+
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const bx = x + margin + col * bw + bw / 2;
+        const by = y + margin + row * bh + bh / 2;
+        elements.push(
+          <circle key={`burner-${row}-${col}`} cx={bx} cy={by} r={r}
+            fill="none" stroke={COLORS.appliance} strokeWidth={0.4} />
+        );
+      }
+    }
+  } else if (applianceType === 'refrigerator') {
+    // Tall fridge - vertical rectangle with handle and divider line
+    elements.push(
+      <line key="divider" x1={x + inset} y1={y + h * 0.5} x2={x + w - inset} y2={y + h * 0.5}
+        stroke={COLORS.appliance} strokeWidth={0.4} />
+    );
+    // Handle line on right side
+    elements.push(
+      <line key="handle" x1={x + w - 2 * SCALE} y1={y + 5 * SCALE} x2={x + w - 2 * SCALE} y2={y + h - 5 * SCALE}
+        stroke={COLORS.appliance} strokeWidth={0.5} />
+    );
+  } else if (applianceType === 'dishwasher') {
+    // Dishwasher - horizontal lines pattern + handle
+    elements.push(
+      <line key="line1" x1={x + inset} y1={y + h * 0.25} x2={x + w - inset} y2={y + h * 0.25}
+        stroke={COLORS.appliance} strokeWidth={0.3} />
+    );
+    elements.push(
+      <line key="line2" x1={x + inset} y1={y + h * 0.35} x2={x + w - inset} y2={y + h * 0.35}
+        stroke={COLORS.appliance} strokeWidth={0.3} />
+    );
+    elements.push(
+      <line key="line3" x1={x + inset} y1={y + h * 0.5} x2={x + w - inset} y2={y + h * 0.5}
+        stroke={COLORS.appliance} strokeWidth={0.4} />
+    );
+    // Handle
+    elements.push(
+      <line key="handle" x1={x + w / 2 - 3 * SCALE} y1={y + h - 3 * SCALE} x2={x + w / 2 + 3 * SCALE} y2={y + h - 3 * SCALE}
+        stroke={COLORS.appliance} strokeWidth={0.5} />
+    );
+  } else if (applianceType === 'wallOven') {
+    // Wall oven - oven door with window
+    const doorInset = 2 * SCALE;
+    elements.push(
+      <rect key="door" x={x + doorInset} y={y + doorInset} width={w - 2 * doorInset} height={h - 2 * doorInset}
+        fill="none" stroke={COLORS.appliance} strokeWidth={0.4} />
+    );
+    // Window - smaller rectangle
+    const winInset = 5 * SCALE;
+    elements.push(
+      <rect key="window" x={x + winInset} y={y + winInset} width={w - 2 * winInset} height={(h - 2 * winInset) * 0.6}
+        fill="#e8e8e8" stroke={COLORS.appliance} strokeWidth={0.3} />
+    );
+    // Handle
+    elements.push(
+      <line key="handle" x1={x + w - 2 * SCALE} y1={y + h / 2 - 3 * SCALE} x2={x + w - 2 * SCALE} y2={y + h / 2 + 3 * SCALE}
+        stroke={COLORS.appliance} strokeWidth={0.5} />
+    );
+  } else if (applianceType === 'sink') {
+    // Sink - basin outline (rounded rectangle)
+    const sinkInset = 3 * SCALE;
+    elements.push(
+      <ellipse key="basin" cx={cx} cy={y + h * 0.6} rx={w / 2 - sinkInset} ry={h * 0.3}
+        fill="none" stroke={COLORS.appliance} strokeWidth={0.5} />
+    );
+    // Faucet (simple line)
+    elements.push(
+      <line key="faucet" x1={cx} y1={y + h * 0.5} x2={cx} y2={y + 2 * SCALE}
+        stroke={COLORS.appliance} strokeWidth={0.4} />
+    );
+  } else {
+    // Generic appliance - simple grid
+    const gridSize = 3 * SCALE;
+    for (let i = 0; i < h / gridSize; i++) {
+      elements.push(
+        <line key={`grid-h${i}`} x1={x + inset} y1={y + inset + i * gridSize} x2={x + w - inset} y2={y + inset + i * gridSize}
+          stroke={COLORS.appliance} strokeWidth={0.2} opacity={0.4} />
+      );
+    }
+  }
+
+  return <>{elements}</>;
+}
+
+// Dimension annotation with tick marks (architectural style)
+function DimensionLine({ x1, y1, x2, y2, label, position = 'above', offset = 12 }) {
+  const isHorizontal = Math.abs(y2 - y1) < 1;
+  const isVertical = Math.abs(x2 - x1) < 1;
+  const tickSize = 2.5;
+
+  const elements = [];
+
+  // Dimension line
+  elements.push(
+    <line key="line" x1={x1} y1={y1} x2={x2} y2={y2}
+      stroke={COLORS.dimLine} strokeWidth={0.4} />
+  );
+
+  // Tick marks at ends
+  if (isHorizontal) {
+    elements.push(
+      <line key="tick1" x1={x1} y1={y1 - tickSize} x2={x1} y2={y1 + tickSize}
+        stroke={COLORS.dimLine} strokeWidth={0.4} />
+    );
+    elements.push(
+      <line key="tick2" x1={x2} y1={y2 - tickSize} x2={x2} y2={y2 + tickSize}
+        stroke={COLORS.dimLine} strokeWidth={0.4} />
+    );
+    // Label
+    const mid = (x1 + x2) / 2;
+    const labelY = position === 'above' ? y1 - offset : y1 + offset;
+    elements.push(
+      <text key="label" x={mid} y={labelY} fill={COLORS.dimText}
+        fontSize={4.5} fontFamily="'Helvetica', 'Arial', sans-serif" textAnchor="middle">{label}</text>
+    );
+  } else if (isVertical) {
+    elements.push(
+      <line key="tick1" x1={x1 - tickSize} y1={y1} x2={x1 + tickSize} y2={y1}
+        stroke={COLORS.dimLine} strokeWidth={0.4} />
+    );
+    elements.push(
+      <line key="tick2" x1={x2 - tickSize} y1={y2} x2={x2 + tickSize} y2={y2}
+        stroke={COLORS.dimLine} strokeWidth={0.4} />
+    );
+    // Label
+    const mid = (y1 + y2) / 2;
+    const labelX = position === 'left' ? x1 - offset : x1 + offset;
+    elements.push(
+      <text key="label" x={labelX} y={mid + 1.5} fill={COLORS.dimText}
+        fontSize={4.5} fontFamily="'Helvetica', 'Arial', sans-serif" textAnchor="middle" transform={`rotate(-90, ${labelX}, ${mid + 1.5})`}>{label}</text>
+    );
+  }
+
+  return <>{elements}</>;
 }
 
 // Single wall elevation
 function WallElevation({ wallId, wallLength, bases, uppers, talls, appliances, hood, trim = {} }) {
   const wallW = wallLength * SCALE;
-  const totalH = TALL_H * SCALE + 20;
-  const floorY = totalH - 10;
+  const totalH = TALL_H * SCALE + 60;
+  const floorY = totalH - 30;
 
   // Base cabinet Y (from floor up)
   const baseBottomY = floorY;
@@ -115,35 +294,53 @@ function WallElevation({ wallId, wallLength, bases, uppers, talls, appliances, h
   const upperBottomY = counterY - UPPER_GAP * SCALE;
   const upperTopY = upperBottomY - UPPER_H * SCALE;
 
+  // Backsplash area between counter and uppers
+  const backsplashTop = counterY - COUNTER_H * SCALE;
+  const backsplashBottom = upperBottomY;
+
   return (
-    <svg viewBox={`-20 -10 ${wallW + 50} ${totalH + 20}`} data-pdf="elevation"
-      style={{ width: '100%', height: 'auto', maxHeight: 400, background: COLORS.bg, borderRadius: 6, marginBottom: 12 }}
+    <svg viewBox={`-40 -20 ${wallW + 100} ${totalH + 40}`} data-pdf="elevation"
+      style={{ width: '100%', height: 'auto', maxHeight: 500, background: COLORS.wallBg, borderRadius: 4, marginBottom: 16 }}
       xmlns="http://www.w3.org/2000/svg">
 
-      {/* Wall label */}
-      <text x={wallW / 2} y={0} fill={COLORS.text} fontSize={10} fontWeight="bold"
-        fontFamily="Inter, sans-serif" textAnchor="middle">
-        Wall {wallId} Elevation â {wallLength}"
+      {/* Wall label - clean, professional typography */}
+      <text x={wallW / 2} y={-8} fill={COLORS.dimText} fontSize={9} fontWeight={600}
+        fontFamily="'Helvetica', 'Arial', sans-serif" textAnchor="middle">
+        Wall {wallId} Elevation
       </text>
 
-      {/* Back wall */}
-      <rect x={0} y={upperTopY - 5} width={wallW} height={floorY - upperTopY + 5}
-        fill={COLORS.wallFill} stroke={COLORS.wall} strokeWidth={0.5} />
+      {/* Backsplash fill */}
+      {backsplashBottom < backsplashTop && (
+        <rect x={0} y={backsplashBottom} width={wallW} height={backsplashTop - backsplashBottom}
+          fill={COLORS.backsplash} stroke="none" opacity={0.4} />
+      )}
 
       {/* Floor line */}
-      <line x1={-10} y1={floorY} x2={wallW + 10} y2={floorY} stroke={COLORS.floor} strokeWidth={1.5} />
+      <line x1={-20} y1={floorY} x2={wallW + 20} y2={floorY}
+        stroke={COLORS.floor} strokeWidth={1.2} />
 
-      {/* Toekick zone */}
+      {/* Toe kick - dark recessed band */}
       <rect x={0} y={toekickY} width={wallW} height={TOEKICK_H * SCALE}
-        fill={COLORS.toekick} stroke="none" opacity={0.5} />
+        fill={COLORS.toekick} stroke={COLORS.floor} strokeWidth={0.4} />
 
-      {/* Counter line (where countertop sits) */}
+      {/* Countertop slab - solid with edge profile */}
       {bases.length > 0 && (() => {
-        const minX = Math.min(...bases.filter(b => typeof b.position === 'number').map(b => b.position * SCALE));
-        const maxX = Math.max(...bases.filter(b => typeof b.position === 'number').map(b => (b.position + b.width) * SCALE));
+        const validBases = bases.filter(b => typeof b.position === 'number');
+        if (validBases.length === 0) return null;
+        const minX = Math.min(...validBases.map(b => b.position * SCALE));
+        const maxX = Math.max(...validBases.map(b => (b.position + b.width) * SCALE));
         return (
-          <line x1={minX} y1={counterY} x2={maxX} y2={counterY}
-            stroke={COLORS.counter} strokeWidth={1.5} />
+          <g key="countertop">
+            {/* Countertop slab */}
+            <rect x={minX} y={counterY - COUNTER_H * SCALE} width={maxX - minX} height={COUNTER_H * SCALE}
+              fill={COLORS.counterFill} stroke={COLORS.counterStroke} strokeWidth={0.5} />
+            {/* Overhang shadow */}
+            <line x1={minX - 2} y1={counterY} x2={maxX + 2} y2={counterY}
+              stroke={COLORS.dimLine} strokeWidth={0.4} />
+            {/* Front edge detail */}
+            <line x1={minX} y1={counterY} x2={maxX} y2={counterY}
+              stroke={COLORS.counterStroke} strokeWidth={0.6} />
+          </g>
         );
       })()}
 
@@ -154,7 +351,6 @@ function WallElevation({ wallId, wallLength, bases, uppers, talls, appliances, h
         const w = cab.width * SCALE;
         const h = (cab.height || (BASE_H - TOEKICK_H)) * SCALE;
         const y = baseBottomY - h - TOEKICK_H * SCALE;
-        const { stroke, fill } = elevColor(cab.type, cab.sku);
 
         const isApp = cab.type === 'appliance';
         const sku = (cab.sku || cab.applianceType || '').replace(/^FC-/, '');
@@ -163,19 +359,22 @@ function WallElevation({ wallId, wallLength, bases, uppers, talls, appliances, h
 
         return (
           <g key={`base-${i}`}>
-            <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeWidth={0.8} rx={1} />
-            <DoorDetail x={x} y={y} w={w} h={h} doorCount={doorCount} drawerCount={drawerCount} type={cab.type} />
-            {/* SKU label */}
+            {isApp ? (
+              <ApplianceSymbol x={x} y={y} w={w} h={h} applianceType={cab.applianceType || 'unknown'} />
+            ) : (
+              <CabinetPanel x={x} y={y} w={w} h={h} doorCount={doorCount} drawerCount={drawerCount} />
+            )}
+            {/* Subtle SKU label below */}
             {w > 12 * SCALE && (
-              <text x={x + w / 2} y={y + h + TOEKICK_H * SCALE + 8} fill={COLORS.dim}
-                fontSize={5} fontFamily="monospace" textAnchor="middle" transform={`rotate(-90, ${x + w / 2}, ${y + h + TOEKICK_H * SCALE + 8})`}>
-                {sku.substring(0, 10)}
+              <text x={x + w / 2} y={y + h + TOEKICK_H * SCALE + 6} fill={COLORS.dimText}
+                fontSize={3.5} fontFamily="'Helvetica', 'Arial', sans-serif" textAnchor="middle" opacity={0.6}>
+                {sku.substring(0, 12)}
               </text>
             )}
-            {/* Width dim */}
-            {w > 15 * SCALE && (
-              <text x={x + w / 2} y={baseBottomY + 9} fill={COLORS.dim}
-                fontSize={5} fontFamily="Inter, sans-serif" textAnchor="middle">{cab.width}"</text>
+            {/* Width dimension above */}
+            {w > 18 * SCALE && (
+              <DimensionLine x1={x} y1={y - 5 * SCALE} x2={x + w} y2={y - 5 * SCALE}
+                label={`${cab.width}"`} position="above" offset={8} />
             )}
           </g>
         );
@@ -189,17 +388,18 @@ function WallElevation({ wallId, wallLength, bases, uppers, talls, appliances, h
         const h = (cab.height || UPPER_H) * SCALE;
         const y = upperBottomY - h;
         if (cab.type === 'end_panel' || cab.width < 1) return null;
-        const { stroke, fill } = elevColor(cab.type || 'wall', cab.sku);
         const sku = (cab.sku || '').replace(/^FC-/, '');
+        const doorCount = cab.width > 24 ? 2 : 1;
 
         return (
           <g key={`upper-${i}`}>
-            <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeWidth={0.8} rx={1} />
-            {/* Door detail */}
-            <DoorDetail x={x} y={y} w={w} h={h} doorCount={cab.width > 24 ? 2 : 1} drawerCount={0} type={cab.type} />
+            <CabinetPanel x={x} y={y} w={w} h={h} doorCount={doorCount} drawerCount={0} />
+            {/* Subtle SKU label */}
             {w > 12 * SCALE && (
-              <text x={x + w / 2} y={y + h / 2 + 2} fill={COLORS.text}
-                fontSize={5} fontFamily="monospace" textAnchor="middle">{sku.substring(0, 8)}</text>
+              <text x={x + w / 2} y={y + h + 5} fill={COLORS.dimText}
+                fontSize={3.5} fontFamily="'Helvetica', 'Arial', sans-serif" textAnchor="middle" opacity={0.6}>
+                {sku.substring(0, 12)}
+              </text>
             )}
           </g>
         );
@@ -211,118 +411,132 @@ function WallElevation({ wallId, wallLength, bases, uppers, talls, appliances, h
         const w = (cab.width || 18) * SCALE;
         const h = (cab.height || TALL_H) * SCALE;
         const y = floorY - h;
-        const { stroke, fill } = elevColor('tall', cab.sku);
         const sku = (cab.sku || '').replace(/^FC-/, '');
+        const doorCount = 1;
 
         return (
           <g key={`tall-${i}`}>
-            <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeWidth={0.8} rx={1} />
-            <text x={x + w / 2} y={y + h / 2 + 2} fill={COLORS.text}
-              fontSize={5} fontFamily="monospace" textAnchor="middle" writingMode="vertical-rl">{sku.substring(0, 12)}</text>
+            <CabinetPanel x={x} y={y} w={w} h={h} doorCount={doorCount} drawerCount={0} />
+            {/* Subtle SKU label */}
+            {w > 10 * SCALE && (
+              <text x={x + w / 2} y={y + h + 5} fill={COLORS.dimText}
+                fontSize={3.5} fontFamily="'Helvetica', 'Arial', sans-serif" textAnchor="middle" opacity={0.6}>
+                {sku.substring(0, 12)}
+              </text>
+            )}
           </g>
         );
       })}
 
-      {/* Range hood */}
+      {/* Range hood - trapezoidal with clean styling */}
       {hood && typeof hood.position === 'number' && (
         (() => {
           const x = hood.position * SCALE;
           const w = (hood.width || 36) * SCALE;
           const h = (hood.height || 24) * SCALE;
           const y = counterY - UPPER_GAP * SCALE - h;
+          const taperAmount = Math.min(5 * SCALE, w * 0.08);
+
           return (
-            <g>
-              {/* Trapezoidal hood shape */}
+            <g key="hood">
+              {/* Trapezoidal hood body with clean lines */}
               <polygon
-                points={`${x},${y + h} ${x + 4},${y} ${x + w - 4},${y} ${x + w},${y + h}`}
-                fill={COLORS.hoodFill} stroke={COLORS.hood} strokeWidth={0.8} />
-              <text x={x + w / 2} y={y + h / 2 + 2} fill={COLORS.hood}
-                fontSize={5} fontFamily="monospace" textAnchor="middle">HOOD</text>
+                points={`${x},${y + h} ${x + taperAmount},${y} ${x + w - taperAmount},${y} ${x + w},${y + h}`}
+                fill={COLORS.hoodFill} stroke={COLORS.hoodStroke} strokeWidth={0.6} />
+              {/* Subtle hood interior detail */}
+              <line x1={x + taperAmount + 2} y1={y + 2} x2={x + w - taperAmount - 2} y2={y + 2}
+                stroke={COLORS.hoodStroke} strokeWidth={0.3} opacity={0.4} />
+              {/* SKU label on hood */}
+              {w > 15 * SCALE && (
+                <text x={x + w / 2} y={y + h / 2 + 2} fill={COLORS.hoodStroke}
+                  fontSize={4} fontFamily="'Helvetica', 'Arial', sans-serif" textAnchor="middle" opacity={0.7}>
+                  HOOD
+                </text>
+              )}
             </g>
           );
         })()
       )}
 
-      {/* ââ TRIM & MOLDING ââ */}
-      {/* Crown molding â decorative strip at top of uppers */}
+      {/* TRIM & MOLDING */}
+      {/* Crown molding - elegant profile */}
       {trim.crown && uppers.length > 0 && (() => {
         const upperPositions = uppers.filter(u => typeof u.position === 'number');
         if (upperPositions.length === 0) return null;
         const minX = Math.min(...upperPositions.map(u => u.position * SCALE));
         const maxX = Math.max(...upperPositions.map(u => (u.position + u.width) * SCALE));
-        const crownH = 3.5 * SCALE;
+        const crownH = 3 * SCALE;
         const crownY = upperTopY - crownH;
         return (
-          <g>
-            <rect x={minX - 1} y={crownY} width={maxX - minX + 2} height={crownH}
-              fill="#c8b090" stroke="#a89870" strokeWidth={0.5} />
-            {/* Profile lines */}
-            <line x1={minX - 1} y1={crownY + crownH * 0.3} x2={maxX + 1} y2={crownY + crownH * 0.3}
-              stroke="#b8a080" strokeWidth={0.3} />
-            <line x1={minX - 1} y1={crownY + crownH * 0.65} x2={maxX + 1} y2={crownY + crownH * 0.65}
-              stroke="#b8a080" strokeWidth={0.3} />
-            <text x={maxX + 6} y={crownY + crownH / 2 + 1.5} fill={COLORS.dim}
-              fontSize={4} fontFamily="Inter, sans-serif">Crown</text>
+          <g key="crown">
+            {/* Crown base */}
+            <rect x={minX} y={crownY} width={maxX - minX} height={crownH}
+              fill={COLORS.crownFill} stroke={COLORS.crownStroke} strokeWidth={0.5} />
+            {/* Molding profile detail */}
+            <path d={`M ${minX} ${crownY + crownH * 0.4} Q ${minX + 2} ${crownY + crownH * 0.2}, ${minX + 6} ${crownY}`}
+              stroke={COLORS.crownStroke} strokeWidth={0.3} fill="none" opacity={0.5} />
+            <line x1={minX} y1={crownY + crownH * 0.65} x2={maxX} y2={crownY + crownH * 0.65}
+              stroke={COLORS.crownStroke} strokeWidth={0.3} opacity={0.4} />
           </g>
         );
       })()}
 
-      {/* Light rail â thin strip under upper cabinets */}
+      {/* Light rail - thin elegant strip */}
       {trim.lightRail && uppers.length > 0 && (() => {
         const upperPositions = uppers.filter(u => typeof u.position === 'number');
         if (upperPositions.length === 0) return null;
         const minX = Math.min(...upperPositions.map(u => u.position * SCALE));
         const maxX = Math.max(...upperPositions.map(u => (u.position + u.width) * SCALE));
-        const lrH = 1.75 * SCALE;
+        const lrH = 1.2 * SCALE;
         return (
-          <g>
+          <g key="lightRail">
             <rect x={minX} y={upperBottomY} width={maxX - minX} height={lrH}
-              fill="#a89870" stroke="#907848" strokeWidth={0.4} />
-            <text x={maxX + 6} y={upperBottomY + lrH / 2 + 1.5} fill={COLORS.dim}
-              fontSize={4} fontFamily="Inter, sans-serif">LR</text>
+              fill={COLORS.lightRail} stroke={COLORS.crownStroke} strokeWidth={0.35} />
+            <line x1={minX} y1={upperBottomY + lrH * 0.5} x2={maxX} y2={upperBottomY + lrH * 0.5}
+              stroke={COLORS.crownStroke} strokeWidth={0.2} opacity={0.5} />
           </g>
         );
       })()}
 
-      {/* Traditional trim â red accent line at counter level */}
+      {/* Traditional trim - subtle accent */}
       {trim.traditionalTrim && bases.length > 0 && (() => {
         const basePositions = bases.filter(b => typeof b.position === 'number');
         if (basePositions.length === 0) return null;
         const minX = Math.min(...basePositions.map(b => b.position * SCALE));
         const maxX = Math.max(...basePositions.map(b => (b.position + b.width) * SCALE));
-        const trimH = 0.875 * SCALE;
+        const trimH = 1.5 * SCALE;
         return (
-          <rect x={minX} y={counterY - COUNTER_H * SCALE - trimH} width={maxX - minX} height={trimH}
-            fill="#c44" stroke="none" />
+          <rect key="traditionalTrim" x={minX} y={counterY - COUNTER_H * SCALE - trimH} width={maxX - minX} height={trimH}
+            fill={COLORS.crownFill} stroke={COLORS.crownStroke} strokeWidth={0.35} opacity={0.8} />
         );
       })()}
 
-      {/* Height dimensions (right side) */}
-      <g>
-        {/* Base height */}
-        <line x1={wallW + 8} y1={baseBottomY} x2={wallW + 8} y2={baseTopY} stroke={COLORS.dimLine} strokeWidth={0.5} />
-        <text x={wallW + 12} y={(baseBottomY + baseTopY) / 2 + 2} fill={COLORS.dim}
-          fontSize={5} fontFamily="Inter, sans-serif">{BASE_H}"</text>
+      {/* HEIGHT DIMENSIONS - Right side with tick marks */}
+      <g key="dimensions">
+        {/* Base cabinet height */}
+        <DimensionLine x1={wallW + 16} y1={baseBottomY} x2={wallW + 16} y2={baseTopY}
+          label={`${BASE_H}"`} position="right" offset={12} />
 
-        {/* Counter */}
-        <line x1={wallW + 4} y1={counterY} x2={wallW + 18} y2={counterY} stroke={COLORS.counter} strokeWidth={0.3} strokeDasharray="2,2" />
-        <text x={wallW + 12} y={counterY - 2} fill={COLORS.counter}
-          fontSize={4} fontFamily="Inter, sans-serif">36" AFF</text>
+        {/* Counter height AFF */}
+        <line x1={wallW + 8} y1={counterY} x2={wallW + 22} y2={counterY}
+          stroke={COLORS.dimLine} strokeWidth={0.4} strokeDasharray="1.5,1.5" />
+        <text x={wallW + 26} y={counterY + 1.5} fill={COLORS.dimText}
+          fontSize={4} fontFamily="'Helvetica', 'Arial', sans-serif">36" AFF</text>
 
-        {/* Upper bottom line */}
+        {/* Upper cabinet bottom AFF */}
         {uppers.length > 0 && (
           <>
-            <line x1={wallW + 4} y1={upperBottomY} x2={wallW + 18} y2={upperBottomY} stroke={COLORS.dimLine} strokeWidth={0.3} strokeDasharray="2,2" />
-            <text x={wallW + 12} y={upperBottomY - 2} fill={COLORS.dim}
-              fontSize={4} fontFamily="Inter, sans-serif">54" AFF</text>
+            <line x1={wallW + 8} y1={upperBottomY} x2={wallW + 22} y2={upperBottomY}
+              stroke={COLORS.dimLine} strokeWidth={0.4} strokeDasharray="1.5,1.5" />
+            <text x={wallW + 26} y={upperBottomY + 1.5} fill={COLORS.dimText}
+              fontSize={4} fontFamily="'Helvetica', 'Arial', sans-serif">54" AFF</text>
           </>
         )}
       </g>
 
       {/* Overall width dimension below */}
-      <line x1={0} y1={floorY + 16} x2={wallW} y2={floorY + 16} stroke={COLORS.dim} strokeWidth={0.5} />
-      <text x={wallW / 2} y={floorY + 24} fill={COLORS.dim}
-        fontSize={6} fontFamily="Inter, sans-serif" textAnchor="middle">{wallLength}"</text>
+      <DimensionLine x1={0} y1={floorY + 22} x2={wallW} y2={floorY + 22}
+        label={`${wallLength}"`} position="below" offset={10} />
     </svg>
   );
 }
