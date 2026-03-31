@@ -3253,3 +3253,39 @@ function buildValidationInput(wallLayouts, islandLayout, appliances, corners, ro
     toeKickHeight: 4.5,          // Standard 4.5", ADA 9"
   };
 }
+
+export function scoreAgainstTraining(result) {
+  if (!result || !result.walls) return { confidence: 0, bestMatch: 'N/A', matches: [] };
+  const placements = result.walls.flatMap(w => w.placements || []);
+  const totalCabs = placements.length;
+  const hasIsland = !!(result.island && result.island.placements && result.island.placements.length > 0);
+  const wallCount = result.walls.length;
+  const layoutType = result.layoutType || (wallCount >= 3 ? 'u-shape' : wallCount === 2 ? 'l-shape' : 'single-wall');
+  const isGola = !!(result.prefs && result.prefs.golaChannel);
+  const trainingProjects = [
+    { name: 'Project 1 \u2013 L-Shape Traditional', layout: 'l-shape', cabRange: [20, 35], island: false, gola: false },
+    { name: 'Project 2 \u2013 U-Shape Gola', layout: 'u-shape', cabRange: [30, 50], island: true, gola: true },
+    { name: 'Project 3 \u2013 Galley Modern', layout: 'galley', cabRange: [18, 30], island: false, gola: false },
+    { name: 'Project 4 \u2013 L-Shape + Island', layout: 'l-shape', cabRange: [25, 45], island: true, gola: false },
+    { name: 'Project 5 \u2013 Single Wall Compact', layout: 'single-wall', cabRange: [8, 18], island: false, gola: false },
+    { name: 'Project 6 \u2013 Peninsula Layout', layout: 'peninsula', cabRange: [22, 38], island: true, gola: false },
+    { name: 'Project 7 \u2013 U-Shape Traditional', layout: 'u-shape', cabRange: [28, 48], island: false, gola: false },
+  ];
+  const scored = trainingProjects.map(tp => {
+    let s = 0;
+    if (tp.layout === layoutType) s += 40;
+    else if ((tp.layout === 'l-shape' && layoutType === 'u-shape') || (tp.layout === 'u-shape' && layoutType === 'l-shape')) s += 20;
+    if (totalCabs >= tp.cabRange[0] && totalCabs <= tp.cabRange[1]) s += 30;
+    else { const dist = Math.min(Math.abs(totalCabs - tp.cabRange[0]), Math.abs(totalCabs - tp.cabRange[1])); s += Math.max(0, 30 - dist * 3); }
+    if (tp.island === hasIsland) s += 20;
+    if (tp.gola === isGola) s += 10;
+    return { name: tp.name, score: Math.min(100, s) };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return {
+    confidence: scored[0].score,
+    bestMatch: scored[0].name,
+    matches: scored,
+    golaCompliance: isGola ? { isGola: true, fcPrefix: placements.some(p => (p.sku || '').startsWith('FC-')), noUppers: !placements.some(p => (p.zone || p.type || '').toLowerCase().includes('upper')), b2td: placements.some(p => (p.zone || p.type || '').toLowerCase().includes('tall')) } : { isGola: false },
+  };
+}
