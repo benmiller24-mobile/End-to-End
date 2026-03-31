@@ -307,7 +307,7 @@ function ApplianceBrandPicker({ selectedAppliances, onChange }) {
   const [activeBrand, setActiveBrand] = useState('subzero');
   const [activeType, setActiveType] = useState('');
 
-  const brandIds = Object.keys(APPLIANCE_BRANDS);
+  const brandIds = APPLIANCE_BRANDS.map(b => b.id);
   const brandAppliances = APPLIANCES.filter(a => a.brand === activeBrand && (!activeType || a.type === activeType));
   const typesForBrand = [...new Set(APPLIANCES.filter(a => a.brand === activeBrand).map(a => a.type))];
 
@@ -1015,6 +1015,15 @@ export default function App() {
       if (peninsula) input.peninsula = peninsula;
 
       const result = solve(input);
+
+      // Bridge: ensure _inputWalls exists for FloorPlanView/ElevationView
+      if (!result._inputWalls) {
+        result._inputWalls = walls.map(w => ({ id: w.id, length: w.length }));
+      }
+      if (result.walls && result.walls[0] && !result.walls[0].id) {
+        result.walls.forEach(w => { w.id = w.wallId; w.length = w.wallLength; });
+      }
+
       setSolverResult(result);
 
       const score = scoreAgainstTraining(result);
