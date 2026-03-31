@@ -1,312 +1,329 @@
 import React, { useMemo } from 'react';
 
 /**
- * FloorPlanView — Installer-Grade Architectural Kitchen Floor Plan (NKBA Standards)
- * Shows walls, base cabinets, upper cabinets, appliances, island/peninsula, and comprehensive dimensions.
- * Professional architectural drawing style with proper corner cabinet positioning at wall junctions.
- * Renders at 1 inch = 1 SVG unit, then scales to fit viewport.
+ * FloorPlanView - Professional Architectural Kitchen Floor Plan (NKBA Standards)
  *
- * KEY FEATURES:
- * - Corner cabinets positioned at actual wall junctions (not floating)
- * - Every cabinet width labeled (NKBA requirement)
- * - Overall wall lengths with dimension lines outside walls
- * - Aisle widths, island clearances, room dimensions
- * - Upper cabinets shown as dashed outlines (architectural convention)
- * - Appliance symbols per NKBA plan view standards
+ * White background, solid thick walls, every cabinet numbered with diamond tags,
+ * dimension strings on ALL sides, door swing arcs, dashed lines for upper cabinets,
+ * appliance symbols per NKBA plan view standards.
+ *
+ * Data flow:
+ *   solverResult.placements  -> all items with wall, position, width, type, sku, applianceType
+ *   solverResult.uppers      -> [{wallId, cabinets:[...]}]
+ *   solverResult.corners     -> [{wallA, wallB, sku, size}]
+ *   solverResult._inputWalls -> [{id, length, ceilingHeight}]
+ *   solverResult.island      -> {length, depth, ...}
+ *   solverResult.peninsula   -> {length, depth, ...}
  */
 
-const COLORS = {
-  // Warm architectural palette — like a printed drawing
-  wallFill: '#2b2b2b',      // Dark charcoal wall fill
-  wallStroke: '#1a1a1a',    // Nearly black wall outline
-  cabinetStroke: '#555555', // Medium gray cabinet outlines
-  cabinetFill: '#f5f5f0',   // Warm off-white cabinet fill
-  cabinetUpperFill: '#f5f5f0', // Same for uppers (dashed stroke distinguishes)
-  appliance: '#d4af37',     // Warm gold for appliance callouts
-  island: '#e8d5b7',        // Warm beige for island
-  islandStroke: '#a0826d',  // Warm brown for island outline
-  dimensionLine: '#666666', // Medium gray for dimension lines
-  dimensionText: '#333333', // Dark gray for numbers
-  text: '#1a1a1a',          // Dark gray for labels
-  bg: '#fafaf8',            // Warm off-white background (like paper)
+// ─── CONSTANTS ────────────────────────────────────────────────────────
+const WALL_T = 6;       // wall thickness (inches = SVG units, 1:1 scale)
+const BASE_D = 24;      // base cabinet depth
+const UPPER_D = 13;     // upper cabinet depth
+const AISLE = 42;       // NKBA min work aisle
+
+const C = {
+  bg:        '#ffffff',
+  wallFill:  '#222222',
+  wallStroke:'#111111',
+  cabStroke: '#444444',
+  cabFill:   '#fafafa',
+  upperFill: '#fafafa',
+  dimLine:   '#444444',
+  dimText:   '#333333',
+  tagFill:   '#ffffff',
+  tagStroke: '#333333',
+  islandFill:'#f0ede8',
+  islandStroke:'#888888',
+  appStroke: '#555555',
 };
 
-// Appliance symbols
-const APPLIANCE_SYMBOLS = {
-  range: 'drawRange',
-  cooktop: 'drawCooktop',
-  refrigerator: 'drawFridge',
-  dishwasher: 'drawDishwasher',
-  sink: 'drawSink',
-  wallOven: 'drawWallOven',
-};
+// ─── HELPERS ──────────────────────────────────────────────────────────
 
-const WALL_THICKNESS = 6;
-const BASE_DEPTH = 24;
-const UPPER_DEPTH = 13;
-
-// Get fill color based on cabinet type
-function getCabinetFill(type, sku) {
-  if (sku && /^[WS]/.test(sku)) return COLORS.cabinetUpperFill;
-  if (type === 'tall') return COLORS.cabinetFill;
-  return COLORS.cabinetFill;
-}
-
-// Draw appliance symbols in plan view
-function DrawAppliance({ x, y, w, d, applianceType }) {
-  const symbolProps = { x, y, width: w, height: d, fill: COLORS.cabinetFill, stroke: COLORS.cabinetStroke, strokeWidth: 0.6 };
-
-  switch (applianceType) {
-    case 'range':
-    case 'cooktop':
-      // 4 burner circles arranged in a grid
-      return (
-        <g>
-          <rect {...symbolProps} rx={1} />
-          <circle cx={x + w / 4} cy={y + d / 4} r={1.5} fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.4} />
-          <circle cx={x + 3 * w / 4} cy={y + d / 4} r={1.5} fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.4} />
-          <circle cx={x + w / 4} cy={y + 3 * d / 4} r={1.5} fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.4} />
-          <circle cx={x + 3 * w / 4} cy={y + 3 * d / 4} r={1.5} fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.4} />
-        </g>
-      );
-
-    case 'refrigerator':
-      // Rectangle with door swing arc
-      return (
-        <g>
-          <rect {...symbolProps} rx={1} />
-          {/* Door swing arc */}
-          <path d={`M ${x + w} ${y + 2} A ${w - 2} ${w - 2} 0 0 1 ${x + w} ${y + d - 2}`}
-            fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.4} opacity={0.6} />
-        </g>
-      );
-
-    case 'sink':
-      // Single or double basin — oval/circular shape
-      if (w > d + 5) {
-        // Double sink (wider)
-        return (
-          <g>
-            <rect {...symbolProps} rx={1} />
-            <ellipse cx={x + w / 3} cy={y + d / 2} rx={w / 6} ry={d / 3} fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.5} />
-            <ellipse cx={x + 2 * w / 3} cy={y + d / 2} rx={w / 6} ry={d / 3} fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.5} />
-          </g>
-        );
-      } else {
-        // Single sink
-        return (
-          <g>
-            <rect {...symbolProps} rx={1} />
-            <ellipse cx={x + w / 2} cy={y + d / 2} rx={w / 3} ry={d / 2.5} fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.5} />
-          </g>
-        );
-      }
-
-    case 'dishwasher':
-      // Rectangle with horizontal line (rack indicator)
-      return (
-        <g>
-          <rect {...symbolProps} rx={1} />
-          <line x1={x + 1} y1={y + d / 2} x2={x + w - 1} y2={y + d / 2} stroke={COLORS.cabinetStroke} strokeWidth={0.4} opacity={0.6} />
-        </g>
-      );
-
-    case 'wallOven':
-      // Rectangle with thin lines (heating element indicator)
-      return (
-        <g>
-          <rect {...symbolProps} rx={1} />
-          <line x1={x + 2} y1={y + d / 3} x2={x + w - 2} y2={y + d / 3} stroke={COLORS.cabinetStroke} strokeWidth={0.3} opacity={0.5} />
-          <line x1={x + 2} y1={y + 2 * d / 3} x2={x + w - 2} y2={y + 2 * d / 3} stroke={COLORS.cabinetStroke} strokeWidth={0.3} opacity={0.5} />
-        </g>
-      );
-
-    default:
-      // Generic appliance
-      return <rect {...symbolProps} rx={1} />;
-  }
-}
-
-// Dimension line with tick marks (architectural style, no arrows)
-function DimLine({ x1, y1, x2, y2, label, offset = 20, flip = false }) {
-  const dx = x2 - x1, dy = y2 - y1;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  if (len < 10) return null;
-
-  const nx = -dy / len, ny = dx / len;
-  const dir = flip ? -1 : 1;
-  const ox = nx * offset * dir, oy = ny * offset * dir;
-
-  const sx = x1 + ox, sy = y1 + oy;
-  const ex = x2 + ox, ey = y2 + oy;
-  const mx = (sx + ex) / 2, my = (sy + ey) / 2;
-
-  const angle = Math.atan2(ey - sy, ex - sx) * 180 / Math.PI;
-  const textAngle = angle > 90 || angle < -90 ? angle + 180 : angle;
-
-  // Tick mark size
-  const tickSize = 2;
-  const tickX1 = -nx * tickSize, tickY1 = -ny * tickSize;
-
+/** Numbered diamond tag */
+function Tag({ cx, cy, num }) {
+  const r = 4.5;
   return (
     <g>
-      {/* Extension lines */}
-      <line x1={x1} y1={y1} x2={sx} y2={sy} stroke={COLORS.dimensionLine} strokeWidth={0.3} opacity={0.7} />
-      <line x1={x2} y1={y2} x2={ex} y2={ey} stroke={COLORS.dimensionLine} strokeWidth={0.3} opacity={0.7} />
-      {/* Dimension line */}
-      <line x1={sx} y1={sy} x2={ex} y2={ey} stroke={COLORS.dimensionLine} strokeWidth={0.4} />
-      {/* Tick marks at ends */}
-      <line x1={sx + tickX1} y1={sy + tickY1} x2={sx - tickX1} y2={sy - tickY1} stroke={COLORS.dimensionLine} strokeWidth={0.3} />
-      <line x1={ex + tickX1} y1={ey + tickY1} x2={ex - tickX1} y2={ey - tickY1} stroke={COLORS.dimensionLine} strokeWidth={0.3} />
-      {/* Label */}
-      <text x={mx} y={my - 3} fill={COLORS.dimensionText} fontSize={6} fontFamily="Arial, sans-serif" textAnchor="middle"
-        transform={`rotate(${textAngle}, ${mx}, ${my - 3})`}>{label}</text>
+      <polygon
+        points={`${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`}
+        fill={C.tagFill} stroke={C.tagStroke} strokeWidth={0.45} />
+      <text x={cx} y={cy + 1.5} fill={C.dimText}
+        fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif"
+        textAnchor="middle" fontWeight="600">{num}</text>
     </g>
   );
 }
 
-// Single wall cabinets and uppers rendered in plan view (NKBA architectural style)
-function WallCabinets({ wallX, wallY, wallAngle, wallLength, placements, wallId, isVertical = false }) {
-  // Separate base/tall/appliance cabinets from uppers
-  const baseCabs = placements.filter(p =>
-    p.wall === wallId && typeof p.position === 'number' && p.position >= 0 && p.width > 1
-    && (p.type === 'base' || p.type === 'tall' || p.type === 'appliance' || (!p.type && p.sku && !/^[WS]/.test(p.sku)))
+/** Horizontal dimension line with ticks and label */
+function HDim({ x1, x2, y, label, above = true }) {
+  const len = Math.abs(x2 - x1);
+  if (len < 6) return null;
+  const ly = above ? y - 3.5 : y + 5;
+  return (
+    <g>
+      <line x1={x1} y1={y} x2={x2} y2={y} stroke={C.dimLine} strokeWidth={0.4} />
+      <line x1={x1} y1={y - 2} x2={x1} y2={y + 2} stroke={C.dimLine} strokeWidth={0.4} />
+      <line x1={x2} y1={y - 2} x2={x2} y2={y + 2} stroke={C.dimLine} strokeWidth={0.4} />
+      <text x={(x1 + x2) / 2} y={ly} fill={C.dimText}
+        fontSize={4.5} fontFamily="Helvetica,Arial,sans-serif"
+        textAnchor="middle" fontWeight="500">{label}</text>
+    </g>
   );
+}
 
-  const upperCabs = placements.filter(p =>
-    p.wall === wallId && typeof p.position === 'number' && p.position >= 0 && p.width > 1
-    && p.sku && /^[WS]/.test(p.sku)
+/** Vertical dimension line with ticks and label */
+function VDim({ y1, y2, x, label, left = true }) {
+  const len = Math.abs(y2 - y1);
+  if (len < 6) return null;
+  const lx = left ? x - 5 : x + 5;
+  const my = (y1 + y2) / 2;
+  return (
+    <g>
+      <line x1={x} y1={y1} x2={x} y2={y2} stroke={C.dimLine} strokeWidth={0.4} />
+      <line x1={x - 2} y1={y1} x2={x + 2} y2={y1} stroke={C.dimLine} strokeWidth={0.4} />
+      <line x1={x - 2} y1={y2} x2={x + 2} y2={y2} stroke={C.dimLine} strokeWidth={0.4} />
+      <text x={lx} y={my + 1.5} fill={C.dimText}
+        fontSize={4.2} fontFamily="Helvetica,Arial,sans-serif"
+        textAnchor="middle" fontWeight="500"
+        transform={`rotate(-90, ${lx}, ${my + 1.5})`}>{label}</text>
+    </g>
   );
+}
+
+/** Plan view appliance symbol */
+function PlanAppliance({ x, y, w, d, aType }) {
+  const props = { x, y, width: w, height: d, fill: C.cabFill, stroke: C.cabStroke, strokeWidth: 0.5 };
+
+  if (aType === 'range' || aType === 'cooktop') {
+    return (
+      <g>
+        <rect {...props} />
+        <circle cx={x + w * 0.3} cy={y + d * 0.3} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.3} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.3} cy={y + d * 0.7} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.7} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+      </g>
+    );
+  }
+  if (aType === 'refrigerator') {
+    return (
+      <g>
+        <rect {...props} />
+        <path d={`M ${x + w} ${y + 2} A ${w - 2} ${w - 2} 0 0 1 ${x + w} ${y + d - 2}`}
+          fill="none" stroke={C.appStroke} strokeWidth={0.3} opacity={0.5} />
+      </g>
+    );
+  }
+  if (aType === 'sink') {
+    return (
+      <g>
+        <rect {...props} />
+        {w > d + 4 ? (
+          <>
+            <ellipse cx={x + w / 3} cy={y + d / 2} rx={w / 7} ry={d / 3} fill="none" stroke={C.appStroke} strokeWidth={0.4} />
+            <ellipse cx={x + 2 * w / 3} cy={y + d / 2} rx={w / 7} ry={d / 3} fill="none" stroke={C.appStroke} strokeWidth={0.4} />
+          </>
+        ) : (
+          <ellipse cx={x + w / 2} cy={y + d / 2} rx={w / 3} ry={d / 2.8} fill="none" stroke={C.appStroke} strokeWidth={0.4} />
+        )}
+      </g>
+    );
+  }
+  if (aType === 'dishwasher') {
+    return (
+      <g>
+        <rect {...props} />
+        <line x1={x + 1} y1={y + d / 2} x2={x + w - 1} y2={y + d / 2}
+          stroke={C.appStroke} strokeWidth={0.3} opacity={0.5} />
+      </g>
+    );
+  }
+  return <rect {...props} />;
+}
+
+/** Door swing arc (quarter circle from hinge point) */
+function DoorSwing({ x, y, w, d }) {
+  if (w < 12) return null;
+  // Arc from bottom-left corner outward
+  return (
+    <path d={`M ${x + 0.5} ${y + d} A ${w - 1} ${w - 1} 0 0 0 ${x + w - 0.5} ${y + d}`}
+      fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+  );
+}
+
+// ─── WALL SEGMENT RENDERER ───────────────────────────────────────────
+
+function WallSegment({ wx, wy, angle, length, placements, upperCabs, wallId }) {
+  // Filter base/tall/appliance cabs for this wall
+  const bases = placements.filter(p =>
+    p.wall === wallId && typeof p.position === 'number' && p.position >= 0 && p.width > 0
+    && (p.type === 'base' || p.type === 'tall' || p.type === 'appliance')
+  ).sort((a, b) => a.position - b.position);
+
+  // Filter upper cabs for this wall
+  const uppers = (upperCabs || []).filter(u =>
+    typeof u.position === 'number' && u.position >= 0 && u.width > 0
+  ).sort((a, b) => a.position - b.position);
 
   return (
-    <g transform={`translate(${wallX}, ${wallY}) rotate(${wallAngle})`}>
-      {/* Wall — solid fill with outline */}
-      <rect x={0} y={-WALL_THICKNESS / 2} width={wallLength} height={WALL_THICKNESS}
-        fill={COLORS.wallFill} stroke={COLORS.wallStroke} strokeWidth={0.5} />
+    <g transform={`translate(${wx}, ${wy}) rotate(${angle})`}>
+      {/* ── WALL ── thick solid fill */}
+      <rect x={0} y={-WALL_T / 2} width={length} height={WALL_T}
+        fill={C.wallFill} stroke={C.wallStroke} strokeWidth={0.5} />
 
-      {/* Base + tall cabinets along wall (drawn below wall = positive Y) */}
-      {baseCabs.map((cab, i) => {
+      {/* ── BASE CABINETS ── solid outline, below wall */}
+      {bases.map((cab, i) => {
         const x = cab.position;
         const w = cab.width;
-        const d = cab.depth || (cab.type === 'tall' ? 24 : BASE_DEPTH);
-        const fill = getCabinetFill(cab.type, cab.sku);
-        const label = (cab.sku || cab.applianceType || '').replace(/^FC-/, '').substring(0, 10);
-        const isAppliance = cab.type === 'appliance' || !!cab.applianceType;
-        const isTall = cab.type === 'tall' || d > BASE_DEPTH + 2;
+        const d = cab.depth || (cab.type === 'tall' ? 24 : BASE_D);
+        const isApp = cab.type === 'appliance' || !!cab.applianceType;
+        const isTall = cab.type === 'tall';
 
         return (
-          <g key={`${wallId}-base-${i}`}>
-            {isAppliance ? (
-              // Appliance symbol with plan view conventions
-              <DrawAppliance x={x} y={WALL_THICKNESS / 2} w={w} d={d} applianceType={cab.applianceType} />
+          <g key={`base-${i}`}>
+            {isApp ? (
+              <PlanAppliance x={x} y={WALL_T / 2} w={w} d={d} aType={cab.applianceType} />
             ) : (
-              // Cabinet rect with solid outline
-              <rect x={x} y={WALL_THICKNESS / 2} width={w} height={d}
-                fill={fill} stroke={COLORS.cabinetStroke} strokeWidth={0.6} rx={0.3} />
+              <>
+                <rect x={x} y={WALL_T / 2} width={w} height={d}
+                  fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.5} />
+                {/* Door swing arc for regular base cabs */}
+                {!isTall && <DoorSwing x={x} y={WALL_T / 2} w={w} d={d} />}
+              </>
             )}
 
-            {/* Cabinet width label — inside cabinet if space, otherwise below */}
-            {w >= 12 && !isAppliance && (
-              <text x={x + w / 2} y={WALL_THICKNESS / 2 + d / 2 + 1.5} fill={COLORS.dimensionText}
-                fontSize={4} fontFamily="Arial, sans-serif" textAnchor="middle" fontWeight="500">{w}"</text>
+            {/* Width label inside */}
+            {w >= 12 && (
+              <text x={x + w / 2} y={WALL_T / 2 + d / 2 + 1.2} fill={C.dimText}
+                fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="500">{w}"</text>
             )}
 
-            {/* Appliance label with callout */}
-            {isAppliance && w >= 10 && (
-              <g>
-                <circle cx={x + w / 2} cy={WALL_THICKNESS / 2 + d + 5} r={2.8} fill={COLORS.appliance} opacity={0.25} />
-                <circle cx={x + w / 2} cy={WALL_THICKNESS / 2 + d + 5} r={2.8} fill="none" stroke={COLORS.appliance} strokeWidth={0.35} />
-                <text x={x + w / 2} y={WALL_THICKNESS / 2 + d + 5.5} fill={COLORS.appliance}
-                  fontSize={3.5} fontFamily="Arial, sans-serif" fontWeight="bold" textAnchor="middle">{label}</text>
-              </g>
-            )}
-
-            {/* Door swing arc for base cabinets (quarter-circle from hinge side) */}
-            {cab.type === 'base' && w >= 15 && !isAppliance && !isTall && (
-              <path d={`M ${x + 0.5} ${WALL_THICKNESS / 2 + 0.5} A ${w - 1} ${w - 1} 0 0 1 ${x + w - 0.5} ${WALL_THICKNESS / 2 + 0.5}`}
-                fill="none" stroke={COLORS.cabinetStroke} strokeWidth={0.25} opacity={0.5} />
-            )}
-
-            {/* Mark tall cabinets with label */}
-            {isTall && w >= 12 && (
-              <text x={x + 0.5} y={WALL_THICKNESS / 2 + 2.5} fill={COLORS.dimensionText}
-                fontSize={3} fontFamily="Arial, sans-serif" fontStyle="italic" opacity={0.7}>T</text>
+            {/* Tall marker */}
+            {isTall && (
+              <text x={x + 1} y={WALL_T / 2 + 4} fill={C.dimText}
+                fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
+                fontStyle="italic" opacity={0.6}>TALL</text>
             )}
           </g>
         );
       })}
 
-      {/* Upper cabinets — shown as DASHED outline (architectural convention for elements above plan view) */}
-      {upperCabs.map((cab, i) => {
+      {/* ── UPPER CABINETS ── dashed outline, behind wall */}
+      {uppers.map((cab, i) => {
         const x = cab.position;
         const w = cab.width;
-        const upperOffsetY = -WALL_THICKNESS / 2 - UPPER_DEPTH - 3; // Behind/above wall
-        const fill = getCabinetFill('upper', cab.sku);
-        const label = cab.sku.replace(/^[WS]-/, '').substring(0, 8);
-
+        const uy = -WALL_T / 2 - UPPER_D - 2;
         return (
-          <g key={`${wallId}-upper-${i}`}>
-            {/* Dashed rectangle for upper cabinet */}
-            <rect x={x} y={upperOffsetY} width={w} height={UPPER_DEPTH}
-              fill={fill} stroke={COLORS.cabinetStroke} strokeWidth={0.5} strokeDasharray="2,2" rx={0.3} />
-
-            {/* Width label for upper */}
+          <g key={`upper-${i}`}>
+            <rect x={x} y={uy} width={w} height={UPPER_D}
+              fill={C.upperFill} stroke={C.cabStroke} strokeWidth={0.4}
+              strokeDasharray="2.5,2" />
             {w >= 12 && (
-              <text x={x + w / 2} y={upperOffsetY + UPPER_DEPTH / 2 + 1} fill={COLORS.dimensionText}
-                fontSize={3.5} fontFamily="Arial, sans-serif" textAnchor="middle" opacity={0.8}>{w}"</text>
+              <text x={x + w / 2} y={uy + UPPER_D / 2 + 1} fill={C.dimText}
+                fontSize={3} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" opacity={0.6}>{w}"</text>
             )}
           </g>
         );
       })}
 
-      {/* Wall dimension line — outside/above wall, with tick marks and label */}
-      <DimLine x1={0} y1={-WALL_THICKNESS / 2 - 16} x2={wallLength} y2={-WALL_THICKNESS / 2 - 16}
-        label={`${wallLength}"`} offset={0} flip={false} />
+      {/* ── WALL DIMENSION ── above wall */}
+      <HDim x1={0} x2={length} y={-WALL_T / 2 - UPPER_D - 14} label={`${length}"`} above={true} />
+
+      {/* ── INDIVIDUAL CABINET WIDTHS ── dimension string below cabinets */}
+      {bases.length > 0 && (() => {
+        const dimY = WALL_T / 2 + BASE_D + 10;
+        const els = [];
+        const first = bases[0].position;
+        const lastCab = bases[bases.length - 1];
+        const end = lastCab.position + lastCab.width;
+
+        // Continuous line
+        els.push(<line key="cl" x1={first} y1={dimY} x2={end} y2={dimY}
+          stroke={C.dimLine} strokeWidth={0.35} />);
+
+        bases.forEach((cab, i) => {
+          const lx = cab.position;
+          const rx = cab.position + cab.width;
+          // Ticks
+          els.push(<line key={`tl${i}`} x1={lx} y1={dimY - 2} x2={lx} y2={dimY + 2}
+            stroke={C.dimLine} strokeWidth={0.35} />);
+          if (i === bases.length - 1) {
+            els.push(<line key={`tr${i}`} x1={rx} y1={dimY - 2} x2={rx} y2={dimY + 2}
+              stroke={C.dimLine} strokeWidth={0.35} />);
+          }
+          // Extension lines
+          els.push(<line key={`el${i}`} x1={lx} y1={WALL_T / 2 + (cab.depth || BASE_D)}
+            x2={lx} y2={dimY + 2} stroke={C.dimLine} strokeWidth={0.2} strokeDasharray="1,1" opacity={0.5} />);
+          if (i === bases.length - 1) {
+            els.push(<line key={`er${i}`} x1={rx} y1={WALL_T / 2 + (cab.depth || BASE_D)}
+              x2={rx} y2={dimY + 2} stroke={C.dimLine} strokeWidth={0.2} strokeDasharray="1,1" opacity={0.5} />);
+          }
+          // Width label
+          if (cab.width >= 8) {
+            els.push(
+              <text key={`wl${i}`} x={(lx + rx) / 2} y={dimY - 3} fill={C.dimText}
+                fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="500">{cab.width}"</text>
+            );
+          }
+        });
+        return els;
+      })()}
     </g>
   );
 }
+
+// ─── MAIN EXPORT ──────────────────────────────────────────────────────
 
 export default function FloorPlanView({ solverResult, inputWalls }) {
   if (!solverResult) return null;
 
   const walls = inputWalls || solverResult._inputWalls || [];
   const placements = solverResult.placements || [];
+  const upperData = solverResult.uppers || [];
   const layoutType = solverResult.layoutType || 'single-wall';
   const island = solverResult.island;
   const peninsula = solverResult.peninsula;
+  const corners = solverResult.corners || [];
 
-  // Calculate wall positions based on layout type
+  // Build upper cabs lookup by wallId
+  const uppersByWall = useMemo(() => {
+    const m = {};
+    upperData.forEach(u => { m[u.wallId] = u.cabinets || []; });
+    return m;
+  }, [upperData]);
+
+  // Calculate wall positions based on layout
   const wallPositions = useMemo(() => {
-    const positions = [];
-    const margin = 80;
-    const WORK_AISLE_WIDTH = 42; // NKBA minimum work aisle width (inches)
+    const pos = [];
+    const margin = 70;
 
     if (walls.length === 1) {
-      // Single wall — horizontal
-      positions.push({ id: walls[0].id, x: margin, y: margin + 60, angle: 0, length: walls[0].length });
+      pos.push({ id: walls[0].id, x: margin, y: margin + 50, angle: 0, length: walls[0].length });
     } else if (walls.length === 2) {
       const wA = walls[0], wB = walls[1];
       if (layoutType === 'galley' || layoutType === 'galley-peninsula') {
-        // Parallel walls: A top, B bottom with work aisle between
-        positions.push({ id: wA.id, x: margin, y: margin + 60, angle: 0, length: wA.length });
-        positions.push({ id: wB.id, x: margin, y: margin + 60 + BASE_DEPTH + WORK_AISLE_WIDTH + BASE_DEPTH + WALL_THICKNESS, angle: 0, length: wB.length });
+        pos.push({ id: wA.id, x: margin, y: margin + 50, angle: 0, length: wA.length });
+        pos.push({ id: wB.id, x: margin, y: margin + 50 + BASE_D + AISLE + BASE_D + WALL_T, angle: 0, length: wB.length });
       } else {
-        // L-shape: A horizontal, B going down from right end of A
-        positions.push({ id: wA.id, x: margin, y: margin + 60, angle: 0, length: wA.length });
-        positions.push({ id: wB.id, x: margin + wA.length, y: margin + 60, angle: 90, length: wB.length });
+        // L-shape
+        pos.push({ id: wA.id, x: margin, y: margin + 50, angle: 0, length: wA.length });
+        pos.push({ id: wB.id, x: margin + wA.length, y: margin + 50, angle: 90, length: wB.length });
       }
     } else if (walls.length >= 3) {
       const wA = walls[0], wB = walls[1], wC = walls[2];
-      // U-shape: A horizontal top, B down right, C horizontal bottom
-      positions.push({ id: wA.id, x: margin, y: margin + 60, angle: 0, length: wA.length });
-      positions.push({ id: wB.id, x: margin + wA.length, y: margin + 60, angle: 90, length: wB.length });
-      positions.push({ id: wC.id, x: margin + wA.length, y: margin + 60 + wB.length, angle: 180, length: wC.length });
+      // U-shape
+      pos.push({ id: wA.id, x: margin, y: margin + 50, angle: 0, length: wA.length });
+      pos.push({ id: wB.id, x: margin + wA.length, y: margin + 50, angle: 90, length: wB.length });
+      pos.push({ id: wC.id, x: margin + wA.length, y: margin + 50 + wB.length, angle: 180, length: wC.length });
     }
-
-    return positions;
+    return pos;
   }, [walls, layoutType]);
 
-  // Calculate SVG viewBox
+  // Calculate viewBox
   const viewBox = useMemo(() => {
     let maxX = 0, maxY = 0;
     wallPositions.forEach(wp => {
@@ -316,172 +333,198 @@ export default function FloorPlanView({ solverResult, inputWalls }) {
       maxX = Math.max(maxX, wp.x, ex);
       maxY = Math.max(maxY, wp.y, ey);
     });
-    // Add room for cabinets + dimensions
-    return `0 0 ${Math.max(maxX + 80, 300)} ${Math.max(maxY + 100, 200)}`;
+    return `0 0 ${Math.max(maxX + 100, 300)} ${Math.max(maxY + 120, 220)}`;
   }, [wallPositions]);
 
-  const corners = solverResult.corners || [];
-  const roomWidth = solverResult.roomWidth;
-  const roomDepth = solverResult.roomDepth;
+  // Assign numbered tags to all cabinets across walls
+  const tagAssignments = useMemo(() => {
+    const tags = [];
+    let num = 1;
 
-  // Helper: Get wall position by ID
-  const getWallPosition = (wallId) => wallPositions.find(wp => wp.id === wallId);
+    wallPositions.forEach(wp => {
+      // Base/tall/appliance items on this wall
+      const wallItems = placements.filter(p =>
+        p.wall === wp.id && typeof p.position === 'number' && p.position >= 0 && p.width > 0
+        && (p.type === 'base' || p.type === 'tall' || p.type === 'appliance')
+      ).sort((a, b) => a.position - b.position);
+
+      wallItems.forEach(item => {
+        tags.push({
+          wallId: wp.id,
+          position: item.position,
+          width: item.width,
+          depth: item.depth || BASE_D,
+          num: num++,
+          sku: item.sku || item.applianceType || '',
+          isAppliance: item.type === 'appliance',
+        });
+      });
+
+      // Upper cabs on this wall
+      const uppers = (uppersByWall[wp.id] || []).filter(u =>
+        typeof u.position === 'number' && u.position >= 0 && u.width > 0
+      ).sort((a, b) => a.position - b.position);
+
+      uppers.forEach(item => {
+        tags.push({
+          wallId: wp.id,
+          position: item.position,
+          width: item.width,
+          depth: UPPER_D,
+          num: num++,
+          sku: item.sku || '',
+          isUpper: true,
+        });
+      });
+    });
+
+    return tags;
+  }, [wallPositions, placements, uppersByWall]);
+
+  const getWP = (id) => wallPositions.find(wp => wp.id === id);
 
   return (
-    <svg viewBox={viewBox} style={{ width: '100%', height: 'auto', maxHeight: 700, background: COLORS.bg, borderRadius: 4 }}
+    <svg viewBox={viewBox}
+      style={{ width: '100%', height: 'auto', maxHeight: 700, background: C.bg, borderRadius: 4 }}
       xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#f0f0f0" strokeWidth="0.1" />
-        </pattern>
-      </defs>
 
-      {/* Warm background — like a printed architectural drawing */}
-      <rect width="100%" height="100%" fill={COLORS.bg} />
-
-      {/* Title and metadata — NKBA standards callout */}
-      <text x="14" y="20" fill={COLORS.text} fontSize={13} fontWeight="700" fontFamily="Arial, sans-serif">
-        Kitchen Floor Plan — {layoutType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+      {/* Title */}
+      <text x="14" y="18" fill={C.dimText} fontSize={11} fontWeight="700"
+        fontFamily="Helvetica,Arial,sans-serif">
+        Kitchen Floor Plan - {layoutType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
       </text>
-      <text x="14" y="34" fill="#555" fontSize={7} fontFamily="Arial, sans-serif" fontWeight="500">
-        NKBA Standards | Scale: 1" = 1 SVG unit | Dimensions in inches (") | {placements.length} cabinets/appliances
+      <text x="14" y="30" fill="#666" fontSize={5.5} fontFamily="Helvetica,Arial,sans-serif">
+        NKBA Standards | Scale: 1" = 1 unit | {placements.length} items | Dashed = upper cabinets
       </text>
 
-      {/* Walls + cabinets */}
+      {/* ── WALLS + CABINETS ── */}
       {wallPositions.map(wp => (
-        <WallCabinets key={wp.id} wallX={wp.x} wallY={wp.y} wallAngle={wp.angle}
-          wallLength={wp.length} placements={placements} wallId={wp.id} />
+        <WallSegment key={wp.id} wx={wp.x} wy={wp.y} angle={wp.angle}
+          length={wp.length} placements={placements}
+          upperCabs={uppersByWall[wp.id] || []} wallId={wp.id} />
       ))}
 
-      {/* Corner cabinets — positioned at actual wall junctions using corners array */}
-      {corners && corners.length > 0 && (
-        <g>
-          {corners.map((corner, i) => {
-            // Find wall positions for wallA and wallB
-            const wpA = getWallPosition(corner.wallA);
-            const wpB = getWallPosition(corner.wallB);
+      {/* ── CORNER CABINETS at wall junctions ── */}
+      {corners.map((corner, i) => {
+        const wpA = getWP(corner.wallA);
+        const wpB = getWP(corner.wallB);
+        if (!wpA || !wpB) return null;
 
-            if (!wpA || !wpB) return null;
+        let cx, cy;
+        const aA = wpA.angle % 360;
+        const aB = wpB.angle % 360;
 
-            // Calculate junction point based on wall angles
-            let cornerX, cornerY;
-            const angleA = wpA.angle % 360;
-            const angleB = wpB.angle % 360;
+        if (aA === 0 && aB === 90) {
+          cx = wpA.x + wpA.length;
+          cy = wpA.y;
+        } else if (aB === 90) {
+          cx = wpB.x;
+          cy = wpB.y + wpB.length;
+        } else {
+          cx = wpA.x + Math.cos((wpA.angle * Math.PI) / 180) * wpA.length;
+          cy = wpA.y + Math.sin((wpA.angle * Math.PI) / 180) * wpA.length;
+        }
 
-            // L-shape: A is horizontal (0°), B goes down from right end (90°)
-            if (angleA === 0 && angleB === 90) {
-              cornerX = wpA.x + wpA.length;
-              cornerY = wpA.y;
-            }
-            // U-shape right corner: B down (90°), C horizontal (180°)
-            else if (angleB === 90 && angleB !== angleA) {
-              cornerX = wpB.x;
-              cornerY = wpB.y + wpB.length;
-            }
-            // Fallback: end of first wall
-            else {
-              cornerX = wpA.x + Math.cos((wpA.angle * Math.PI) / 180) * wpA.length;
-              cornerY = wpA.y + Math.sin((wpA.angle * Math.PI) / 180) * wpA.length;
-            }
+        const sz = corner.size || 36;
+        return (
+          <g key={`corner-${i}`}>
+            <rect x={cx - sz / 2} y={cy - sz / 2 + WALL_T / 2} width={sz} height={sz}
+              fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
+            {/* Diagonal line (corner cabinet convention) */}
+            <line x1={cx - sz / 2} y1={cy + sz / 2 + WALL_T / 2}
+              x2={cx + sz / 2} y2={cy - sz / 2 + WALL_T / 2}
+              stroke={C.cabStroke} strokeWidth={0.3} opacity={0.4} />
+            <text x={cx} y={cy + WALL_T / 2 + 1} fill={C.dimText}
+              fontSize={3.2} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" fontWeight="600">
+              {(corner.sku || 'CORNER').replace(/^FC-/, '').substring(0, 8)}
+            </text>
+            <text x={cx} y={cy + WALL_T / 2 + 5} fill={C.dimText}
+              fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" opacity={0.7}>{sz}"</text>
+          </g>
+        );
+      })}
 
-            const cornerSize = corner.size || 36;
-            const label = (corner.sku || 'CORNER').replace(/^FC-/, '').substring(0, 10);
+      {/* ── NUMBERED DIAMOND TAGS ── */}
+      {tagAssignments.map((tag, i) => {
+        const wp = getWP(tag.wallId);
+        if (!wp) return null;
 
-            // Draw corner as square at junction, spanning into both walls
-            return (
-              <g key={`corner-${i}`}>
-                <rect x={cornerX - cornerSize / 2} y={cornerY - cornerSize / 2} width={cornerSize} height={cornerSize}
-                  fill={COLORS.cabinetFill} stroke={COLORS.cabinetStroke} strokeWidth={0.7} rx={0.4} />
-                {/* Corner SKU label */}
-                <text x={cornerX} y={cornerY + 1.5}
-                  fill={COLORS.dimensionText} fontSize={3.5} fontFamily="Arial, sans-serif" textAnchor="middle" fontWeight="600">
-                  {label}
-                </text>
-                {/* Size dimension */}
-                <text x={cornerX} y={cornerY + 5}
-                  fill={COLORS.dimensionText} fontSize={3} fontFamily="Arial, sans-serif" textAnchor="middle" opacity={0.8}>
-                  {cornerSize}"
-                </text>
-              </g>
-            );
-          })}
-        </g>
-      )}
+        const rad = (wp.angle * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
 
-      {/* Island — with full NKBA dimensions and clearances */}
+        // Center of cabinet along wall
+        const along = tag.position + tag.width / 2;
+        // Offset perpendicular to wall
+        const perpDist = tag.isUpper
+          ? -(WALL_T / 2 + UPPER_D + 10)  // above wall for uppers
+          : (WALL_T / 2 + (tag.depth || BASE_D) + 8);  // below wall for bases
+
+        const cx = wp.x + cos * along - sin * perpDist;
+        const cy = wp.y + sin * along + cos * perpDist;
+
+        return <Tag key={`tag${i}`} cx={cx} cy={cy} num={tag.num} />;
+      })}
+
+      {/* ── ISLAND ── */}
       {island && (() => {
         const wA = wallPositions[0];
         if (!wA) return null;
-        const ix = wA.x + (wA.length - (island.length || 96)) / 2;
-        const iy = wA.y + WALL_THICKNESS / 2 + BASE_DEPTH + 42; // 42" aisle minimum per NKBA
         const iw = island.length || 96;
         const id = island.depth || 42;
+        const ix = wA.x + (wA.length - iw) / 2;
+        const iy = wA.y + WALL_T / 2 + BASE_D + AISLE;
         return (
           <g>
-            {/* Island rectangle */}
             <rect x={ix} y={iy} width={iw} height={id}
-              fill={COLORS.island} stroke={COLORS.islandStroke} strokeWidth={0.7} rx={0.5} />
-
-            {/* Island length dimension */}
-            <DimLine x1={ix} y1={iy + id + 8} x2={ix + iw} y2={iy + id + 8} label={`${iw}"`} offset={0} flip={false} />
-
-            {/* Island depth dimension */}
-            <DimLine x1={ix + iw + 8} y1={iy} x2={ix + iw + 8} y2={iy + id} label={`${id}"`} offset={0} flip={false} />
-
-            {/* Wall-to-island clearance dimension (work aisle width) */}
-            <DimLine x1={ix} y1={iy - 30} x2={ix} y2={wA.y + WALL_THICKNESS / 2 + BASE_DEPTH}
-              label={'42" (min)'} offset={-8} flip={true} />
+              fill={C.islandFill} stroke={C.islandStroke} strokeWidth={0.6} />
+            <text x={ix + iw / 2} y={iy + id / 2 + 1.5} fill={C.dimText}
+              fontSize={4} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" fontWeight="600">ISLAND</text>
+            {/* Island dimensions */}
+            <HDim x1={ix} x2={ix + iw} y={iy + id + 10} label={`${iw}"`} above={false} />
+            <VDim y1={iy} y2={iy + id} x={ix + iw + 10} label={`${id}"`} left={false} />
+            {/* Aisle clearance */}
+            <VDim y1={wA.y + WALL_T / 2 + BASE_D} y2={iy} x={ix - 10}
+              label={`${AISLE}" aisle`} left={true} />
           </g>
         );
       })()}
 
-      {/* Peninsula — same treatment as island */}
+      {/* ── PENINSULA ── */}
       {peninsula && (() => {
         const wA = wallPositions[0];
         if (!wA) return null;
-        const px = wA.x + wA.length - (peninsula.length || 60);
-        const py = wA.y + WALL_THICKNESS / 2 + BASE_DEPTH;
         const pw = peninsula.length || 60;
         const pd = peninsula.depth || 24;
+        const px = wA.x + wA.length - pw;
+        const py = wA.y + WALL_T / 2 + BASE_D;
         return (
           <g>
             <rect x={px} y={py} width={pw} height={pd}
-              fill={COLORS.island} stroke={COLORS.islandStroke} strokeWidth={0.7} rx={0.5} />
-            {/* Peninsula length dimension */}
-            <DimLine x1={px} y1={py + pd + 6} x2={px + pw} y2={py + pd + 6} label={`${pw}"`} offset={0} flip={false} />
-            {/* Peninsula depth dimension */}
-            <DimLine x1={px + pw + 6} y1={py} x2={px + pw + 6} y2={py + pd} label={`${pd}"`} offset={0} flip={false} />
+              fill={C.islandFill} stroke={C.islandStroke} strokeWidth={0.6} />
+            <HDim x1={px} x2={px + pw} y={py + pd + 8} label={`${pw}"`} above={false} />
+            <VDim y1={py} y2={py + pd} x={px + pw + 8} label={`${pd}"`} left={false} />
           </g>
         );
       })()}
 
-      {/* Room dimensions (overall footprint) — if provided */}
-      {roomWidth && roomDepth && (
-        <g opacity={0.8}>
-          {/* Overall width (bottom) */}
-          <DimLine x1={wallPositions[0]?.x} y1={parseFloat(viewBox.split(' ')[3]) - 20}
-            x2={wallPositions[0]?.x + roomWidth} y2={parseFloat(viewBox.split(' ')[3]) - 20}
-            label={`${roomWidth}'" Room Width`} offset={0} flip={false} />
-          {/* Overall depth (right side) if available */}
-          {wallPositions.length >= 2 && (
-            <DimLine x1={parseFloat(viewBox.split(' ')[2]) - 16} y1={wallPositions[0]?.y}
-              x2={parseFloat(viewBox.split(' ')[2]) - 16} y2={wallPositions[0]?.y + roomDepth}
-              label={`${roomDepth}'" Depth`} offset={0} flip={true} />
-          )}
-        </g>
-      )}
-
-      {/* Legend — professional architectural style with all symbol types */}
-      <g transform={`translate(14, ${parseFloat(viewBox.split(' ')[3]) - 32})`}>
+      {/* ── LEGEND ── */}
+      <g transform={`translate(14, ${parseFloat(viewBox.split(' ')[3]) - 22})`}>
         {[
-          { label: 'Base Cabinet', icon: () => <rect x={0} y={0} width={5} height={5} fill={COLORS.cabinetFill} stroke={COLORS.cabinetStroke} strokeWidth="0.4" rx="0.2" /> },
-          { label: 'Upper Cabinet (dashed)', icon: () => <rect x={0} y={0} width={5} height={5} fill={COLORS.cabinetFill} stroke={COLORS.cabinetStroke} strokeWidth="0.35" strokeDasharray="1.5,1.5" rx="0.2" /> },
-          { label: 'Appliance', icon: () => <rect x={0} y={0} width={5} height={5} fill={COLORS.appliance} opacity="0.4" stroke={COLORS.appliance} strokeWidth="0.4" rx="0.2" /> },
-          { label: 'Island', icon: () => <rect x={0} y={0} width={5} height={5} fill={COLORS.island} stroke={COLORS.islandStroke} strokeWidth="0.4" rx="0.2" /> },
+          { label: 'Base Cabinet', dash: false, fill: C.cabFill },
+          { label: 'Upper (dashed)', dash: true, fill: C.upperFill },
+          { label: 'Appliance', dash: false, fill: '#eee' },
+          { label: 'Island/Peninsula', dash: false, fill: C.islandFill },
         ].map((item, i) => (
-          <g key={i} transform={`translate(${i * 100}, 0)`}>
-            {item.icon()}
-            <text x={8} y={3.5} fill={COLORS.text} fontSize={4.5} fontFamily="Arial, sans-serif" fontWeight="500">{item.label}</text>
+          <g key={i} transform={`translate(${i * 90}, 0)`}>
+            <rect x={0} y={0} width={5} height={5} fill={item.fill}
+              stroke={C.cabStroke} strokeWidth={0.35}
+              strokeDasharray={item.dash ? '1.5,1.5' : 'none'} />
+            <text x={7} y={3.5} fill={C.dimText}
+              fontSize={4} fontFamily="Helvetica,Arial,sans-serif" fontWeight="500">{item.label}</text>
           </g>
         ))}
       </g>
