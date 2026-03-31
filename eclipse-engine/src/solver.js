@@ -1,11 +1,11 @@
 /**
- * Eclipse Cabinet Designer — Layout Solver
+ * Eclipse Cabinet Designer â Layout Solver
  * ==========================================
  * Takes room dimensions, appliance selections, and design preferences.
  * Generates a complete cabinet layout as structured placement data.
  *
  * Supports multiple room types: kitchen, office, laundry, master_bath,
- * vanity, utility, and showroom — each with context-aware rules.
+ * vanity, utility, and showroom â each with context-aware rules.
  *
  * Solver strategy (constraint-first, pattern-matched):
  *   1. Place fixed points (appliances) per NKBA landing rules (kitchen only)
@@ -13,7 +13,7 @@
  *   3. Fill remaining segments using zone-aware cabinet selection
  *   3b. Solve peninsula if present (columns, shelf, end panels)
  *   4. Generate matching upper cabinets (context-dependent by room type)
- *   5. Add accessories (panels, fillers, trim, toe kick) — room-type-aware
+ *   5. Add accessories (panels, fillers, trim, toe kick) â room-type-aware
  *   6. Validate against Layer 2 rules (NKBA skipped for non-kitchen rooms)
  *
  * The output is an array of placement objects ready for the pricing engine.
@@ -41,7 +41,7 @@ import {
 } from './coordinates.js';
 
 
-// ─── INPUT SCHEMA ───────────────────────────────────────────────────────────
+// âââ INPUT SCHEMA âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 /**
  * @typedef {Object} RoomInput
@@ -77,7 +77,7 @@ import {
  * @typedef {Object} DesignPrefs
  * @property {string} [cornerTreatment] - "lazySusan" | "blindCorner" | "auto"
  * @property {string} [upperApproach] - "standard" | "floating_shelves" | "minimal" | "none" | "stacked"
- * @property {boolean} [preferDrawerBases] - Default true — use B3D/B4D over standard B
+ * @property {boolean} [preferDrawerBases] - Default true â use B3D/B4D over standard B
  * @property {boolean} [preferSymmetry] - Default true for range walls
  * @property {boolean} [golaChannel] - Use FC- GOLA channel cabinets
  * @property {string} [islandBackStyle] - "fhd_seating" | "loose_doors" | "panels" | "open"
@@ -85,7 +85,7 @@ import {
  */
 
 
-// ─── MAIN SOLVER ────────────────────────────────────────────────────────────
+// âââ MAIN SOLVER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 /**
  * Generate a complete kitchen layout from room specifications.
@@ -100,7 +100,7 @@ export function solve(input) {
   const roomDef = ROOM_TYPES[roomType] || ROOM_TYPES.kitchen;
   const golaPrefix = prefs.golaChannel ? "FC-" : "";
 
-  // Normalize preferences — room type can influence defaults
+  // Normalize preferences â room type can influence defaults
   const pf = {
     cornerTreatment: prefs.cornerTreatment || "auto",
     upperApproach: prefs.upperApproach || (roomDef.appliancesRequired ? "standard" : "minimal"),
@@ -149,7 +149,7 @@ export function solve(input) {
   const corners = resolveCorners(walls, layoutType, pf);
 
   // Phase 2: Generate wall layouts (room-type-aware)
-  // If a DSB diagonal sink corner exists, the sink is handled at the corner —
+  // If a DSB diagonal sink corner exists, the sink is handled at the corner â
   // filter it out of the wall appliance list so no duplicate sink base is generated.
   const dsbCorners = corners.filter(c => c.type === "diagonalSink");
   const dsbWallIds = new Set();
@@ -274,7 +274,7 @@ export function solve(input) {
 }
 
 
-// ─── CORNER RESOLVER ────────────────────────────────────────────────────────
+// âââ CORNER RESOLVER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function resolveCorners(walls, layoutType, prefs) {
   const corners = [];
@@ -316,14 +316,14 @@ function resolveCorners(walls, layoutType, prefs) {
   return corners;
 }
 
-// ─── CORNER EFFICIENCY SCORING ──────────────────────────────────────────────
+// âââ CORNER EFFICIENCY SCORING ââââââââââââââââââââââââââââââââââââââââââââââ
 
 export function scoreCornerEfficiency(cornerType, wallA, wallB) {
   // Score 0-100 based on how well the corner treatment uses available space
   // Factors: wall consumption vs wall length, filler waste, accessibility
   const scores = {
     magicCorner: 95,    // Best access with chrome wire, minimal waste
-    diagonalSink: 90,   // Functional diagonal at 45°, good access
+    diagonalSink: 90,   // Functional diagonal at 45Â°, good access
     halfMoon: 85,       // Good mid-tier access, reasonable wall consumption
     lazySusan: 75,      // Good access, simple rotation, some waste
     quarterTurnShelves: 60,  // Limited corner access, more waste
@@ -380,7 +380,7 @@ function selectCornerTreatment(wallA, wallB, prefs) {
     };
   }
 
-  // Diagonal sink base — Kamisar pattern: DSB42-2D at 45° in L-shape corner
+  // Diagonal sink base â Kamisar pattern: DSB42-2D at 45Â° in L-shape corner
   // Requires explicit request or auto when sink is on a corner wall
   if (prefs.cornerTreatment === "diagonalSink" && aLen >= 36 && bLen >= 36) {
     return {
@@ -391,7 +391,7 @@ function selectCornerTreatment(wallA, wallB, prefs) {
     };
   }
 
-  // Auto selection — sophistication + budget driven
+  // Auto selection â sophistication + budget driven
   if (prefs.cornerTreatment === "auto" || prefs.cornerTreatment === "blindCorner") {
     // Very high sophistication: magic corner (Bollini BBC48R-MC at $3,938)
     if (prefs.cornerTreatment === "auto" && prefs.sophistication === "very_high" && aLen >= 42 && bLen >= 42) {
@@ -461,7 +461,7 @@ function selectCornerTreatment(wallA, wallB, prefs) {
 }
 
 
-// ─── WALL SOLVER ────────────────────────────────────────────────────────────
+// âââ WALL SOLVER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function solveWall(wall, appliances, corners, prefs, golaPrefix) {
   let availableLength = wall.length;
@@ -522,7 +522,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
 }
 
 
-// ─── APPLIANCE POSITIONING ──────────────────────────────────────────────────
+// âââ APPLIANCE POSITIONING ââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function positionAppliances(appliances, available, offset, wall, prefs) {
   const positioned = [];
@@ -566,7 +566,7 @@ function positionAppliances(appliances, available, offset, wall, prefs) {
 }
 
 
-// ─── SEGMENT BUILDER ────────────────────────────────────────────────────────
+// âââ SEGMENT BUILDER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function buildSegments(positionedAppliances, available, offset) {
   const segments = [];
@@ -601,13 +601,13 @@ function buildSegments(positionedAppliances, available, offset) {
 }
 
 
-// ─── SEGMENT FILLER ─────────────────────────────────────────────────────────
+// âââ SEGMENT FILLER âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
   const { length, leftOf, rightOf } = segment;
   if (length < 3) return []; // too small for any cabinet
 
-  // Determine zone — room-type-aware
+  // Determine zone â room-type-aware
   const zone = classifyZone(leftOf, rightOf, wallRole, prefs.roomType);
 
   // Pattern-aware cabinet selection for range flanking zones
@@ -670,7 +670,7 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
 }
 
 
-// ─── ZONE CLASSIFICATION ────────────────────────────────────────────────────
+// âââ ZONE CLASSIFICATION ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function classifyZone(leftOf, rightOf, wallRole, roomType) {
   // Room-type specific zones
@@ -691,7 +691,7 @@ function classifyZone(leftOf, rightOf, wallRole, roomType) {
 }
 
 
-// ─── CABINET TYPE SELECTION ─────────────────────────────────────────────────
+// âââ CABINET TYPE SELECTION âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function selectCabinetType(zone, prefs, golaPrefix, rangePattern, sinkPattern) {
   const zonePrefs = ZONE_CABINET_PRIORITY[zone] || ZONE_CABINET_PRIORITY.general || {};
@@ -730,13 +730,13 @@ function selectCabinetType(zone, prefs, golaPrefix, rangePattern, sinkPattern) {
 }
 
 
-// ─── SKU BUILDER ────────────────────────────────────────────────────────────
+// âââ SKU BUILDER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function buildSku(cabType, width, golaPrefix) {
   // Handle half-widths
   const wStr = width % 1 === 0 ? `${width}` : `${Math.floor(width)} 1/2`;
 
-  // B3D, B4D, B — just append width
+  // B3D, B4D, B â just append width
   if (cabType.endsWith("B3D") || cabType.endsWith("B4D")) {
     return `${cabType}${wStr}`;
   }
@@ -816,7 +816,7 @@ export function selectMullionPattern(prefs) {
   };
 }
 
-// ─── UPPER CABINET SOLVER ───────────────────────────────────────────────────
+// âââ UPPER CABINET SOLVER âââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   if (prefs.upperApproach === "none") return { wallId: wallDef.id, cabinets: [], patternId: null };
@@ -824,7 +824,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   const ceilingH = wallDef.ceilingHeight || DIMS.standardCeiling;
   const upperH = selectUpperHeight(ceilingH, prefs);
 
-  // ── Pattern-driven upper selection ──
+  // ââ Pattern-driven upper selection ââ
   const wallRole = wallDef.role || "general";
   const pattern = selectUpperPattern(wallRole, prefs, ceilingH);
   const patternId = pattern?.id || null;
@@ -848,7 +848,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   const uppers = [];
   const baseCabs = wallLayout.cabinets.filter(c => c.type === "base");
 
-  // ── Floating shelves pattern ──
+  // ââ Floating shelves pattern ââ
   if (patternId === "floating_shelves_instead") {
     for (const base of baseCabs) {
       const skip = skipZones.find(z => base.position >= z.start && base.position < z.end);
@@ -881,17 +881,17 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     return { wallId: wallDef.id, cabinets: uppers, patternId };
   }
 
-  // ── Stacked uppers pattern (tall ceilings) ──
+  // ââ Stacked uppers pattern (tall ceilings) ââ
   const isStacked = patternId === "stacked_uppers" || patternId === "stacked_wall_deep";
   const stackedTopH = ceilingH >= 120 ? 21 : 15;
 
-  // ── Glass display wall (very_high sophistication) ──
+  // ââ Glass display wall (very_high sophistication) ââ
   const isGlassDisplay = patternId === "stacked_glass_display_wall";
 
-  // ── Wall garage pocket doors ──
+  // ââ Wall garage pocket doors ââ
   const isGarage = patternId === "wall_garage_pocket_doors";
 
-  // ── Glass front display mods (GFD + FINISHED INT + PWL) ──
+  // ââ Glass front display mods (GFD + FINISHED INT + PWL) ââ
   // Applied to select uppers at very_high or high sophistication with premium aesthetic
   const soph = prefs.sophistication || "high";
   const applyGlassFrontDisplay = soph === "very_high" && !isGlassDisplay && !isGarage;
@@ -902,12 +902,12 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     glassFrontPositions.add(baseCabs.length - 1);
   }
 
-  // ── Appliance garage detection ──
+  // ââ Appliance garage detection ââ
   // WGD flanking pair near range/sink zone at high+ sophistication
   const rangeAppForGarage = wallAppliances.find(a => a.type === "range" || a.type === "cooktop");
   const applyApplianceGarage = soph === "very_high" && rangeAppForGarage && !isGarage && !isGlassDisplay;
 
-  // ── Glass style selection ──
+  // ââ Glass style selection ââ
   // Determines which glass mod (SEED, LD, FROST) is applied alongside GFD
   const glassStyleConfig = selectGlassStyle(prefs);
 
@@ -919,7 +919,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
 
     const upperW = findClosestWidth(base.width, STD_UPPER_WIDTHS, "down");
 
-    // ── Appliance garage pair flanking range zone ──
+    // ââ Appliance garage pair flanking range zone ââ
     if (applyApplianceGarage && upperW >= 18) {
       const rangeStart = rangeAppForGarage.position;
       const rangeEnd = rangeStart + rangeAppForGarage.width;
@@ -1063,7 +1063,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
         ...(mods.length > 0 ? { modifications: mods } : {}),
       });
     } else {
-      // Standard single-tier uppers — with optional GFD mods
+      // Standard single-tier uppers â with optional GFD mods
       const mods = [];
       if (glassFrontPositions.has(cabIdx)) {
         mods.push({ mod: "GFD", qty: 2 }, { mod: "FINISHED INT", qty: 1 }, { mod: "PWL", qty: 1 });
@@ -1086,7 +1086,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     }
   }
 
-  // ── FWEP flush wall end panels for glass display walls ──
+  // ââ FWEP flush wall end panels for glass display walls ââ
   // Bollini pattern: FWEP flanks the display run at first and last positions
   if (isGlassDisplay && uppers.length > 0) {
     const displayCabs = uppers.filter(c => c.type === "wall_glass_display");
@@ -1120,10 +1120,10 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     }
   }
 
-  // ── Range hood above range ──
+  // ââ Range hood above range ââ
   const rangeApp = wallAppliances.find(a => a.type === "range" || a.type === "cooktop");
   if (rangeApp) {
-    // Premium/very_high sophistication with large range (≥42"): use RH50 large hood
+    // Premium/very_high sophistication with large range (â¥42"): use RH50 large hood
     const isLargeRange = rangeApp.width >= 42;
     const useLargeHood = isLargeRange && (soph === "very_high" || soph === "high");
     if (useLargeHood) {
@@ -1191,10 +1191,10 @@ function selectUpperHeight(ceilingH, prefs) {
 }
 
 
-// ─── UPPER CORNER SOLVER ────────────────────────────────────────────────────
+// âââ UPPER CORNER SOLVER ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Generates WSC (wall square corner) cabinet pairs at L/U-shape upper corners.
 // Pie-hinged pairs (PHL/PHR) that sit above base corners like lazy susan.
-// At tall ceilings (≥108"), also generates SA (stacked wall angle) transition
+// At tall ceilings (â¥108"), also generates SA (stacked wall angle) transition
 // cabinets above the WSC pair for corner-to-straight-run transitions.
 
 function solveUpperCorners(corners, upperLayouts, prefs, walls) {
@@ -1219,7 +1219,7 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       .find(c => c.type === "wall");
     const upperH = sampleUpper?.height || 36;
 
-    // ── Check if adjacent walls use stacked_glass_display_wall pattern ──
+    // ââ Check if adjacent walls use stacked_glass_display_wall pattern ââ
     // If so, generate SWSC bi-fold corner instead of standard WSC pair.
     // Bollini pattern: SWSC{w}63(21) with GFD + FINISHED INT + RBS mods
     const wallAPattern = wallAUppers?.patternId || null;
@@ -1236,7 +1236,7 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       const swscD = 21;
 
       // Determine side based on which wall is the "approaching" wall
-      // wallA → right-hand corner piece, wallB → left-hand corner piece
+      // wallA â right-hand corner piece, wallB â left-hand corner piece
       const side = wallAPattern === "stacked_glass_display_wall" ? "R" : "L";
 
       upperCorners.push({
@@ -1256,11 +1256,11 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
         ],
       });
 
-      // No WSC pair or SA needed — SWSC is a single full-height corner piece
+      // No WSC pair or SA needed â SWSC is a single full-height corner piece
       continue;
     }
 
-    // Standard WSC: 24" × upperH, pie-hinged L+R pair
+    // Standard WSC: 24" Ã upperH, pie-hinged L+R pair
     upperCorners.push({
       sku: `WSC24${upperH}-PHL`,
       width: 24,
@@ -1282,8 +1282,8 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       side: "right",
     });
 
-    // ── Stacked wall angle (SA) for tall ceiling corner transitions ──
-    // At ceilings ≥108", add SA cabinet above the WSC pair to transition
+    // ââ Stacked wall angle (SA) for tall ceiling corner transitions ââ
+    // At ceilings â¥108", add SA cabinet above the WSC pair to transition
     // between stacked straight runs and the corner. Firebird pattern:
     // SA{w}{h}(15) with optional GFD + FINISHED INT + PWL mods
     const wallADef = walls?.find(w => w.id === corner.wallA);
@@ -1300,7 +1300,7 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       const saW = 24; // matches WSC width
       const saDepth = 15; // 15" depth for clearance (Firebird pattern)
 
-      // Build mods for SA — at very_high, add glass front display + lighting
+      // Build mods for SA â at very_high, add glass front display + lighting
       const saMods = [];
       if (soph === "very_high") {
         saMods.push({ mod: "GFD", qty: 1 }, { mod: "FINISHED INT", qty: 1 }, { mod: "PWL", qty: 1 });
@@ -1325,14 +1325,14 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
 }
 
 
-// ─── TALL CABINET SOLVER ────────────────────────────────────────────────────
+// âââ TALL CABINET SOLVER ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // Generates oven towers, pantry towers, and utility talls based on appliances
 // and sophistication level, driven by selectTallPattern.
 
 function solveTalls(appliances, walls, prefs, golaPrefix) {
   const talls = [];
 
-  // Oven/wall-oven appliances → oven tower
+  // Oven/wall-oven appliances â oven tower
   const ovenApp = appliances.find(a =>
     a.type === "wallOven" || a.type === "oven" || a.type === "wall_oven_microwave_combo"
   );
@@ -1422,7 +1422,7 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     }
   }
 
-  // ── Fridge pocket: REP panels + RW above-fridge cabinet ──
+  // ââ Fridge pocket: REP panels + RW above-fridge cabinet ââ
   // Training: Kline Piazza, Gable, Huang, Alix, Firebird, McCarter Parade
   const fridgeApp = appliances.find(a => a.type === "refrigerator");
 
@@ -1435,7 +1435,7 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     const fridgeWallDef = walls.find(w => w.id === fridgeWall);
     const ceilingH = fridgeWallDef?.ceilingHeight || 96;
 
-    // Panel thickness: very_high → 3", high → 1.5", standard → 3/4"
+    // Panel thickness: very_high â 3", high â 1.5", standard â 3/4"
     const panelThickness = soph === "very_high" ? "3" : soph === "high" ? "1.5" : "3/4";
     const panelPrefix = `REP${panelThickness}`;
 
@@ -1446,7 +1446,7 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     else if (ceilingH >= 108) panelH = 102;   // Firebird 9ft
     else panelH = 93;                          // Standard 8ft
 
-    // Panel depth: counter-depth → 24", standard → 27", full-depth → 30"
+    // Panel depth: counter-depth â 24", standard â 27", full-depth â 30"
     const fridgeDepth = fridgeApp.depth || 27;
     const panelD = fridgeDepth >= 30 ? 30 : fridgeDepth >= 27 ? 27 : 24;
 
@@ -1495,7 +1495,7 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     });
   }
 
-  // ── Wine cooler: BWC appliance with panel-ready integration ──
+  // ââ Wine cooler: BWC appliance with panel-ready integration ââ
   const wineCoolerApp = appliances.find(a => a.type === "wineCooler");
 
   if (wineCoolerApp) {
@@ -1580,7 +1580,7 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     }
   }
 
-  // ── Beverage center: BCF appliance with panel-ready integration ──
+  // ââ Beverage center: BCF appliance with panel-ready integration ââ
   const beverageCenterApp = appliances.find(a => a.type === "beverageCenter");
 
   if (beverageCenterApp) {
@@ -1670,7 +1670,7 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
 
 
 
-// ─── SEATING OVERHANG & BRACKET CALCULATION ──────────────────────────────────
+// âââ SEATING OVERHANG & BRACKET CALCULATION ââââââââââââââââââââââââââââââââââ
 
 /**
  * Calculate seating overhang depth based on style preference
@@ -1787,7 +1787,7 @@ function generateOverhangData(length, seatingStyle = "bar", bracketStyle = "SS")
 }
 
 
-// ─── ISLAND SOLVER ──────────────────────────────────────────────────────────
+// âââ ISLAND SOLVER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function solveIsland(island, appliances, prefs, golaPrefix) {
   const { length, depth } = island;
@@ -1845,7 +1845,7 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
   // Seating/back side
   const backCabs = [];
   if (prefs.islandBackStyle === "fhd_seating") {
-    // FHD at 13" depth — most common pattern (Imai Robin, OC Design, Kline Piazza)
+    // FHD at 13" depth â most common pattern (Imai Robin, OC Design, Kline Piazza)
     const fillResult = fillSegment(length, STD_BASE_WIDTHS.filter(w => w >= 22.5 && w <= 42));
     for (const w of fillResult.cabinets) {
       backCabs.push({
@@ -1857,7 +1857,7 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
       });
     }
   } else if (prefs.islandBackStyle === "loose_doors") {
-    // Loose doors — Alix pattern
+    // Loose doors â Alix pattern
     const doorWidth = Math.round(length / 3 * 10) / 10;
     for (let i = 0; i < 3; i++) {
       backCabs.push({
@@ -1898,7 +1898,7 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
 }
 
 
-// ─── PENINSULA SOLVER ──────────────────────────────────────────────────────
+// âââ PENINSULA SOLVER ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function solvePeninsula(peninsula, prefs, golaPrefix) {
   const { length, depth = PENINSULA_RULES.standardDepths[0] || 36 } = peninsula;
@@ -1979,7 +1979,7 @@ function solvePeninsula(peninsula, prefs, golaPrefix) {
 }
 
 
-// ─── LIGHTING PACKAGE BUILDER ─────────────────────────────────────────────────
+// âââ LIGHTING PACKAGE BUILDER âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 /**
  * Generate lighting accessories based on preferences.
@@ -2029,7 +2029,7 @@ function generateLighting(wallLayouts, upperLayouts, islandLayout, peninsulaLayo
     activeZones.displayShelf = true;
   }
 
-  // Under-cabinet LED strips (UCL) — one per wall with upper cabinets
+  // Under-cabinet LED strips (UCL) â one per wall with upper cabinets
   if (activeZones.underCabinet) {
     let uclCount = 0;
     for (const ul of upperLayouts) {
@@ -2053,7 +2053,7 @@ function generateLighting(wallLayouts, upperLayouts, islandLayout, peninsulaLayo
     metadata.totalFixtures += uclCount;
   }
 
-  // In-cabinet lighting (ICL) — one per glass display cabinet
+  // In-cabinet lighting (ICL) â one per glass display cabinet
   if (activeZones.inCabinet) {
     let iclCount = 0;
     for (const ul of upperLayouts) {
@@ -2080,7 +2080,7 @@ function generateLighting(wallLayouts, upperLayouts, islandLayout, peninsulaLayo
     metadata.totalFixtures += iclCount;
   }
 
-  // Toe kick LED strips (TKL) — one per wall with base cabinets
+  // Toe kick LED strips (TKL) â one per wall with base cabinets
   if (activeZones.toeKick) {
     let tklCount = 0;
     for (const wl of wallLayouts) {
@@ -2106,7 +2106,7 @@ function generateLighting(wallLayouts, upperLayouts, islandLayout, peninsulaLayo
     metadata.totalFixtures += tklCount;
   }
 
-  // Display shelf lighting (DSL) — floating shelves and display cabs
+  // Display shelf lighting (DSL) â floating shelves and display cabs
   if (activeZones.displayShelf) {
     let dslCount = 0;
 
@@ -2154,7 +2154,7 @@ function generateLighting(wallLayouts, upperLayouts, islandLayout, peninsulaLayo
 }
 
 
-// ─── ACCESSORY GENERATOR ────────────────────────────────────────────────────
+// âââ ACCESSORY GENERATOR ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, walls, appliances, prefs) {
   const accessories = [];
@@ -2166,7 +2166,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
   const MIN_CAB_WIDTH = 9;
   const MAX_GAP_FOR_FILLER = 12; // gaps > 9" but < this use filler
 
-  // Toe kick — skip for floating vanities
+  // Toe kick â skip for floating vanities
   const hasFloatingVanity = roomDef.specialCabinets?.includes("FLVSB");
   const totalBaseRunLF = wallLayouts.reduce((sum, w) => {
     return sum + w.cabinets.filter(c => c.type === "base").reduce((s, c) => s + (c.width || 0), 0);
@@ -2283,7 +2283,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // DSB diagonal sink base — BEP3-RTK recessed toe kick end panels (Kamisar pattern)
+  // DSB diagonal sink base â BEP3-RTK recessed toe kick end panels (Kamisar pattern)
   for (const corner of corners) {
     if (corner.type === "diagonalSink") {
       accessories.push({
@@ -2328,7 +2328,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Crown moulding — runs along top of upper cabinets
+  // Crown moulding â runs along top of upper cabinets
   // Only at very_high sophistication (always include), or when explicitly requested
   const crownMouldingRequested = prefs.crownMoulding === true;
   const crownMouldingExcluded = prefs.crownMoulding === false;
@@ -2357,7 +2357,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Light rail — trim strip under upper cabinets (holds under-cabinet lighting)
+  // Light rail â trim strip under upper cabinets (holds under-cabinet lighting)
   // Only at high or very_high sophistication, or when explicitly requested
   const lightRailRequested = prefs.lightRail === true;
   const lightRailExcluded = prefs.lightRail === false;
@@ -2384,7 +2384,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Valance generation — decorative board above sink windows between upper cab runs
+  // Valance generation â decorative board above sink windows between upper cab runs
   // Trigger: wall has a window opening AND uppers skip that zone
   for (const ul of upperLayouts) {
     const wallDef = walls.find(w => w.id === ul.wallId);
@@ -2421,7 +2421,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Light bridge generation — spans between upper cabinets for under-cabinet task lighting
+  // Light bridge generation â spans between upper cabinets for under-cabinet task lighting
   // Trigger: prefs.lightBridge is true OR sophistication is very_high
   const lightBridgeRequested = prefs.lightBridge === true;
   const lightBridgeExcluded = prefs.lightBridge === false;
@@ -2448,7 +2448,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Appliance panel overlay generation — panel-ready fridges and dishwashers
+  // Appliance panel overlay generation â panel-ready fridges and dishwashers
   // DWP: dishwasher panel, FDP: fridge panel, FZP: freezer drawer panel
   if (appliances && appliances.length > 0) {
     for (const app of appliances) {
@@ -2465,7 +2465,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
 
     if (app.type === "refrigerator" && app.panelReady) {
       const fridgeWidth = Math.round(app.width || 36);
-      // French door fridges get 2× half-width panels
+      // French door fridges get 2Ã half-width panels
       if (app.fridgeDoorStyle === "french") {
         const halfWidth = Math.round(fridgeWidth / 2);
         accessories.push({
@@ -2503,7 +2503,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Applied molding — decorative profile on flat-panel doors
+  // Applied molding â decorative profile on flat-panel doors
   // Adds raised-panel aesthetic to slab-style cabinets
   const appliedMoldingStyle = prefs.appliedMolding;
   if (appliedMoldingStyle && appliedMoldingStyle !== "none") {
@@ -2569,7 +2569,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Base shoe molding — decorative trim at base of cabinets meeting floor
+  // Base shoe molding â decorative trim at base of cabinets meeting floor
   const baseShoeStyle = prefs.baseShoe;
   if (baseShoeStyle && baseShoeStyle !== "none") {
     if (totalBaseRunLF > 0 && !hasFloatingVanity) {
@@ -2589,14 +2589,14 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Counter top mould enhancement — trim at counter edges
+  // Counter top mould enhancement â trim at counter edges
   const counterMouldProfile = prefs.counterMouldProfile;
   if (counterMouldProfile && counterMouldProfile !== "none") {
     if (totalBaseRunLF > 0) {
       // Length = total base run + island perimeter (if any)
       let totalCounterLF = totalBaseRunLF;
       if (islandLayout) {
-        // Island perimeter = 2 × (length + width)
+        // Island perimeter = 2 Ã (length + width)
         const islandPerimeter = 2 * ((islandLayout.length || 0) + (islandLayout.width || 0));
         totalCounterLF += islandPerimeter;
       }
@@ -2619,7 +2619,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
     }
   }
 
-  // Touch-up kit — always included
+  // Touch-up kit â always included
   accessories.push({ sku: "TUK-STAIN", qty: 1, role: "touch-up" });
 
   // Lighting package generation
@@ -2637,7 +2637,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
 }
 
 
-// ─── PATTERN SELECTION ENGINE ──────────────────────────────────────────────
+// âââ PATTERN SELECTION ENGINE ââââââââââââââââââââââââââââââââââââââââââââââ
 // Auto-selects the best design pattern from patterns.js based on context
 
 /**
@@ -2688,7 +2688,7 @@ function selectSinkPattern(zone, segmentLength, leftOf, rightOf, prefs) {
 
   const soph = prefs.sophistication || "high";
 
-  // Check if DW is adjacent — the classic sink-DW-waste pattern
+  // Check if DW is adjacent â the classic sink-DW-waste pattern
   const hasDW = leftOf === "dishwasher" || rightOf === "dishwasher";
   const hasSink = leftOf === "sink" || rightOf === "sink";
 
@@ -2837,7 +2837,7 @@ function buildPatternAwareSku(pattern, defaultCabType, width, index, totalCabs, 
     return `${golaPrefix}B2HD${width}`;
   }
 
-  // ── Sink zone patterns ──
+  // ââ Sink zone patterns ââ
 
   // Classic sink-DW-waste: cab nearest sink (last) gets BWDMA waste cab,
   // first position gets B4D (4-drawer for pots/pans), middle gets B3D
@@ -2885,7 +2885,7 @@ function buildPatternAwareSku(pattern, defaultCabType, width, index, totalCabs, 
 }
 
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
+// âââ HELPERS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function inferLayoutType(walls, hasPeninsula = false) {
   if (walls.length === 1 && !hasPeninsula) return "single-wall";
@@ -2919,7 +2919,7 @@ function findClosestWidth(target, widths, direction = "down") {
 }
 
 
-// ─── DRAWER UPGRADE APPLICATION ───────────────────────────────────────────
+// âââ DRAWER UPGRADE APPLICATION âââââââââââââââââââââââââââââââââââââââââââ
 /**
  * Apply drawer box and slide upgrades to cabinet placements based on preferences.
  *
@@ -2970,7 +2970,7 @@ export function applyDrawerUpgrades(placements, prefs = {}) {
         p.modifications.push({ mod: "UMSC-DRW", qty: numDrawers });
       }
 
-      // Drawer inserts — match by width
+      // Drawer inserts â match by width
       if (drawerInserts && Array.isArray(drawerInserts)) {
         const cabinetWidth = p.width || 0;
         for (const insert of drawerInserts) {
@@ -3003,7 +3003,7 @@ function getMappedInsertMod(insertType) {
 }
 
 
-// ─── TWO-TONE MATERIAL RESOLUTION ──────────────────────────────────────────
+// âââ TWO-TONE MATERIAL RESOLUTION ââââââââââââââââââââââââââââââââââââââââââ
 /**
  * Assign material zones and resolve two-tone material configurations.
  *
@@ -3049,8 +3049,8 @@ export function resolveTwoTone(placements, prefs = {}) {
     const baseMat = twoTone.baseMaterial || "Maple";
     const upperMat = twoTone.upperMaterial || "Polar Paint";
     for (const p of updated) {
-      // Base, island, peninsula, accessory → baseMaterial
-      // Upper, tall → upperMaterial
+      // Base, island, peninsula, accessory â baseMaterial
+      // Upper, tall â upperMaterial
       if (["base", "island", "peninsula", "accessory"].includes(p.materialZone)) {
         p.material = baseMat;
       } else {
@@ -3154,12 +3154,10 @@ function compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLay
     });
   }
 
-  // Wall base cabs
+  // Wall base cabs — include ALL items: cabinets AND appliances (range, sink, dishwasher, fridge)
   for (const wl of wallLayouts) {
     for (const cab of wl.cabinets) {
-      if (cab.type !== "appliance") {
-        placements.push({ ...cab, wall: wl.wallId });
-      }
+      placements.push({ ...cab, wall: wl.wallId });
     }
   }
 
@@ -3180,12 +3178,10 @@ function compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLay
     placements.push({ ...tall });
   }
 
-  // Island cabs
+  // Island cabs — include ALL items including appliances (range, sink, dishwasher on island)
   if (islandLayout) {
     for (const cab of islandLayout.workSide) {
-      if (cab.type !== "appliance") {
-        placements.push({ ...cab, wall: "island-work" });
-      }
+      placements.push({ ...cab, wall: "island-work" });
     }
     for (const cab of islandLayout.backSide) {
       placements.push({ ...cab, wall: "island-back" });
@@ -3196,7 +3192,7 @@ function compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLay
   }
 
   // Peninsula components (columns, shelf, end panels already in accessories if present)
-  // No separate peninsula placements needed — they come through accessories
+  // No separate peninsula placements needed â they come through accessories
 
   // Accessories
   for (const acc of accessories) {
