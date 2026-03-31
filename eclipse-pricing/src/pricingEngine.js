@@ -142,7 +142,7 @@ export function calculateLayoutPrice(placements, config, skuLookup) {
   const pricedItems = placements.map(placement => {
     const catalogEntry = skuLookup(placement.sku);
     if (!catalogEntry) {
-      return { ...placement, error: \`SKU not found: \${placement.sku}\`, unitPrice: 0, totalPrice: 0 };
+      return { ...placement, error: `SKU not found: ${placement.sku}`, unitPrice: 0, totalPrice: 0 };
     }
 
     // Merge catalog data with placement overrides
