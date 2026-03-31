@@ -40,17 +40,41 @@ const C = {
 
 // ─── HELPERS ──────────────────────────────────────────────────────────
 
-/** Numbered diamond tag */
-function Tag({ cx, cy, num }) {
-  const r = 4.5;
+/** Numbered cabinet tag — circle with KD prefix per NKBA Ch.2 */
+function Tag({ cx, cy, num, prefix = 'KD' }) {
+  const r = 6;
+  const label = `${prefix}${num}`;
   return (
     <g>
-      <polygon
-        points={`${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`}
+      <circle cx={cx} cy={cy} r={r}
         fill={C.tagFill} stroke={C.tagStroke} strokeWidth={0.45} />
       <text x={cx} y={cy + 1.5} fill={C.dimText}
-        fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif"
-        textAnchor="middle" fontWeight="600">{num}</text>
+        fontSize={label.length > 3 ? 3 : 3.5} fontFamily="Helvetica,Arial,sans-serif"
+        textAnchor="middle" fontWeight="600">{label}</text>
+    </g>
+  );
+}
+
+/** Elevation marker triangle — points at wall to indicate where elevation is cut */
+function ElevMarker({ cx, cy, label, angle = 0 }) {
+  const sz = 8;
+  // Triangle pointing in direction of 'angle'
+  const rad = (angle * Math.PI) / 180;
+  const tipX = cx + Math.cos(rad) * sz;
+  const tipY = cy + Math.sin(rad) * sz;
+  const lx = cx + Math.cos(rad + 2.4) * sz * 0.6;
+  const ly = cy + Math.sin(rad + 2.4) * sz * 0.6;
+  const rx = cx + Math.cos(rad - 2.4) * sz * 0.6;
+  const ry = cy + Math.sin(rad - 2.4) * sz * 0.6;
+  return (
+    <g>
+      <polygon points={`${tipX},${tipY} ${lx},${ly} ${rx},${ry}`}
+        fill={C.dimText} stroke={C.tagStroke} strokeWidth={0.3} />
+      <circle cx={cx} cy={cy} r={sz * 0.55}
+        fill={C.tagFill} stroke={C.tagStroke} strokeWidth={0.4} />
+      <text x={cx} y={cy + 1.5} fill={C.dimText}
+        fontSize={4} fontFamily="Helvetica,Arial,sans-serif"
+        textAnchor="middle" fontWeight="700">{label}</text>
     </g>
   );
 }
@@ -507,6 +531,45 @@ export default function FloorPlanView({ solverResult, inputWalls }) {
               fill={C.islandFill} stroke={C.islandStroke} strokeWidth={0.6} />
             <HDim x1={px} x2={px + pw} y={py + pd + 8} label={`${pw}"`} above={false} />
             <VDim y1={py} y2={py + pd} x={px + pw + 8} label={`${pd}"`} left={false} />
+          </g>
+        );
+      })()}
+
+      {/* ── ELEVATION MARKERS (NKBA Ch.2 Fig 2.1 — triangles pointing at walls) ── */}
+      {wallPositions.map((wp, i) => {
+        const rad = (wp.angle * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        // Place marker at midpoint of wall, offset toward the room interior
+        const midAlong = wp.length / 2;
+        const perpDist = WALL_T / 2 + BASE_D + 55; // well inside the room
+        const mx = wp.x + cos * midAlong + sin * perpDist;
+        const my = wp.y + sin * midAlong - cos * perpDist;
+        // Triangle points toward wall (opposite of perpDist direction)
+        const markerAngle = wp.angle - 90;
+        return (
+          <ElevMarker key={`em-${i}`} cx={mx} cy={my}
+            label={`E${i + 1}`} angle={markerAngle} />
+        );
+      })}
+
+      {/* ── ROOM LABEL (centered in room per NKBA Ch.2) ── */}
+      {(() => {
+        // Find center of kitchen space
+        const wA = wallPositions[0];
+        if (!wA) return null;
+        const cx = wA.x + wA.length / 2;
+        const cy = wA.y + WALL_T / 2 + BASE_D + (island ? AISLE / 2 : 40);
+        return (
+          <g>
+            <text x={cx} y={cy} fill={C.dimText}
+              fontSize={8} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" fontWeight="700" letterSpacing="2">KITCHEN</text>
+            <text x={cx} y={cy + 10} fill={C.dimText}
+              fontSize={4} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" opacity={0.6}>
+              NKBA Standards | Scale: 1/2" = 1'-0"
+            </text>
           </g>
         );
       })()}
