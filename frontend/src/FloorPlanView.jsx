@@ -178,24 +178,11 @@ function DoorSwing({ x, y, w, d }) {
 
 // ─── WALL SEGMENT RENDERER ───────────────────────────────────────────
 
-function WallSegment({ wx, wy, angle, length, placements, upperCabs, wallId }) {
-  // Resolve compound wall IDs (corner cabs: "wallA-wallB")
-  const matchesWall = (pWall) => {
-    if (pWall === wallId) return true;
-    if (pWall && pWall.includes('-')) {
-      const parts = pWall.split('-');
-      return parts[0] === wallId || parts[1] === wallId;
-    }
-    return false;
-  };
-
-  // Filter ALL wall-assigned cabs (bases, talls, appliances, corners, fillers, end panels)
-  const bases = placements.filter(p =>
-    matchesWall(p.wall) && typeof p.position === 'number' && p.position >= 0 && p.width > 0
-    && p.type !== 'upper' && p._elev?.zone !== 'UPPER'
-    && !(p.wall && p.wall.startsWith('island'))
-    && p.wall !== 'peninsula'
-  ).sort((a, b) => a.position - b.position);
+function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, wallId }) {
+  // baseCabs already filtered from source arrays (wallLayouts + talls + corners)
+  const bases = (baseCabs || [])
+    .filter(p => typeof p.position === 'number' && !isNaN(p.position) && p.width > 0)
+    .sort((a, b) => a.position - b.position);
 
   // Filter upper cabs for this wall
   const uppers = (upperCabs || []).filter(u =>
@@ -339,19 +326,54 @@ export default function FloorPlanView({ solverResult, inputWalls }) {
   if (!solverResult) return null;
 
   const walls = inputWalls || solverResult._inputWalls || [];
-  const placements = solverResult.placements || [];
-  const upperData = solverResult.uppers || [];
+  const wallLayouts = solverResult.walls || [];
+  const upperLayouts = solverResult.uppers || [];
+  const tallCabs = solverResult.talls || [];
   const layoutType = solverResult.layoutType || 'single-wall';
   const island = solverResult.island;
   const peninsula = solverResult.peninsula;
   const corners = solverResult.corners || [];
 
+  // Build base cabs lookup from wallLayouts (source of truth, has correct _elev)
+  const basesByWall = useMemo(() => {
+    const m = {};
+    wallLayouts.forEach(wl => {
+      m[wl.wallId] = (wl.cabinets || []).filter(c =>
+        typeof c.position === 'number' && !isNaN(c.position) && c.width > 0
+      );
+    });
+    // Add tall cabs to their respective walls
+    tallCabs.forEach(t => {
+      if (t.wall && typeof t.position === 'number' && !isNaN(t.position) && t.width > 0) {
+        if (!m[t.wall]) m[t.wall] = [];
+        m[t.wall].push(t);
+      }
+    });
+    // Add corner cabs
+    corners.forEach(corner => {
+      const wid = corner.wallA;
+      if (!wid) return;
+      const wl = wallLayouts.find(w => w.wallId === wid);
+      const pos = wl ? wl.wallLength - corner.size : 0;
+      if (!m[wid]) m[wid] = [];
+      m[wid].push({
+        sku: corner.sku, type: 'corner', width: corner.size,
+        position: pos, _elev: corner._elev,
+      });
+    });
+    return m;
+  }, [wallLayouts, tallCabs, corners]);
+
   // Build upper cabs lookup by wallId
   const uppersByWall = useMemo(() => {
     const m = {};
-    upperData.forEach(u => { m[u.wallId] = u.cabinets || []; });
+    upperLayouts.forEach(u => {
+      m[u.wallId] = (u.cabinets || []).filter(c =>
+        typeof c.position === 'number' && !isNaN(c.position) && c.width > 0
+      );
+    });
     return m;
-  }, [upperData]);
+  }, [upperLayouts]);
 
   // Calculate wall positions based on layout
   const wallPositions = useMemo(() => {
@@ -393,53 +415,37 @@ export default function FloorPlanView({ solverResult, inputWalls }) {
     return `0 0 ${Math.max(maxX + 100, 300)} ${Math.max(maxY + 120, 220)}`;
   }, [wallPositions]);
 
-  // Resolve compound wall IDs
-  const resolveWallId = (pWall) => {
-    if (!pWall) return null;
-    const wp = wallPositions.find(w => w.id === pWall);
-    if (wp) return pWall;
-    if (pWall.includes('-')) {
-      const parts = pWall.split('-');
-      if (wallPositions.find(w => w.id === parts[0])) return parts[0];
-      if (wallPositions.find(w => w.id === parts[1])) return parts[1];
-    }
-    return null;
-  };
-
-  // Assign numbered tags to all cabinets across walls
+  // Assign numbered tags to all cabinets across walls (using source arrays)
   const tagAssignments = useMemo(() => {
     const tags = [];
     let num = 1;
 
     wallPositions.forEach(wp => {
-      // All non-upper items on this wall (bases, talls, appliances, corners, fillers)
-      const wallItems = placements.filter(p => {
-        const resolved = resolveWallId(p.wall);
-        return resolved === wp.id && typeof p.position === 'number' && p.position >= 0 && p.width > 0
-          && p.type !== 'upper' && p._elev?.zone !== 'UPPER'
-          && !(p.wall && p.wall.startsWith('island'))
-          && p.wall !== 'peninsula';
-      }).sort((a, b) => a.position - b.position);
+      // Base cabs from source arrays (already includes talls + corners)
+      const wallItems = (basesByWall[wp.id] || [])
+        .filter(p => typeof p.position === 'number' && !isNaN(p.position) && p.width > 0)
+        .sort((a, b) => a.position - b.position);
 
       wallItems.forEach(item => {
         const appType = (item.applianceType || '').toLowerCase();
-        const isFridge = appType === 'refrigerator' || appType === 'freezer';
+        const isTall = item._elev?.zone === 'TALL' || item.type === 'tall' || item.type === 'panel' ||
+          appType === 'refrigerator' || appType === 'freezer';
         tags.push({
           wallId: wp.id,
           position: item.position,
           width: item.width,
-          depth: item.depth || item._elev?.depth || (isFridge ? 27 : BASE_D),
+          depth: item.depth || item._elev?.depth || (isTall ? 27 : BASE_D),
           num: num++,
           sku: item.sku || item.applianceType || '',
           isAppliance: item.type === 'appliance',
-          isTall: item.type === 'tall' || isFridge || item._elev?.zone === 'TALL',
+          isTall,
         });
       });
 
       // Upper cabs on this wall
-      const uppers = (uppersByWall[wp.id] || []).filter(u =>
-        typeof u.position === 'number' && u.position >= 0 && u.width > 0
-      ).sort((a, b) => a.position - b.position);
+      const uppers = (uppersByWall[wp.id] || [])
+        .filter(u => typeof u.position === 'number' && !isNaN(u.position) && u.width > 0)
+        .sort((a, b) => a.position - b.position);
 
       uppers.forEach(item => {
         tags.push({
@@ -455,7 +461,7 @@ export default function FloorPlanView({ solverResult, inputWalls }) {
     });
 
     return tags;
-  }, [wallPositions, placements, uppersByWall]);
+  }, [wallPositions, basesByWall, uppersByWall]);
 
   const getWP = (id) => wallPositions.find(wp => wp.id === id);
 
@@ -470,57 +476,17 @@ export default function FloorPlanView({ solverResult, inputWalls }) {
         Kitchen Floor Plan - {layoutType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
       </text>
       <text x="14" y="30" fill="#666" fontSize={5.5} fontFamily="Helvetica,Arial,sans-serif">
-        NKBA Standards | Scale: 1" = 1 unit | {placements.length} items | Dashed = upper cabinets
+        NKBA Standards | Scale: 1" = 1 unit | Dashed = upper cabinets
       </text>
 
       {/* ── WALLS + CABINETS ── */}
       {wallPositions.map(wp => (
         <WallSegment key={wp.id} wx={wp.x} wy={wp.y} angle={wp.angle}
-          length={wp.length} placements={placements}
+          length={wp.length} baseCabs={basesByWall[wp.id] || []}
           upperCabs={uppersByWall[wp.id] || []} wallId={wp.id} />
       ))}
 
-      {/* ── CORNER CABINETS at wall junctions ── */}
-      {corners.map((corner, i) => {
-        const wpA = getWP(corner.wallA);
-        const wpB = getWP(corner.wallB);
-        if (!wpA || !wpB) return null;
-
-        let cx, cy;
-        const aA = wpA.angle % 360;
-        const aB = wpB.angle % 360;
-
-        if (aA === 0 && aB === 90) {
-          cx = wpA.x + wpA.length;
-          cy = wpA.y;
-        } else if (aB === 90) {
-          cx = wpB.x;
-          cy = wpB.y + wpB.length;
-        } else {
-          cx = wpA.x + Math.cos((wpA.angle * Math.PI) / 180) * wpA.length;
-          cy = wpA.y + Math.sin((wpA.angle * Math.PI) / 180) * wpA.length;
-        }
-
-        const sz = corner.size || 36;
-        return (
-          <g key={`corner-${i}`}>
-            <rect x={cx - sz / 2} y={cy - sz / 2 + WALL_T / 2} width={sz} height={sz}
-              fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
-            {/* Diagonal line (corner cabinet convention) */}
-            <line x1={cx - sz / 2} y1={cy + sz / 2 + WALL_T / 2}
-              x2={cx + sz / 2} y2={cy - sz / 2 + WALL_T / 2}
-              stroke={C.cabStroke} strokeWidth={0.3} opacity={0.4} />
-            <text x={cx} y={cy + WALL_T / 2 + 1} fill={C.dimText}
-              fontSize={3.2} fontFamily="Helvetica,Arial,sans-serif"
-              textAnchor="middle" fontWeight="600">
-              {(corner.sku || 'CORNER').replace(/^FC-/, '').substring(0, 8)}
-            </text>
-            <text x={cx} y={cy + WALL_T / 2 + 5} fill={C.dimText}
-              fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
-              textAnchor="middle" opacity={0.7}>{sz}"</text>
-          </g>
-        );
-      })}
+      {/* Corner cabs are now included in basesByWall and rendered by WallSegment */}
 
       {/* ── NUMBERED DIAMOND TAGS ── */}
       {tagAssignments.map((tag, i) => {
