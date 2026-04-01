@@ -230,7 +230,15 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, wallId }) {
             {w >= 12 && (
               <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? w : d) / 2 + 1.2} fill={C.dimText}
                 fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
-                textAnchor="middle" fontWeight="500">{w}"</text>
+                textAnchor="middle" fontWeight="500">{cab.sku ? `${cab.sku}` : `${w}"`}</text>
+            )}
+            {/* SKU label below width for larger cabs */}
+            {cab.sku && w >= 20 && (
+              <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? w : d) / 2 + 4.8} fill="#5c6370"
+                fontSize={2.5} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="400" opacity={0.65}>
+                {w}"
+              </text>
             )}
 
             {/* Tall marker */}
