@@ -144,6 +144,41 @@ import {
   PART_ID_CONSTANTS,
 } from './part-id-generator.js';
 
+import {
+  CabinetRun,
+  buildCabinetRuns,
+  validateRuns,
+  resolveOverflows,
+  ANCHOR_TYPES,
+} from './constraint-propagation.js';
+
+import {
+  generateEnvelopes,
+  runCollisionCheck,
+  validateWalkways,
+  CLEARANCE_SPECS,
+} from './functional-envelopes.js';
+
+import {
+  applyFinishingRules,
+  visibilityCheck,
+  solveFillers,
+  enforceSymmetry,
+  validateReveals,
+  FINISHING_CONSTANTS,
+} from './finishing-rules.js';
+
+import {
+  morphStyle,
+  extrudeMoldingProfile,
+  extrudeLightRailProfile,
+  calculateFinishMetrics,
+  applyDesignPreset,
+  STYLE_GEOMETRY,
+  MOLDING_PROFILES,
+  DESIGN_PRESETS,
+} from './style-morphing.js';
+
 
 // ─── PROFESSIONAL DESIGN PATTERNS (from training data) ──────────────────────
 // Extracted from 47 real kitchen projects (Bollini, Spector, Owen, Huang, etc.)
@@ -1168,6 +1203,159 @@ export function solve(input) {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 9: CONSTRAINT PROPAGATION, SPATIAL INTELLIGENCE, FINISHING, STYLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── 9a: Constraint Propagation (Linked-List Cabinet Runs) ──
+  // Build linked-list runs from wall layouts. Enables downstream ripple when
+  // any cabinet width changes. Validates overflow against wall length.
+  let cabinetRuns = null;
+  let runValidation = null;
+  try {
+    cabinetRuns = buildCabinetRuns(wallLayouts, corners);
+    runValidation = validateRuns(cabinetRuns);
+    if (runValidation && !runValidation.valid) {
+      for (const issue of (runValidation.issues || [])) {
+        validation.push({
+          severity: issue.severity || 'warning',
+          rule: 'constraint_propagation',
+          message: issue.message || `Run issue on wall ${issue.wallId}`,
+        });
+      }
+      // Attempt auto-resolution of overflows
+      try {
+        const resolved = resolveOverflows(cabinetRuns);
+        if (resolved && !resolved.resolved) {
+          for (const adj of (resolved.adjustments || [])) {
+            validation.push({
+              severity: 'warning',
+              rule: 'overflow_unresolved',
+              message: adj.message || `Unresolved overflow on wall ${adj.wallId}`,
+            });
+          }
+        }
+      } catch (_) { /* overflow resolution is best-effort */ }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'constraint_prop_error', message: `Constraint propagation: ${e.message}` });
+  }
+
+  // ── 9b: Functional Envelopes & Spatial Collision Check ──
+  // Generates physical_box + clearance_box for every object, then runs
+  // pairwise intersection tests to flag functional obstructions.
+  let envelopes = null;
+  let spatialCollisions = null;
+  let walkwayReport = null;
+  try {
+    envelopes = generateEnvelopes(placements, wallLayouts, islandLayout, {
+      includeUppers: true,
+      upperLayouts,
+    });
+    if (envelopes && envelopes.length > 0) {
+      spatialCollisions = runCollisionCheck(envelopes, {
+        skipSameWallUppers: true, // uppers don't collide with bases on same wall
+      });
+      const roomGeom = {
+        width: input.roomWidth || 144,
+        length: input.roomLength || 168,
+      };
+      walkwayReport = validateWalkways(envelopes, roomGeom, {
+        twoCook: prefs?.twoCookKitchen || false,
+      });
+      // Merge collision issues into validation
+      if (spatialCollisions?.collisions?.length) {
+        for (const c of spatialCollisions.collisions) {
+          validation.push({
+            severity: c.severity || 'warning',
+            rule: `spatial_${c.type || 'collision'}`,
+            message: c.message || `Spatial collision: ${c.objectA?.id || '?'} vs ${c.objectB?.id || '?'}`,
+            fix: c.fix || null,
+          });
+        }
+      }
+      if (walkwayReport?.issues?.length) {
+        for (const w of walkwayReport.issues) {
+          validation.push({
+            severity: w.severity || 'warning',
+            rule: 'walkway_violation',
+            message: w.message,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'envelope_error', message: `Functional envelopes: ${e.message}` });
+  }
+
+  // ── 9c: Automated Finishing Rules (End Panels, Fillers, Symmetry, Reveals) ──
+  // Runs the visibility check on all cabinets, auto-adds end panels to exposed
+  // sides, solves remaining filler gaps, enforces flanking symmetry, and
+  // validates door reveal consistency.
+  let finishingResult = null;
+  try {
+    finishingResult = applyFinishingRules(
+      { walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout, peninsula: peninsulaLayout, corners },
+      prefs || {}
+    );
+    if (finishingResult?.validation?.length) {
+      for (const v of finishingResult.validation) {
+        validation.push({
+          severity: v.severity || 'info',
+          rule: `finishing_${v.rule || 'general'}`,
+          message: v.message,
+        });
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'finishing_error', message: `Finishing rules: ${e.message}` });
+  }
+
+  // ── 9d: Style Morphing (Geometry Mutation & Molding Extrusion) ──
+  // Applies door style geometry to all cabinets (thickness, overlay, weight),
+  // then extrudes crown molding and light rail profiles along upper perimeters.
+  let styleMorphResult = null;
+  let moldingExtrusion = null;
+  let lightRailExtrusion = null;
+  let finishMetrics = null;
+  try {
+    const doorStyleName = prefs?.doorStyle || prefs?.doorStyleName || 'Shaker';
+    const designPreset = prefs?.designPreset || null;
+
+    if (designPreset && DESIGN_PRESETS[designPreset]) {
+      styleMorphResult = applyDesignPreset(
+        { walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout },
+        designPreset
+      );
+    } else {
+      styleMorphResult = morphStyle(
+        { walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout },
+        doorStyleName,
+        prefs || {}
+      );
+    }
+
+    // Extrude crown molding along upper perimeter
+    const crownProfile = prefs?.crownProfile || (prefs?.crownMolding === 'none' ? null : 'Simple');
+    if (crownProfile && moldingPaths?.length) {
+      moldingExtrusion = extrudeMoldingProfile(crownProfile, moldingPaths);
+    }
+
+    // Extrude light rail along bottom of uppers
+    const lrProfile = prefs?.lightRailProfile || 'SQ';
+    if (lrProfile !== 'none' && moldingPaths?.length) {
+      lightRailExtrusion = extrudeLightRailProfile(lrProfile, moldingPaths);
+    }
+
+    // Calculate finish metrics (total door weight, paintable area, glass area, hinges)
+    finishMetrics = calculateFinishMetrics(
+      { walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout },
+      doorStyleName
+    );
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'style_morph_error', message: `Style morphing: ${e.message}` });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return {
     layoutType,
@@ -1204,6 +1392,17 @@ export function solve(input) {
     partIds,
     bom,
 
+    // ── Phase 9: Constraint Propagation, Spatial, Finishing, Style ──
+    cabinetRuns,               // linked-list run structures per wall
+    envelopes,                 // physical + clearance boxes for all objects
+    spatialCollisions,         // AABB intersection results
+    walkwayReport,             // NKBA walkway clearance validation
+    finishingResult,           // end panels, fillers, symmetry, reveals
+    styleMorph: styleMorphResult, // geometry mutations from door style
+    moldingExtrusion,          // crown molding path extrusion
+    lightRailExtrusion,        // light rail path extrusion
+    finishMetrics,             // door weight, paintable area, glass, hinges
+
     metadata: {
       totalCabinets: placements.filter(p => p.role !== "accessory").length,
       totalAccessories: accessories.length,
@@ -1229,6 +1428,17 @@ export function solve(input) {
       nkbaScore: nkbaReport?.score || null,
       totalParts: partIds?.parts?.length || 0,
       seatingCapacity: seatingLayout?.seats || seatingLayout?.maxSeats || 0,
+      // Phase 9 summary
+      spatialCollisionCount: spatialCollisions?.collisions?.length || 0,
+      walkwayViolations: walkwayReport?.issues?.length || 0,
+      endPanelsAdded: finishingResult?.endPanels?.length || 0,
+      symmetryFixes: finishingResult?.symmetryFixes?.length || 0,
+      revealIssues: finishingResult?.revealIssues?.length || 0,
+      totalDoorWeight: finishMetrics?.totalDoorWeight || 0,
+      paintableAreaSqFt: finishMetrics?.paintableArea || 0,
+      totalHinges: finishMetrics?.hingeCount || 0,
+      crownMoldingLinearFt: moldingExtrusion?.totalLength ? moldingExtrusion.totalLength / 12 : 0,
+      lightRailLinearFt: lightRailExtrusion?.totalLength ? lightRailExtrusion.totalLength / 12 : 0,
     },
   };
 }
