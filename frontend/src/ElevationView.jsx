@@ -115,6 +115,29 @@ function appLabel(aType) {
   return map[aType] || (aType || '').toUpperCase().substring(0, 8);
 }
 
+/** Parse cabinet height from Cyncly Flex SKU.
+ *  Wall cabs: W{width}{height} → W3630 = 30" tall, W3642 = 42" tall
+ *  Stacked:   SW{width}{height}
+ *  Tall:      UT{width}{height} or OT{width}{height}
+ *  Returns null if height can't be parsed (caller uses default). */
+function parseSkuHeight(sku) {
+  if (!sku) return null;
+  const upper = sku.toUpperCase();
+  // Wall cabinet: W{2-3 digit width}{2 digit height}
+  const wMatch = upper.match(/^S?W(\d{2,3})(\d{2})(?:-|$)/);
+  if (wMatch) {
+    const h = parseInt(wMatch[2]);
+    if (h >= 12 && h <= 48) return h;
+  }
+  // Tall/utility: UT or OT
+  const tMatch = upper.match(/^[UO]T(\d{2,3})(\d{2})(?:-|$)/);
+  if (tMatch) {
+    const h = parseInt(tMatch[2]);
+    if (h >= 72 && h <= 108) return h;
+  }
+  return null;
+}
+
 /** Parse door/drawer count from SKU pattern */
 function parseDoorDrawer(sku, width) {
   if (!sku) return { doors: width > 24 ? 2 : 1, drawers: 0 };
@@ -723,7 +746,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
       {sortedUppers.map((cab, i) => {
         const x = cab.position * S;
         const w = cab.width * S;
-        const uH = (cab.height || UPPER_H_DEF) * S;
+        // Parse height from SKU (W3630=30", W3642=42") or fall back to solver data or default
+        const skuH = parseSkuHeight(cab.sku);
+        const uH = (skuH || cab.height || UPPER_H_DEF) * S;
         const y = upBotY - uH;
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);

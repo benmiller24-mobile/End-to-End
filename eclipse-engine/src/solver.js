@@ -834,34 +834,49 @@ export function solve(input) {
 
   // ── 3D Spatial Validation (stacking rules + depth conflicts) ──
   // Uses the _elev data assigned by compilePlacements → assignSpatialData
-  const spatial3DResults = validate3DSpatial(placements);
-  for (const issue of spatial3DResults) {
-    validation.push(issue);
-  }
+  try {
+    const spatial3DResults = validate3DSpatial(placements);
+    for (const issue of spatial3DResults) {
+      validation.push(issue);
+    }
+  } catch (_e) { validation.push({ severity: 'warning', rule: 'spatial_3d_error', message: `3D spatial validation skipped: ${_e.message}` }); }
 
-  // Build materials metadata
-  const materialsMetadata = buildMaterialsMetadata(placements, pf);
+  // Build materials metadata (safe — individual let with default)
+  let materialsMetadata = null;
+  try { materialsMetadata = buildMaterialsMetadata(placements, pf); } catch (_e) { /* non-fatal */ }
 
-  // Calculate corner efficiency metrics
-  const cornerEfficiencies = corners.map(c => c.efficiency);
-  const avgEfficiency = cornerEfficiencies.length > 0
-    ? Math.round(cornerEfficiencies.reduce((a, b) => a + b, 0) / cornerEfficiencies.length)
-    : null;
-  const cornerTypes = [...new Set(corners.map(c => c.type))];
+  // Calculate corner efficiency metrics (safe — individual lets with defaults)
+  let avgEfficiency = null;
+  let cornerTypes = [];
+  let totalWineCoolers = 0;
+  let totalBeverageCenters = 0;
+  let aesthetics = null;
+  try {
+    const cornerEfficiencies = (corners || []).map(c => c.efficiency).filter(e => typeof e === 'number');
+    avgEfficiency = cornerEfficiencies.length > 0
+      ? Math.round(cornerEfficiencies.reduce((a, b) => a + b, 0) / cornerEfficiencies.length)
+      : null;
+    cornerTypes = [...new Set((corners || []).map(c => c.type).filter(Boolean))];
+  } catch (_e) { /* non-fatal */ }
 
   // Count wine coolers and beverage centers
-  const totalWineCoolers = talls.filter(t => t.role === "wine_cooler").length;
-  const totalBeverageCenters = talls.filter(t => t.role === "beverage_center").length;
+  try {
+    totalWineCoolers = (talls || []).filter(t => t.role === "wine_cooler").length;
+    totalBeverageCenters = (talls || []).filter(t => t.role === "beverage_center").length;
+  } catch (_e) { /* non-fatal */ }
 
   // Phase 7b: Aesthetic scoring (Phase 3 — symmetry, consistency, proportionality)
-  const aesthetics = scoreAesthetics(wallLayouts, upperLayouts, corners, pf);
+  try { aesthetics = scoreAesthetics(wallLayouts, upperLayouts, corners, pf); } catch (_e) { /* non-fatal */ }
 
   // ── Phase 7c: Spatial Validation (corner anchors, chain, trim collisions) ──
-  const spatialReport = validateSpatialLayout({ walls: wallLayouts, uppers: upperLayouts, corners, accessories, talls });
-  for (const err of spatialReport.errors) {
+  let spatialReport = { errors: [], warnings: [], crownPaths: [], lightRailPaths: [] };
+  try {
+    spatialReport = validateSpatialLayout({ walls: wallLayouts, uppers: upperLayouts, corners, accessories, talls }) || spatialReport;
+  } catch (_e) { validation.push({ severity: 'warning', rule: 'spatial_validation_error', message: `Spatial validation skipped: ${_e.message}` }); }
+  for (const err of (spatialReport.errors || [])) {
     validation.push({ severity: 'error', rule: err.rule, message: err.message, fix: err.fix });
   }
-  for (const warn of spatialReport.warnings) {
+  for (const warn of (spatialReport.warnings || [])) {
     validation.push({ severity: 'warning', rule: warn.rule, message: warn.message, fix: warn.fix });
   }
 
@@ -1606,8 +1621,38 @@ function resolveCorners(walls, layoutType, prefs) {
   for (const [wA, wB] of pairs) {
     const wallA = walls.find(w => w.id === wA);
     const wallB = walls.find(w => w.id === wB);
-    const treatment = selectCornerTreatment(wallA, wallB, prefs);
-    const efficiency = scoreCornerEfficiency(treatment.type, wallA.length, wallB.length);
+    if (!wallA || !wallB) continue; // skip if wall not found
+    let treatment, efficiency;
+    try {
+      treatment = selectCornerTreatment(wallA, wallB, prefs);
+
+      // ── 30% WALL CONSUMPTION GUARD ──
+      // If the corner consumes >30% of either wall, downgrade to BL36 or blind corner.
+      // This ensures enough run remains for appliances + flanking cabinets.
+      const consumeA = treatment.wallAConsumption || treatment.size || 36;
+      const consumeB = treatment.wallBConsumption || treatment.size || 36;
+      const pctA = consumeA / wallA.length;
+      const pctB = consumeB / wallB.length;
+      if ((pctA > 0.30 || pctB > 0.30) && treatment.type !== 'blindCorner' && treatment.type !== 'lazySusan') {
+        // Downgrade: try BL36 lazy susan (36" per wall, most common in training)
+        if (wallA.length >= 36 && wallB.length >= 36) {
+          treatment = {
+            type: "lazySusan", sku: "BL36-SS-PH", size: 36,
+            wallAConsumption: 36, wallBConsumption: 36,
+            fillerRequired: false, patternId: "lazy_susan_30pct_downgrade",
+            trainingFrequency: 7,
+          };
+        } else {
+          treatment = {
+            type: "blindCorner", sku: "BL36-PH", size: 36,
+            wallAConsumption: 36, wallBConsumption: 27,
+            fillerRequired: true, fillerWidth: 3, patternId: "blind_30pct_downgrade",
+          };
+        }
+      }
+
+      efficiency = scoreCornerEfficiency(treatment.type, wallA.length, wallB.length);
+    } catch (_e) { continue; } // skip broken corner
     corners.push({
       id: `corner_${wA}_${wB}`,
       wallA: wA,
@@ -5140,14 +5185,36 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
         ? "BEP1 1/2" : "BEP3/4-FTK";
 
       // ── Left wall junction: filler + end panel ──
+      // FRAMELESS GOLDEN RULE: Every cabinet run starting at a wall junction
+      // needs a minimum 3" filler (or overlay filler) to prevent drawer/door
+      // interference with the perpendicular wall surface.
       if (!hasLeftCorner) {
         if (first.position <= 6) {
           accessories.push({ sku: `${endPanelPrefix}-L/R`, wall: wl.wallId, role: "base-end-panel-left" });
           totalEndPanels++;
         }
-        // Cyncly: filler at left wall junction if gap between wall start and first cabinet
         const leftGap = first.position;
-        if (leftGap > 0.5 && leftGap < MAX_GAP_FOR_FILLER && leftGap >= 3) {
+        if (leftGap < 3) {
+          // Gap is too small or zero — must insert/expand to 3" minimum
+          const fillerW = 3;
+          // Shift all cabinets right by (3 - leftGap) to make room
+          const shiftNeeded = fillerW - leftGap;
+          if (shiftNeeded > 0) {
+            for (const cab of sorted) {
+              cab.position = (cab.position || 0) + shiftNeeded;
+            }
+          }
+          accessories.push({
+            sku: 'F30',
+            width: fillerW,
+            wall: wl.wallId,
+            role: "base-filler-wall-junction-left",
+            position: 0,
+            cynclyRule: "Frameless golden rule: 3\" min filler at wall junction (left)",
+          });
+          totalFillers++;
+        } else if (leftGap >= 3 && leftGap <= 6 && leftGap < MAX_GAP_FOR_FILLER) {
+          // Gap is 3-6": use as filler width directly
           const fillerW = Math.round(leftGap);
           accessories.push({
             sku: `F${fillerW}0`,
@@ -5156,6 +5223,25 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
             role: "base-filler-wall-junction-left",
             position: 0,
             cynclyRule: "Phase 8: filler at wall-to-cabinet junction (left side)",
+          });
+          totalFillers++;
+        } else if (leftGap > 6 && leftGap <= 12) {
+          // Gap 7-12": widen adjacent cabinet via MOD WIDTH instead of large filler
+          // (Never use fillers wider than 6" — the guide says widen the adjacent cabinet)
+          const widthIncrease = leftGap;
+          first.position = 0;
+          first.width = (first.width || 0) + widthIncrease;
+          first._modWidth = true;
+          first._modWidthNote = `MOD +${widthIncrease}" to fill wall junction gap`;
+        } else if (leftGap > 12) {
+          // Large gap: insert standard 3" filler + note gap for review
+          accessories.push({
+            sku: 'F30',
+            width: 3,
+            wall: wl.wallId,
+            role: "base-filler-wall-junction-left",
+            position: 0,
+            cynclyRule: "Phase 8: 3\" filler at wall junction (large gap — review layout)",
           });
           totalFillers++;
         }
@@ -5169,8 +5255,19 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
         accessories.push({ sku: `${endPanelPrefix}-L/R`, wall: wl.wallId, role: "base-end-panel-right" });
         totalEndPanels++;
 
-        // Cyncly: filler at right wall junction
-        if (gapToWall > 0.5 && gapToWall < MAX_GAP_FOR_FILLER && gapToWall >= 3) {
+        // Frameless golden rule: 3" min filler at right wall junction
+        if (gapToWall > 0 && gapToWall < 3) {
+          // Insert 3" filler (shrink last cabinet slightly or just add filler)
+          accessories.push({
+            sku: 'F30',
+            width: 3,
+            wall: wl.wallId,
+            role: "base-filler-wall-junction-right",
+            position: lastCabEnd,
+            cynclyRule: "Frameless golden rule: 3\" min filler at wall junction (right)",
+          });
+          totalFillers++;
+        } else if (gapToWall >= 3 && gapToWall <= 6) {
           const fillerW = Math.round(gapToWall);
           accessories.push({
             sku: `F${fillerW}0`,
@@ -5179,6 +5276,21 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
             role: "base-filler-wall-junction-right",
             position: lastCabEnd,
             cynclyRule: "Phase 8: filler at wall-to-cabinet junction (right side)",
+          });
+          totalFillers++;
+        } else if (gapToWall > 6 && gapToWall <= 12) {
+          // Gap 7-12": widen last cabinet via MOD WIDTH
+          last.width = (last.width || 0) + gapToWall;
+          last._modWidth = true;
+          last._modWidthNote = `MOD +${gapToWall}" to fill right wall junction gap`;
+        } else if (gapToWall > 12) {
+          accessories.push({
+            sku: 'F30',
+            width: 3,
+            wall: wl.wallId,
+            role: "base-filler-wall-junction-right",
+            position: wl.wallLength - 3,
+            cynclyRule: "Phase 8: 3\" filler at wall junction (large gap — review)",
           });
           totalFillers++;
         }

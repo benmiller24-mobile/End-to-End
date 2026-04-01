@@ -857,35 +857,162 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         />
       )}
 
-      {/* Layout tab */}
-      {tab === 'layout' && Object.entries(wallGroups).map(([wall, items]) => {
-        const wallTotal = quote?.byWall?.[wall] || 0;
+      {/* Layout tab — Professional Cabinet Schedule */}
+      {tab === 'layout' && (() => {
+        // Build sequential KD-numbered schedule matching elevation/floor plan tags
+        let tagNum = 1;
+        const scheduleRows = [];
+        const wallKeys = Object.keys(wallGroups).sort();
+
+        // Helper: parse description from SKU
+        const skuDesc = (sku, type, appType) => {
+          if (type === 'appliance') return appType ? appType.replace(/([A-Z])/g, ' $1').trim() : 'Appliance';
+          if (!sku) return type || 'Cabinet';
+          const u = sku.toUpperCase().replace(/^FC-/, '');
+          if (u.startsWith('B3D') || u.startsWith('B4D')) return `${u.match(/\d/)?.[0] || 3}-Drawer Base`;
+          if (u.startsWith('BSB') || u.startsWith('SB')) return 'Sink Base';
+          if (u.startsWith('B') && u.includes('FHD')) return 'Full-Height Door Base';
+          if (u.startsWith('B') && u.includes('RT')) return 'Roll-Out Tray Base';
+          if (u.startsWith('BTR')) return 'Tray Base';
+          if (u.startsWith('BL') && u.includes('SS')) return 'Lazy Susan Corner';
+          if (u.startsWith('BBC') && u.includes('MC')) return 'Magic Corner';
+          if (u.startsWith('BBC')) return 'Blind Base Corner';
+          if (u.startsWith('DSB')) return 'Diagonal Sink Base';
+          if (u.startsWith('SW')) return 'Stacked Wall Cabinet';
+          if (u.startsWith('W')) return 'Wall Cabinet';
+          if (u.startsWith('UT') || u.startsWith('OT')) return 'Tall Utility';
+          if (u.startsWith('REP')) return 'Ref. End Panel';
+          if (u.startsWith('BEP')) return 'Base End Panel';
+          if (u.startsWith('F') && u.match(/^F\d/)) return 'Filler Strip';
+          if (u.startsWith('B') && u.match(/^B\d/)) return 'Base Cabinet';
+          return type || 'Cabinet';
+        };
+
+        // Parse height from SKU for uppers/talls
+        const skuH = (sku, def) => {
+          if (!sku) return def;
+          const m = sku.toUpperCase().match(/[A-Z]+\d{2,3}(\d{2})(?:-|$)/);
+          return m ? parseInt(m[1]) : def;
+        };
+
+        for (const wall of wallKeys) {
+          const items = wallGroups[wall];
+          items.forEach(p => {
+            const isApp = p.type === 'appliance';
+            const pricedItem = quote?.items?.find(qi => qi.sku === p.sku);
+            const w = p.width || 0;
+            const h = p.type === 'upper' ? skuH(p.sku, 36) : (p.type === 'tall' ? skuH(p.sku, 96) : 34.5);
+            const d = p.type === 'upper' ? 13 : (p.type === 'tall' ? 24 : 24);
+            scheduleRows.push({
+              tag: `KD${String(tagNum++).padStart(2, '0')}`,
+              wall,
+              sku: (p.sku || p.applianceType || '-').replace(/^FC-/, ''),
+              desc: skuDesc(p.sku, p.type, p.applianceType),
+              width: w,
+              height: h,
+              depth: d,
+              mods: p._modWidth ? p._modWidthNote : (p.hingeSide ? `Hinge ${p.hingeSide}` : ''),
+              hingeSide: p.hingeSide || (w > 24 ? '-' : (p.position < 60 ? 'L' : 'R')),
+              unitPrice: pricedItem?.unitPrice || 0,
+              extPrice: pricedItem?.totalPrice || pricedItem?.unitPrice || 0,
+              isApp,
+              isAccessory: p.role === 'filler' || p.role === 'end_panel' || p.type === 'end_panel',
+            });
+          });
+        }
+
+        const cabinetRows = scheduleRows.filter(r => !r.isAccessory);
+        const accessoryRows = scheduleRows.filter(r => r.isAccessory);
+
+        const thStyle = { padding: '6px 8px', textAlign: 'left', color: C.dim, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: `2px solid ${C.border}` };
+        const tdStyle = { padding: '5px 8px', fontSize: 11, borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle' };
+        const tdR = { ...tdStyle, textAlign: 'right' };
+
         return (
-          <div key={wall} style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <h4 style={{ margin: 0, fontSize: 14, color: C.primary }}>Wall {wall} ({items.length} items)</h4>
-              {wallTotal > 0 && <span style={{ color: C.accent, fontWeight: 600, fontSize: 13 }}>{formatCurrency(wallTotal)}</span>}
+          <div style={panelStyle}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.primary }}>
+              Cabinet Schedule — Eclipse C3 Frameless
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead>
+                  <tr>
+                    {['Item #', 'Wall', 'SKU', 'Description', 'W"', 'H"', 'D"', 'Modifications', 'Hinge', 'Unit $', 'Ext $'].map(h => (
+                      <th key={h} style={{ ...thStyle, textAlign: h.includes('$') || h === 'W"' || h === 'H"' || h === 'D"' ? 'right' : 'left' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Group by wall with subtotals */}
+                  {wallKeys.map(wall => {
+                    const wallCabs = cabinetRows.filter(r => r.wall === wall);
+                    if (wallCabs.length === 0) return null;
+                    const wallSubtotal = wallCabs.reduce((s, r) => s + r.extPrice, 0);
+                    return (
+                      <React.Fragment key={wall}>
+                        {wallCabs.map((r, i) => (
+                          <tr key={`${wall}-${i}`} style={{ background: r.isApp ? '#fef9f0' : (i % 2 === 0 ? '#fafafa' : '#fff') }}>
+                            <td style={{ ...tdStyle, fontWeight: 700, color: C.primary }}>{r.tag}</td>
+                            <td style={tdStyle}>{r.wall}</td>
+                            <td style={{ ...tdStyle, fontFamily: 'monospace', fontWeight: 600, fontSize: 10 }}>{r.sku}</td>
+                            <td style={tdStyle}>{r.desc}</td>
+                            <td style={tdR}>{r.width || ''}</td>
+                            <td style={tdR}>{r.height || ''}</td>
+                            <td style={tdR}>{r.depth || ''}</td>
+                            <td style={{ ...tdStyle, fontSize: 10, color: C.muted }}>{r.mods}</td>
+                            <td style={{ ...tdStyle, textAlign: 'center' }}>{r.hingeSide}</td>
+                            <td style={tdR}>{r.unitPrice > 0 ? formatCurrency(r.unitPrice) : '-'}</td>
+                            <td style={{ ...tdR, fontWeight: 600 }}>{r.extPrice > 0 ? formatCurrency(r.extPrice) : '-'}</td>
+                          </tr>
+                        ))}
+                        <tr style={{ background: '#f0f4f8' }}>
+                          <td colSpan={9} style={{ ...tdStyle, fontWeight: 700, textAlign: 'right', color: C.primary }}>Wall {wall} Subtotal</td>
+                          <td style={tdR}></td>
+                          <td style={{ ...tdR, fontWeight: 700, color: C.accent }}>{wallSubtotal > 0 ? formatCurrency(wallSubtotal) : '-'}</td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {items.map((p, j) => {
-                const isApp = p.type === 'appliance';
-                const isG = p.sku?.startsWith('FC-');
-                const pricedItem = quote?.items?.find(qi => qi.sku === p.sku);
-                return (
-                  <div key={j} style={{
-                    display: 'inline-flex', flexDirection: 'column', alignItems: 'center', padding: '6px 8px',
-                    background: C.bg, border: `1px solid ${isApp ? C.accent : isG ? C.purple : C.border}`, borderRadius: 4, fontSize: 11, minWidth: 50,
-                  }}>
-                    <div style={{ fontWeight: 600, color: isApp ? C.accent : isG ? '#c4b5fd' : C.text, whiteSpace: 'nowrap' }}>{(p.sku || p.applianceType || p.type).replace(/^FC-/, '').substring(0, 10)}</div>
-                    <div style={{ color: C.dim, fontSize: 10 }}>{p.width || ''}"</div>
-                    {pricedItem?.unitPrice > 0 && <div style={{ color: C.accent, fontSize: 10, fontWeight: 500 }}>{formatCurrency(pricedItem.unitPrice)}</div>}
-                  </div>
-                );
-              })}
+
+            {/* Accessories section */}
+            {accessoryRows.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: C.muted }}>Accessories (Fillers, End Panels, Trim)</h4>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr>
+                      {['Item #', 'Wall', 'SKU', 'Description', 'W"', 'Unit $'].map(h => (
+                        <th key={h} style={{ ...thStyle, textAlign: h.includes('$') || h === 'W"' ? 'right' : 'left' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {accessoryRows.map((r, i) => (
+                      <tr key={`acc-${i}`} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff' }}>
+                        <td style={{ ...tdStyle, fontWeight: 600, color: C.muted }}>{r.tag}</td>
+                        <td style={tdStyle}>{r.wall}</td>
+                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 10 }}>{r.sku}</td>
+                        <td style={tdStyle}>{r.desc}</td>
+                        <td style={tdR}>{r.width || ''}</td>
+                        <td style={tdR}>{r.unitPrice > 0 ? formatCurrency(r.unitPrice) : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Grand Total */}
+            <div style={{ marginTop: 16, padding: '12px 16px', background: C.primary, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Grand Total ({scheduleRows.length} items)</span>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>{formatCurrency(scheduleRows.reduce((s, r) => s + r.extPrice, 0))}</span>
             </div>
           </div>
         );
-      })}
+      })()}
 
       {/* Quote tab */}
       {tab === 'quote' && quote && (

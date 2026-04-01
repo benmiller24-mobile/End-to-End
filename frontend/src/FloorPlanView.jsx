@@ -600,6 +600,86 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
         );
       })()}
 
+      {/* ── WORK TRIANGLE OVERLAY ── */}
+      {(() => {
+        // Find sink, range, and fridge center points across all walls
+        const findAppCenter = (type) => {
+          for (const wp of wallPositions) {
+            const cabs = basesByWall[wp.id] || [];
+            const app = cabs.find(c => {
+              const at = (c.applianceType || '').toLowerCase();
+              if (type === 'sink') return at === 'sink';
+              if (type === 'range') return at === 'range' || at === 'cooktop';
+              if (type === 'fridge') return at === 'refrigerator' || at === 'freezer';
+              return false;
+            });
+            if (app) {
+              const rad = (wp.angle * Math.PI) / 180;
+              const cos = Math.cos(rad);
+              const sin = Math.sin(rad);
+              const along = app.position + app.width / 2;
+              const perpDist = WALL_T / 2 + (app.depth || BASE_D) / 2;
+              return {
+                x: wp.x + cos * along + sin * perpDist,
+                y: wp.y + sin * along - cos * perpDist,
+              };
+            }
+          }
+          return null;
+        };
+
+        const sink = findAppCenter('sink');
+        const range = findAppCenter('range');
+        const fridge = findAppCenter('fridge');
+
+        if (!sink || !range || !fridge) return null;
+
+        const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+        const legSR = dist(sink, range);
+        const legRF = dist(range, fridge);
+        const legFS = dist(fridge, sink);
+        const total = legSR + legRF + legFS;
+
+        // NKBA: each leg 4-9 ft (48-108"), total 12-26 ft (144-312")
+        const legOk = (l) => l >= 48 && l <= 108;
+        const allOk = legOk(legSR) && legOk(legRF) && legOk(legFS) && total >= 144 && total <= 312;
+        const color = allOk ? '#22c55e' : (total <= 360 ? '#f59e0b' : '#ef4444');
+
+        const fmtFt = (inches) => {
+          const ft = Math.floor(inches / 12);
+          const rem = Math.round(inches % 12);
+          return rem > 0 ? `${ft}'-${rem}"` : `${ft}'-0"`;
+        };
+
+        const midPt = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+        return (
+          <g opacity={0.7}>
+            <line x1={sink.x} y1={sink.y} x2={range.x} y2={range.y}
+              stroke={color} strokeWidth={0.8} strokeDasharray="4,3" />
+            <line x1={range.x} y1={range.y} x2={fridge.x} y2={fridge.y}
+              stroke={color} strokeWidth={0.8} strokeDasharray="4,3" />
+            <line x1={fridge.x} y1={fridge.y} x2={sink.x} y2={sink.y}
+              stroke={color} strokeWidth={0.8} strokeDasharray="4,3" />
+            {/* Leg labels */}
+            <text x={midPt(sink, range).x} y={midPt(sink, range).y - 3}
+              fill={color} fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" fontWeight="600">{fmtFt(legSR)}</text>
+            <text x={midPt(range, fridge).x + 4} y={midPt(range, fridge).y}
+              fill={color} fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="start" fontWeight="600">{fmtFt(legRF)}</text>
+            <text x={midPt(fridge, sink).x - 4} y={midPt(fridge, sink).y}
+              fill={color} fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="end" fontWeight="600">{fmtFt(legFS)}</text>
+            {/* Total */}
+            <text x={sink.x} y={sink.y + 10} fill={color} fontSize={3}
+              fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="500">
+              ▲ Total: {fmtFt(total)} {allOk ? '✓' : '⚠'}
+            </text>
+          </g>
+        );
+      })()}
+
       {/* ── LEGEND ── */}
       <g transform={`translate(14, ${parseFloat(viewBox.split(' ')[3]) - 22})`}>
         {[
