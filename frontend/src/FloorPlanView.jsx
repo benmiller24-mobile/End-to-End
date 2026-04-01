@@ -322,7 +322,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, wallId }) {
 
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────
 
-export default function FloorPlanView({ solverResult, inputWalls }) {
+export default function FloorPlanView({ solverResult, inputWalls, debug = false }) {
   if (!solverResult) return null;
 
   const walls = inputWalls || solverResult._inputWalls || [];

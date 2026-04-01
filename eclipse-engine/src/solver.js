@@ -657,7 +657,7 @@ export function solve(input) {
   }
 
   // Phase 7: Validate (pass roomType for context-aware validation)
-  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories);
+  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls);
   const validation = validateLayout(validationInput);
 
   // Add correction loop metadata
@@ -713,6 +713,97 @@ export function solve(input) {
   // directly — NOT the placements copies. We must tag the originals so the renderer
   // can use _elev.yMount and _elev.height for precise vertical positioning.
   assignElevToSourceObjects(wallLayouts, upperLayouts, talls, assignedAppliances, corners);
+
+  // ── POST-PLACEMENT OVERLAP DETECTION & AUTO-CORRECTION ──
+  // Scan each wall's base cabinet run for overlaps and gaps that violate
+  // standard cabinet widths. If an overlap is found, shift the offending
+  // cabinet rightward. If a gap is found that isn't fillable by standard
+  // widths, insert a filler strip.
+  for (const wl of wallLayouts) {
+    const cabs = wl.cabinets;
+    if (!cabs || cabs.length < 2) continue;
+
+    // Sort by position ascending
+    cabs.sort((a, b) => (a.position || 0) - (b.position || 0));
+
+    // Pass 1: Fix overlaps — shift right
+    for (let i = 1; i < cabs.length; i++) {
+      const prev = cabs[i - 1];
+      const curr = cabs[i];
+      const prevEnd = (prev.position || 0) + (prev.width || 0);
+      const currStart = curr.position || 0;
+
+      if (currStart < prevEnd) {
+        // Overlap detected — shift current cab to end of previous
+        const overlapAmount = prevEnd - currStart;
+        validation.push({
+          severity: 'warning',
+          rule: 'overlap_auto_corrected',
+          message: `Wall ${wl.wallId}: ${curr.sku || curr.applianceType || 'cabinet'} overlapped ${prev.sku || prev.applianceType || 'cabinet'} by ${overlapAmount}" — auto-shifted right`,
+          wall: wl.wallId,
+          cab: curr.sku,
+          overlap: overlapAmount,
+        });
+        curr.position = prevEnd;
+      }
+    }
+
+    // Pass 2: Check for gaps between adjacent cabinets
+    // Standard fillable widths: 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36
+    const FILLER_WIDTHS = [3, 6];
+    const STD_WIDTHS = new Set([9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42]);
+    for (let i = 1; i < cabs.length; i++) {
+      const prev = cabs[i - 1];
+      const curr = cabs[i];
+      const prevEnd = (prev.position || 0) + (prev.width || 0);
+      const currStart = curr.position || 0;
+      const gap = currStart - prevEnd;
+
+      if (gap > 0 && gap < 3) {
+        // Tiny gap — likely rounding error. Shift current cab left to close it.
+        curr.position = prevEnd;
+        validation.push({
+          severity: 'info',
+          rule: 'micro_gap_closed',
+          message: `Wall ${wl.wallId}: closed ${gap}" micro-gap before ${curr.sku || 'cabinet'}`,
+        });
+      } else if (gap >= 3 && gap <= 6 && FILLER_WIDTHS.includes(gap)) {
+        // Insertable filler strip
+        const filler = {
+          sku: `FST${gap}`,
+          width: gap,
+          position: prevEnd,
+          role: 'filler',
+          type: 'filler',
+          _autoInserted: true,
+          _elev: { zone: 'BASE', yMount: VERTICAL_ZONES.TOE_KICK.yMax, height: DIMS.baseHeight, depth: DEPTH_TIERS.BASE_FRONT, depthSetback: 0 },
+        };
+        filler._elev.yTop = filler._elev.yMount + filler._elev.height;
+        cabs.splice(i, 0, filler);
+        i++; // skip inserted filler
+        validation.push({
+          severity: 'info',
+          rule: 'filler_auto_inserted',
+          message: `Wall ${wl.wallId}: inserted ${gap}" filler strip at position ${prevEnd}"`,
+        });
+      }
+    }
+
+    // Pass 3: Check last cab doesn't exceed wall length
+    const lastCab = cabs[cabs.length - 1];
+    if (lastCab) {
+      const lastEnd = (lastCab.position || 0) + (lastCab.width || 0);
+      if (lastEnd > wl.wallLength) {
+        validation.push({
+          severity: 'error',
+          rule: 'wall_overflow',
+          message: `Wall ${wl.wallId}: cabinets extend to ${lastEnd}" but wall is only ${wl.wallLength}" — overflow by ${lastEnd - wl.wallLength}"`,
+          wall: wl.wallId,
+          overflow: lastEnd - wl.wallLength,
+        });
+      }
+    }
+  }
 
   // ── OCP 3D Solid Geometry Validation ──
   // Build true 3D solids via Python/OpenCascade for collision detection,
@@ -1481,80 +1572,93 @@ function positionAppliances(appliances, available, offset, wall, prefs) {
 
     } else if (app.type === "sink") {
       // Sink: needs landing on both sides. Accounts for DW placement.
-      for (let pos = offset; pos + w <= wallEnd; pos += 3) {
-        if (inDoorZone(pos, pos + w) || isClaimed(pos, pos + w)) continue;
-        const snapped = snapToNearestValid(pos, offset, wallEnd, w);
-        if (snapped === null || isClaimed(snapped, snapped + w)) continue;
+      // Two-pass approach: first try with snap validation, then relax if no position found.
+      for (let pass = 0; pass < 2; pass++) {
+        if (bestPos !== null) break; // found in first pass
+        for (let pos = offset; pos + w <= wallEnd; pos += 3) {
+          if (inDoorZone(pos, pos + w) || isClaimed(pos, pos + w)) continue;
 
-        let score = 0;
-        // Effective landing: consider already-placed appliances
-        let effectiveLeft = snapped - offset;
-        let effectiveRight = wallEnd - (snapped + w);
-        for (const c of claimed) {
-          if (c.end <= snapped && c.end > offset) effectiveLeft = Math.min(effectiveLeft, snapped - c.end);
-          if (c.start >= snapped + w && c.start < wallEnd) effectiveRight = Math.min(effectiveRight, c.start - (snapped + w));
-        }
-
-        const primary = Math.max(effectiveLeft, effectiveRight);
-        const secondary = Math.min(effectiveLeft, effectiveRight);
-
-        // NKBA landing
-        if (primary >= LANDING.sink.primary) score += 40;
-        else score += (primary / LANDING.sink.primary) * 40;
-        if (secondary >= LANDING.sink.secondary) score += 30;
-        else score += (secondary / LANDING.sink.secondary) * 30;
-
-        // Room for DW adjacent
-        if (dw) {
-          const canDWright = snapped + w + dwW <= wallEnd && !isClaimed(snapped + w, snapped + w + dwW);
-          const canDWleft = snapped - dwW >= offset && !isClaimed(snapped - dwW, snapped);
-          if (canDWright || canDWleft) score += 20;
-          else score -= 30;
-
-          // ── DW-aware landing quality ──
-          // Evaluate how much contiguous landing space the best DW placement leaves.
-          // Professional kitchens need at least 24" landing on one side of the sink+DW cluster.
-          let bestMaxLanding = 0;
-          if (canDWright) {
-            const rightLanding = wallEnd - (snapped + w + dwW);
-            const leftLanding = snapped - offset;
-            bestMaxLanding = Math.max(bestMaxLanding, Math.max(leftLanding, rightLanding));
+          // Pass 0: use snapToNearestValid for ideal fillability
+          // Pass 1: accept any unclaimed position (relaxed - don't require snap)
+          let snapped;
+          if (pass === 0) {
+            // Compute effective range accounting for claimed zones
+            let effectiveEnd = wallEnd;
+            for (const c of claimed) {
+              if (c.start > pos && c.start < effectiveEnd) effectiveEnd = c.start;
+            }
+            snapped = snapToNearestValid(pos, offset, effectiveEnd, w);
+            if (snapped === null || isClaimed(snapped, snapped + w)) continue;
+          } else {
+            // Relaxed pass: just use the position directly if unclaimed
+            snapped = pos;
           }
-          if (canDWleft) {
-            const rightLanding = wallEnd - (snapped + w);
-            const leftLanding = (snapped - dwW) - offset;
-            bestMaxLanding = Math.max(bestMaxLanding, Math.max(leftLanding, rightLanding));
+
+          let score = 0;
+          // Effective landing: consider already-placed appliances
+          let effectiveLeft = snapped - offset;
+          let effectiveRight = wallEnd - (snapped + w);
+          for (const c of claimed) {
+            if (c.end <= snapped && c.end > offset) effectiveLeft = Math.min(effectiveLeft, snapped - c.end);
+            if (c.start >= snapped + w && c.start < wallEnd) effectiveRight = Math.min(effectiveRight, c.start - (snapped + w));
           }
-          if (bestMaxLanding >= 24) score += 25;
-          else if (bestMaxLanding >= 18) score += 15;
-          else if (bestMaxLanding >= 12) score += 5;
-          else score -= 15;
-        }
 
-        // Standard-gap fillability
-        if (isStandardGap(effectiveLeft)) score += 10;
-        if (isStandardGap(effectiveRight)) score += 10;
+          const primary = Math.max(effectiveLeft, effectiveRight);
+          const secondary = Math.min(effectiveLeft, effectiveRight);
 
-        // Triangle tightness: in L-shapes, sink should be near the corner side
-        // so it bridges fridge (opposite wall terminal) and range (other wall).
-        // But NOT jammed into the corner — leave room for corner filler + landing.
-        // Ideal: sink is in the inner third of the wall (near corner) with landing on both sides.
-        if (isMultiWall) {
-          const distFromCorner = snapped - offset;
-          // Reward positions in the inner half (closer to corner) but not too close
-          // Minimum ~24" from corner (filler + landing space)
-          if (distFromCorner >= 0 && distFromCorner < 24) {
-            score -= 20; // too close to corner — no landing space
-          } else if (distFromCorner <= available * 0.5) {
-            score += 15; // good — inner half, with room for landing
+          // NKBA landing
+          if (primary >= LANDING.sink.primary) score += 40;
+          else score += (primary / LANDING.sink.primary) * 40;
+          if (secondary >= LANDING.sink.secondary) score += 30;
+          else score += (secondary / LANDING.sink.secondary) * 30;
+
+          // Room for DW adjacent
+          if (dw) {
+            const canDWright = snapped + w + dwW <= wallEnd && !isClaimed(snapped + w, snapped + w + dwW);
+            const canDWleft = snapped - dwW >= offset && !isClaimed(snapped - dwW, snapped);
+            if (canDWright || canDWleft) score += 20;
+            else score -= 30;
+
+            let bestMaxLanding = 0;
+            if (canDWright) {
+              const rightLanding = wallEnd - (snapped + w + dwW);
+              const leftLanding = snapped - offset;
+              bestMaxLanding = Math.max(bestMaxLanding, Math.max(leftLanding, rightLanding));
+            }
+            if (canDWleft) {
+              const rightLanding = wallEnd - (snapped + w);
+              const leftLanding = (snapped - dwW) - offset;
+              bestMaxLanding = Math.max(bestMaxLanding, Math.max(leftLanding, rightLanding));
+            }
+            if (bestMaxLanding >= 24) score += 25;
+            else if (bestMaxLanding >= 18) score += 15;
+            else if (bestMaxLanding >= 12) score += 5;
+            else score -= 15;
           }
+
+          // Standard-gap fillability
+          if (isStandardGap(effectiveLeft)) score += 10;
+          if (isStandardGap(effectiveRight)) score += 10;
+
+          // Triangle tightness: in L-shapes, sink should be near the corner side
+          if (isMultiWall) {
+            const distFromCorner = snapped - offset;
+            if (distFromCorner >= 0 && distFromCorner < 24) {
+              score -= 20;
+            } else if (distFromCorner <= available * 0.5) {
+              score += 15;
+            }
+          }
+
+          // Unfillable gap penalty
+          if (effectiveLeft > 0 && effectiveLeft < 9) score -= 25;
+          if (effectiveRight > 0 && effectiveRight < 9) score -= 25;
+
+          // Pass 1 penalty to prefer pass 0 results when available
+          if (pass === 1) score -= 5;
+
+          if (score > bestScore) { bestScore = score; bestPos = snapped; }
         }
-
-        // Unfillable gap penalty
-        if (effectiveLeft > 0 && effectiveLeft < 9) score -= 25;
-        if (effectiveRight > 0 && effectiveRight < 9) score -= 25;
-
-        if (score > bestScore) { bestScore = score; bestPos = snapped; }
       }
 
     } else if (app.type === "dishwasher") {
@@ -1629,8 +1733,25 @@ function positionAppliances(appliances, available, offset, wall, prefs) {
           }
         }
       } else {
-        // No sink on this wall — default near center
-        bestPos = offset + Math.round((available - w) / 2);
+        // No sink on this wall — find unclaimed position near center
+        const idealCenter = offset + Math.round((available - w) / 2);
+        // Try center first, then scan outward
+        if (!isClaimed(idealCenter, idealCenter + w)) {
+          bestPos = idealCenter;
+        } else {
+          for (let delta = 3; delta < available; delta += 3) {
+            const tryRight = idealCenter + delta;
+            const tryLeft = idealCenter - delta;
+            if (tryRight + w <= wallEnd && !isClaimed(tryRight, tryRight + w)) {
+              bestPos = tryRight;
+              break;
+            }
+            if (tryLeft >= offset && !isClaimed(tryLeft, tryLeft + w)) {
+              bestPos = tryLeft;
+              break;
+            }
+          }
+        }
       }
 
     } else {
@@ -2406,7 +2527,8 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   for (let cabIdx = 0; cabIdx < baseCabs.length; cabIdx++) {
     const base = baseCabs[cabIdx];
     // Check if this position should be skipped
-    const skip = skipZones.find(z => base.position >= z.start && base.position < z.end);
+    const baseEnd = (base.position || 0) + (base.width || 0);
+    const skip = skipZones.find(z => (base.position || 0) < z.end && baseEnd > z.start);
     if (skip) continue;
 
     const upperW = findClosestWidth(base.width, STD_UPPER_WIDTHS, "down");
@@ -5772,7 +5894,7 @@ function assignSpatialData(p) {
   p._elev.yTop = p._elev.yMount + p._elev.height;
 }
 
-function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = []) {
+function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = []) {
   // Build appliance list with ACTUAL positions and landing clearances
   // from the solved wall layouts — not estimated from cumulative widths.
   const appWithPositions = [];
@@ -5883,6 +6005,7 @@ function buildValidationInput(wallLayouts, islandLayout, appliances, corners, ro
     })),
     prefs: prefs || {},
     accessories: accessories || [],
+    talls: talls || [],
     counterHeight: 36,
     upperCabBottomHeight: 54,
     walkwayClearance: 36,

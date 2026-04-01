@@ -154,7 +154,7 @@ function appLabel(aType) {
 
 // ─── SINGLE WALL ELEVATION ───────────────────────────────────────────
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, trim = {}, tagStart = 1 }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, trim = {}, tagStart = 1, debug = false }) {
   const wW = wallLen * S;
   const cH = ceilH * S;
   const top = 35;
@@ -527,13 +527,104 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
         stroke={C.line} strokeWidth={0.6} />
       <line x1={wW} y1={ceilY} x2={wW} y2={floorY}
         stroke={C.line} strokeWidth={0.6} />
+
+      {/* ── DEBUG OVERLAY ── */}
+      {debug && (
+        <g className="debug-overlay" opacity={0.7}>
+          {/* Zone color bands */}
+          <rect x={0} y={floorY - (TOEKICK + BASE_H) * S} width={wW} height={BASE_H * S}
+            fill="rgba(66,133,244,0.08)" stroke="none" />
+          <rect x={0} y={ceilY} width={wW} height={(ceilH - 54) * S}
+            fill="rgba(52,168,83,0.08)" stroke="none" />
+          <text x={-50} y={floorY - TOEKICK * S - BASE_H * S / 2}
+            fill="#4285F4" fontSize={3.5} fontFamily="monospace" fontWeight="700">BASE</text>
+          <text x={-50} y={ceilY + (ceilH - 54) * S / 2}
+            fill="#34A853" fontSize={3.5} fontFamily="monospace" fontWeight="700">UPPER</text>
+
+          {/* Position markers for each base cabinet */}
+          {validBases.map((cab, i) => {
+            const cx = cab.position * S;
+            const cw = cab.width * S;
+            const endPos = cab.position + cab.width;
+            return (
+              <g key={`db${i}`}>
+                {/* Position tick */}
+                <line x1={cx} y1={floorY + 2} x2={cx} y2={floorY + 14}
+                  stroke="#E91E63" strokeWidth={0.4} />
+                <text x={cx + 1} y={floorY + 10} fill="#E91E63"
+                  fontSize={2.8} fontFamily="monospace">{cab.position}"</text>
+                {/* End tick */}
+                <line x1={cx + cw} y1={floorY + 2} x2={cx + cw} y2={floorY + 14}
+                  stroke="#E91E63" strokeWidth={0.4} />
+                {/* Zone label */}
+                <text x={cx + cw / 2} y={floorY + 20} fill="#333"
+                  fontSize={2.5} fontFamily="monospace" textAnchor="middle">
+                  {cab._elev?.zone || '?'} {cab.sku || cab.applianceType || ''}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Position markers for uppers */}
+          {validUppers.map((cab, i) => {
+            const cx = cab.position * S;
+            const cw = cab.width * S;
+            return (
+              <g key={`du${i}`}>
+                <line x1={cx} y1={ceilY - 2} x2={cx} y2={ceilY - 10}
+                  stroke="#34A853" strokeWidth={0.4} />
+                <text x={cx + 1} y={ceilY - 4} fill="#34A853"
+                  fontSize={2.5} fontFamily="monospace">{cab.position}" {cab._elev?.zone}</text>
+              </g>
+            );
+          })}
+
+          {/* Hood zone highlight */}
+          {hood && (
+            <rect x={hood.position * S} y={ceilY}
+              width={hood.width * S} height={(ceilH - (hood._hoodMountAFF || 60)) * S}
+              fill="rgba(255,152,0,0.15)" stroke="#FF9800" strokeWidth={0.5} strokeDasharray="3,2" />
+          )}
+
+          {/* Overlap warnings */}
+          {(() => {
+            const warnings = [];
+            const sorted = [...validBases].sort((a, b) => a.position - b.position);
+            for (let i = 1; i < sorted.length; i++) {
+              const prev = sorted[i - 1];
+              const curr = sorted[i];
+              const prevEnd = prev.position + prev.width;
+              if (curr.position < prevEnd) {
+                const cx = curr.position * S;
+                warnings.push(
+                  <g key={`ow${i}`}>
+                    <rect x={cx} y={floorY - (TOEKICK + BASE_H) * S - 4}
+                      width={(prevEnd - curr.position) * S} height={BASE_H * S + 8}
+                      fill="rgba(244,67,54,0.2)" stroke="#F44336" strokeWidth={0.8} />
+                    <text x={cx + 2} y={floorY - (TOEKICK + BASE_H) * S - 6}
+                      fill="#F44336" fontSize={3} fontFamily="monospace" fontWeight="700">
+                      OVERLAP {(prevEnd - curr.position).toFixed(1)}"
+                    </text>
+                  </g>
+                );
+              }
+            }
+            return warnings;
+          })()}
+
+          {/* Validation summary */}
+          <text x={0} y={totalH + 34} fill="#666" fontSize={3.5} fontFamily="monospace">
+            DEBUG: {validBases.length} bases, {validUppers.length} uppers, {validTalls.length} talls | Wall {wallId}: {wallLen}"
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
 
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────
 
-export default function ElevationView({ solverResult, trim = {} }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false }) {
   if (!solverResult) return null;
 
   // Use SOURCE arrays (walls, uppers, talls, corners) — NOT placements.
@@ -643,6 +734,7 @@ export default function ElevationView({ solverResult, trim = {} }) {
             hood={wd.hood}
             trim={trim}
             tagStart={start}
+            debug={debug}
           />
         );
       })}

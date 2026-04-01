@@ -720,6 +720,7 @@ function ComparisonPricingPanel({ placements }) {
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
   materials, selectedAppliances, countertopColor, prefs, trimSelections }) {
   const [tab, setTab] = useState('floorplan');
+  const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
   if (!solverResult) return null;
 
@@ -792,19 +793,26 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             background: 'transparent', color: C.accent, fontWeight: 600, marginLeft: 'auto' }}>
           {exporting ? 'Exporting...' : 'Export PDF'}
         </button>
+        <button onClick={() => setDebugOverlay(d => !d)}
+          style={{ padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+            border: `1px solid ${debugOverlay ? '#E91E63' : '#999'}`,
+            background: debugOverlay ? '#FDE8EF' : 'transparent',
+            color: debugOverlay ? '#E91E63' : '#666', fontWeight: 600, marginLeft: 8 }}>
+          {debugOverlay ? 'Debug ON' : 'Debug'}
+        </button>
       </div>
 
       {/* Floor Plan tab */}
       {tab === 'floorplan' && (
         <div data-pdf="floorplan">
-          <FloorPlanView solverResult={solverResult} inputWalls={solverResult._inputWalls} />
+          <FloorPlanView solverResult={solverResult} inputWalls={solverResult._inputWalls} debug={debugOverlay} />
         </div>
       )}
 
       {/* Elevations tab */}
       {tab === 'elevations' && (
         <div>
-          <ElevationView solverResult={solverResult} trim={trimSelections} />
+          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} />
           {/* Tag SVGs for PDF export */}
           <style>{`[data-pdf="elevation"] { /* marker */ }`}</style>
         </div>
@@ -1017,11 +1025,17 @@ export default function App() {
       const result = solve(input);
 
       // Bridge: ensure _inputWalls exists for FloorPlanView/ElevationView
+      // The solver may not include _inputWalls, so build it from the input walls
+      // or from result.walls (which uses wallId/wallLength instead of id/length)
       if (!result._inputWalls) {
         result._inputWalls = walls.map(w => ({ id: w.id, length: w.length }));
       }
+      // Also ensure result.walls items have .id and .length aliases for views
       if (result.walls && result.walls[0] && !result.walls[0].id) {
-        result.walls.forEach(w => { w.id = w.wallId; w.length = w.wallLength; });
+        result.walls.forEach(w => {
+          w.id = w.wallId;
+          w.length = w.wallLength;
+        });
       }
 
       setSolverResult(result);

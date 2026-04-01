@@ -2533,10 +2533,14 @@ export function validateLayout(layout) {
     const fw = Math.round(fridge.width || 36);
 
     // Check: Fridge must be sandwiched between tall panels or tall cabinets
-    const fridgeREPs = accessories.filter(a =>
-      (a.role === "rep" || a.role === "frep" || a.type === "rep" || a.type === "frep" ||
-       (a.role && a.role.toLowerCase().includes("fridge")) && a.role.includes("panel"))
-    );
+    // REP panels may be in accessories OR in the talls array
+    const allTallsAndAccessories = [...accessories, ...(layout.talls || [])];
+    const fridgeREPs = allTallsAndAccessories.filter(a => {
+      const sku = (a.sku || '').toUpperCase();
+      const role = (a.role || '').toLowerCase();
+      return sku.includes('REP') || role === 'rep' || role === 'frep' ||
+        role === 'fridge_panel' || role.includes('fridge') && role.includes('panel');
+    });
     if (fridgeREPs.length < 2) {
       issues.push({
         rule: "Fridge-Enclosure-Missing-Panels",
