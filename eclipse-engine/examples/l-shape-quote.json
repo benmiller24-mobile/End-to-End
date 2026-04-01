@@ -1,0 +1,52 @@
+{
+  "room": {
+    "layoutType": "l-shape",
+    "roomType": "kitchen",
+    "walls": [
+      {
+        "id": "A",
+        "length": 99,
+        "role": "range"
+      },
+      {
+        "id": "B",
+        "length": 115,
+        "role": "sink"
+      }
+    ],
+    "appliances": [
+      {
+        "type": "range",
+        "width": 36,
+        "wall": "A",
+        "position": "center"
+      },
+      {
+        "type": "sink",
+        "width": 36,
+        "wall": "B"
+      },
+      {
+        "type": "dishwasher",
+        "width": 24,
+        "wall": "B"
+      },
+      {
+        "type": "refrigerator",
+        "width": 36,
+        "wall": "B",
+        "position": "end"
+      }
+    ],
+    "prefs": {
+      "cornerTreatment": "lazySusan",
+      "preferDrawerBases": true,
+      "sophistication": "high"
+    }
+  },
+  "materials": {
+    "species": "Maple",
+    "construction": "Standard",
+    "doorStyle": "Hanover FP"
+  }
+}

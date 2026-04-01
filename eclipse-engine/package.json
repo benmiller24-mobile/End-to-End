@@ -1,0 +1,20 @@
+{
+  "name": "@eclipse/engine",
+  "version": "0.1.0",
+  "description": "Eclipse Kitchen Designer — Constraint-based layout engine. Generates cabinet placements from room dimensions using NKBA rules and patterns extracted from 7 real Eclipse projects.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./constraints": "./src/constraints.js",
+    "./patterns": "./src/patterns.js",
+    "./solver": "./src/solver.js"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@eclipse/pricing": ">=0.1.0"
+  },
+  "keywords": ["eclipse", "cabinetry", "kitchen", "design", "layout", "NKBA", "constraint-engine"],
+  "license": "UNLICENSED",
+  "private": true
+}

@@ -1,0 +1,4944 @@
+{
+  "projects": [
+    {
+      "filename": "Copy of 011526 BOLLINI KITCHEN ECLIPSE ORDER.pdf",
+      "name": "011626 BOLLINI KITCHEN",
+      "catalog": "ECL8_8A_1",
+      "materials": {
+        "species": "Walnut Drawer Guide Blum FEG Guide",
+        "color": "Std",
+        "doorStyle": "Hartford Flat Panel",
+        "construction": "Standard",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "SW3363(21)",
+          "description": "Stacked Wall Cabinets",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1547.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 386.75
+            }
+          ]
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "SW3363(21)",
+          "description": "Stacked Wall Cabinets",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 1547.0,
+          "width": 30.0,
+          "height": 34.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 386.75
+            },
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 386.75
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 590.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 346.0
+            },
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 210.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 210.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 210.0
+            },
+            {
+              "code": "FHD",
+              "description": "Full Height Door",
+              "price": 0.0
+            },
+            {
+              "code": "FILL",
+              "description": "BB Fill Base Blind Area",
+              "price": 232.0
+            },
+            {
+              "code": "ROT",
+              "description": "Rollout Tray (Installed From ATT)",
+              "price": 436.0
+            }
+          ]
+        },
+        {
+          "lineNum": "25",
+          "qty": 1,
+          "sku": "SB36-FHD",
+          "description": "Sink Base Full Hgt Door",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 1100.0,
+          "width": 0.0,
+          "height": 118.0,
+          "depth": 27.0,
+          "modifications": [
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            },
+            {
+              "code": "ROT",
+              "description": "Rollout Tray (Installed From ATT)",
+              "price": 872.0
+            },
+            {
+              "code": "MOD/SQ50|21|117|27",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 968.0
+            },
+            {
+              "code": "ROT",
+              "description": "Rollout Tray (Installed From ATT)",
+              "price": 654.0
+            },
+            {
+              "code": "MOD/SQ50|21|117|27",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 968.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            },
+            {
+              "code": "FDS",
+              "description": "Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "WTD",
+              "description": "Stainless Steel Wire Tray Divider",
+              "price": 126.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 012325 SPECTOR KITCHEN ORDER.pdf",
+      "name": "012325 SPECTOR KITCHEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Hickory Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Natural Hickory",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Plywood/Partial Plywood",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W1839L",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 501.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "RW3021",
+          "description": "Refrigerator Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 550.0,
+          "width": null,
+          "height": 21.0,
+          "depth": 21.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "MOD/SQ30|30|21|21",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 165.0
+            }
+          ]
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W3639",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 765.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "MW2739-18",
+          "description": "Wall Microwave Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 1080.0,
+          "width": null,
+          "height": 21.0,
+          "depth": 25.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "W2739",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 655.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 163.75
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door per Door",
+              "price": 0.0
+            }
+          ]
+        },
+        {
+          "lineNum": "8",
+          "qty": 1,
+          "sku": "W2739",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 655.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door per Door",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 163.75
+            }
+          ]
+        },
+        {
+          "lineNum": "9",
+          "qty": 1,
+          "sku": "UT3393-RT-25.5",
+          "description": "Utility w/ Rollout Trays 93H 27D",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 3006.0,
+          "width": 0.0,
+          "height": 93.0,
+          "depth": 26.0,
+          "modifications": [
+            {
+              "code": "WTD-2",
+              "description": "Stainless Steel Wire Tray Divider",
+              "price": 126.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "13",
+          "qty": 1,
+          "sku": "B36-RT",
+          "description": "Base w/ Roll Out Trays",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 1220.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "18",
+          "qty": 1,
+          "sku": "B36-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 784.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 24.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "21",
+          "qty": 1,
+          "sku": "SB36",
+          "description": "Sink Base",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 761.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "23",
+          "qty": 1,
+          "sku": "B37-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 937.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 13.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "23.2",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "23.3",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "R&L Recess Toe Kick R&L",
+              "price": 146.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Base Door per Door",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 234.25
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 020526 1934 Los Alamos Kitchen ORDER.pdf",
+      "name": "020525 1934 Los Alamos Kitchen",
+      "catalog": "ECL8_8A_1",
+      "materials": {
+        "species": "Alder Drawer Guide Blum Edge Guide",
+        "color": "Caviar Alder",
+        "doorStyle": "Malibu FP",
+        "construction": "Standard",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "W22",
+          "description": "1/233L Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 441.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W22",
+          "description": "1/233R Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 460.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "SW22",
+          "description": "1/248(15)L Stacked with 15\" Top Section",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 889.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "BEP6R1",
+          "description": "1/2-FTK-L Base End Panel w/ 6\" Returns - FTK",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 304.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "12",
+          "qty": 1,
+          "sku": "SB33",
+          "description": "Sink Base",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 680.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "17",
+          "qty": 1,
+          "sku": "B42-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 972.0,
+          "width": 42.0,
+          "height": 34.0,
+          "depth": 9.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "18",
+          "qty": 1,
+          "sku": "B42-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 972.0,
+          "width": 1.0,
+          "height": 30.0,
+          "depth": 0.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "26",
+          "qty": 1,
+          "sku": "REP6R1",
+          "description": "1/210227L REP w/ 6\" Returns - FTK",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 763.0,
+          "width": 1.0,
+          "height": 102.0,
+          "depth": 24.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "27",
+          "qty": 1,
+          "sku": "REP6R1",
+          "description": "1/210227R REP w/ 6\" Returns - FTK",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 763.0,
+          "width": null,
+          "height": 102.0,
+          "depth": 24.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 020626 Bissegger - Max's Office (Eclipse) PAINTED ORDER.pdf",
+      "name": "020626 BISSEGGER",
+      "catalog": "ECL8_8A_1",
+      "materials": {
+        "species": "Maple Drawer Guide Blum Edge Guide",
+        "color": "Evergreen Fog Paint {+%} Drawer Type 5/8\" Hdwd Dovetail Drw",
+        "doorStyle": "Malibu FP",
+        "construction": "Standard",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "W1842R",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 552.0,
+          "width": null,
+          "height": 6.0,
+          "depth": 24.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 020626 Bissegger - Max's Office (Eclipse) STAINED ORDER.pdf",
+      "name": "020626 BISSEGGER",
+      "catalog": "ECL8_8B_1",
+      "materials": {
+        "species": "Rustic Walnut Drawer Guide Blum Edge Guide",
+        "color": "Std",
+        "doorStyle": "Malibu FP",
+        "construction": "Standard",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": []
+    },
+    {
+      "filename": "Copy of 021326 McComb - Eclipse A ORDER.pdf",
+      "name": "McComb",
+      "catalog": "ECL8_8A_1",
+      "materials": {
+        "species": "Maple Drawer Guide Blum FEG Guide",
+        "color": "Shoji White Paint {+%} Drawer Type 3/4\" Hdwd Dovetail Drw",
+        "doorStyle": "Scottsdale FP",
+        "construction": "Standard",
+        "drawerType": "3/4\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W2439-2D",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 645.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W2439-2D",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 645.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W1239R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 453.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "7",
+          "qty": 1,
+          "sku": "W1239L",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 453.0,
+          "width": null,
+          "height": 9.0,
+          "depth": 24.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "13",
+          "qty": 1,
+          "sku": "SB30",
+          "description": "Sink Base",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 650.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "13.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "14.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": 93.0,
+          "depth": 25.0,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "CUTOUT-OVEN|27|25",
+              "description": "Oven 27\"W x 25\"H",
+              "price": 0.0
+            },
+            {
+              "code": "CUTOUT-MW|27|14",
+              "description": "Microwave 27\"W x 14\"H",
+              "price": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 021326 McComb - Eclipse B ORDER.pdf",
+      "name": "McComb",
+      "catalog": "ECL8_8B_1",
+      "materials": {
+        "species": "Maple Drawer Guide Blum FEG Guide",
+        "color": "Slate Tile Paint {+%} Drawer Type 3/4\" Hdwd Dovetail Drw",
+        "doorStyle": "Scottsdale FP",
+        "construction": "Standard",
+        "drawerType": "3/4\" Hdwd Dovetail Drw"
+      },
+      "cabinets": []
+    },
+    {
+      "filename": "Copy of 030326 Huang ORDER.pdf",
+      "name": "030326 HUANG KITCHEN",
+      "catalog": "ECL8_8A_1",
+      "materials": {
+        "species": "Thermally Fused Laminate Drawer Guide Blum Edge Guide",
+        "color": "Battle Creek Oak TFL Drawer Type 5/8\" Hdwd Dovetail Drw",
+        "doorStyle": "Metropolitan Vertical Grain",
+        "construction": "Standard",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W1839L",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 501.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "W1239R",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 453.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "FILL",
+              "description": "BB Fill Base Blind Area",
+              "price": 232.0
+            },
+            {
+              "code": "FHD",
+              "description": "Full Height Door",
+              "price": 0.0
+            }
+          ]
+        },
+        {
+          "lineNum": "16",
+          "qty": 1,
+          "sku": "SB33-FHD",
+          "description": "Sink Base Full Hgt Door",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 1019.0,
+          "width": null,
+          "height": 93.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "FILL",
+              "description": "BB Fill Base Blind Area",
+              "price": 232.0
+            },
+            {
+              "code": "FHD",
+              "description": "Full Height Door",
+              "price": 0.0
+            },
+            {
+              "code": "ROT",
+              "description": "Rollout Tray (Installed From ATT)",
+              "price": 654.0
+            }
+          ]
+        },
+        {
+          "lineNum": "28",
+          "qty": 1,
+          "sku": "UT3693",
+          "description": "Utility Tall 93H 24D",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 2004.0,
+          "width": null,
+          "height": 93.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "ROT",
+              "description": "Rollout Tray (Installed From ATT)",
+              "price": 218.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 030525 OWEN KITCHEN PAINTED ORDER.pdf",
+      "name": "030725 OWEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Maple Drawer Front Style Scottsdale FP Drawer Front",
+        "color": "Light French Gray Paint {+%} Wearing",
+        "doorStyle": "Scottsdale FP",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W2736",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 583.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "2.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "36R Flush Deco Door on Wall Rt End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "36R Flush Deco Door on Wall Rt End B",
+              "price": 367.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W3036",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 599.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "36L Flush Deco Door on Wall Left End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": 1.0,
+          "height": 90.0,
+          "depth": 27.0,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "36L Flush Deco Door on Wall Left End B",
+              "price": 367.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "MOD/SQ50|27|90|21",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 1013.5
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "9",
+          "qty": 1,
+          "sku": "OM3090-27",
+          "description": "Oven Microwave Cab 90H 27D",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1964.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "16",
+          "qty": 1,
+          "sku": "SB36-FHD",
+          "description": "Sink Base Full Hgt Door",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1100.0,
+          "width": 48.0,
+          "height": 96.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "23",
+          "qty": 1,
+          "sku": "3SRM3F",
+          "description": "-8' 3\" Face Sub Rail 8' {Vertical}",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 240.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 030525 OWEN KITCHEN STAINED ORDER.pdf",
+      "name": "030725 OWEN",
+      "catalog": "ECL24B_1",
+      "materials": {
+        "species": "Rustic Hickory Drawer Front Style Scottsdale FP Drawer Front",
+        "color": "Burnt Sugar Hickory",
+        "doorStyle": "Scottsdale FP",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "BEP1",
+          "description": "1/2R-FTK Base End Panel 1.5 Right w/Flush Toe",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 145.0,
+          "width": 1.0,
+          "height": 34.0,
+          "depth": 35.0,
+          "modifications": [
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            },
+            {
+              "code": "RMK",
+              "description": "Removeable Toe Kick",
+              "price": 146.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 032025 Master Bath ORDER.pdf",
+      "name": "McCarter Parade",
+      "catalog": "ECL24B_1",
+      "materials": {
+        "species": "White Oak Drawer Front Style Slab Drawer Front",
+        "color": "Almond White Oak",
+        "doorStyle": "Malibu Reeded Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "BEP1",
+          "description": "1/2R-FTK Base End Panel 1.5 Right w/Flush Toe",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 145.0,
+          "width": 48.0,
+          "height": 21.0,
+          "depth": 21.0,
+          "modifications": [
+            {
+              "code": "MOD/SQ50|48|21|21",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 479.0
+            },
+            {
+              "code": "MOD/SQ50|48|21|21",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 479.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 032025 Powder ORDER.pdf",
+      "name": "McCarter Parade",
+      "catalog": "SHI24_1",
+      "materials": {
+        "species": "White Oak Drawer Guide Blum FEG Guide",
+        "color": "Std",
+        "doorStyle": "Malibu Reeded Panel Inset Wall Dr Sand-Through",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "BEP1",
+          "description": "1/2-FTK-R Base End Panel w/Flush Toe",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 145.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "MOD/SQ50",
+              "description": "% Square Mofication Upcharge >6\"",
+              "price": 298.0
+            }
+          ]
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "FLVB3624-FHD",
+          "description": "24H Floating Vanity Base w/FHD",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 911.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 032125 Kitchen ORDERS.pdf",
+      "name": "McCarter Parade",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "White Oak Drawer Front Style Slab Drawer Front",
+        "color": "Almond White Oak",
+        "doorStyle": "Malibu Reeded Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "REP1.5",
+          "description": "114FTK-27L Refrig End Panel Left w/FTK 27D",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 544.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "RW4830-27",
+          "description": "Refrigerator Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1091.0,
+          "width": null,
+          "height": 30.0,
+          "depth": 27.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "UT1884L",
+          "description": "Utility Tall 84H 24D",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 1033.0,
+          "width": null,
+          "height": 78.0,
+          "depth": 18.0,
+          "modifications": [
+            {
+              "code": "NTK",
+              "description": "No Toe Kick",
+              "price": 89.0
+            },
+            {
+              "code": "MOD/SQ50|18|78|18",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 516.5
+            }
+          ]
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "UT1884R",
+          "description": "Utility Tall 84H 24D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 1033.0,
+          "width": null,
+          "height": 78.0,
+          "depth": 18.0,
+          "modifications": [
+            {
+              "code": "NTK",
+              "description": "No Toe Kick",
+              "price": 89.0
+            },
+            {
+              "code": "MOD/SQ50|18|78|18",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 516.5
+            }
+          ]
+        },
+        {
+          "lineNum": "7",
+          "qty": 1,
+          "sku": "REP1.5",
+          "description": "114FTK-27L Refrig End Panel Left w/FTK 27D",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 544.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "8",
+          "qty": 1,
+          "sku": "B33-RT",
+          "description": "Base w/ Roll Out Trays",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 1190.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "B33-RT",
+          "description": "Base w/ Roll Out Trays",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1190.0,
+          "width": 57.0,
+          "height": 34.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "20",
+          "qty": 1,
+          "sku": "B24L",
+          "description": "Base Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 541.0,
+          "width": null,
+          "height": 1.0,
+          "depth": 13.0,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "31",
+          "qty": 1,
+          "sku": "3SRM3F",
+          "description": "-8' 3\" Face Sub Rail 8' {Vertical}",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 240.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "32",
+          "qty": 1,
+          "sku": "3SRM3F",
+          "description": "-8' 3\" Face Sub Rail 8' {Vertical}",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 240.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 050625 Firebird ORDER PAINT.pdf",
+      "name": "050625 FIREBIRD",
+      "catalog": "ECL8_4B_1",
+      "materials": {
+        "species": "Drawer Front Style",
+        "color": "Wearing",
+        "doorStyle": "Finish Technique",
+        "construction": "Drawer Guide",
+        "drawerType": "# Qty Manuf. code Description Fin.Side Hinge Side List Price"
+      },
+      "cabinets": [
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "SW3351(15)",
+          "description": "Stacked Wall Cabinets",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1199.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 299.75
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 100.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "SW3351(15)",
+          "description": "Stacked Wall Cabinets",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 1199.0,
+          "width": null,
+          "height": 42.0,
+          "depth": 15.0,
+          "modifications": [
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 299.75
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 050625 Firebird ORDER STAIN.pdf",
+      "name": "050625 FIREBIRD",
+      "catalog": "ECL8_4A_1",
+      "materials": {
+        "species": "Maple Drawer Front Style 2 1/2 Ward Flat Panel Drawer Front",
+        "color": "Cashmere Maple",
+        "doorStyle": "Ward Flat Panel",
+        "construction": "Plywood/Partial Plywood",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "12",
+          "qty": 1,
+          "sku": "SB36",
+          "description": "Sink Base",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 761.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "13",
+          "qty": 1,
+          "sku": "BBC48R",
+          "description": "Base Blind Corner",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 738.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 18.0,
+          "modifications": [
+            {
+              "code": "FHD",
+              "description": "Full Height Door",
+              "price": 0.0
+            },
+            {
+              "code": "ROT-FM",
+              "description": "1 Floor Mounted Roll Out Tray (Installed FroBm ATT)",
+              "price": 388.0
+            }
+          ]
+        },
+        {
+          "lineNum": "24.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "LT Recess Toe Kick Left",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "25.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "RT Recess Toe Kick Right",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "26",
+          "qty": 1,
+          "sku": "B18R",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 487.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "26.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "RT Recess Toe Kick Right",
+              "price": 146.0
+            },
+            {
+              "code": "BDEP",
+              "description": "RT Deco Door Right (ships loose)",
+              "price": 297.0
+            }
+          ]
+        },
+        {
+          "lineNum": "27",
+          "qty": 1,
+          "sku": "B18L",
+          "description": "Base Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 487.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "27.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "LT Recess Toe Kick Left",
+              "price": 146.0
+            },
+            {
+              "code": "CUTOUT-OVEN|27|25",
+              "description": "Oven 27\"W x 25\"H",
+              "price": 0.0
+            },
+            {
+              "code": "CUTOUT-MW|27|14",
+              "description": "see custom OM Spec page",
+              "price": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 050725 Firebird ORDER PAINT.pdf",
+      "name": "050625 FIREBIRD",
+      "catalog": "ECL8_4B_1",
+      "materials": {
+        "species": "Maple Drawer Front Style Ward Flat Panel Drawer Front",
+        "color": "Custom Paint (specify SW#) {+%} Wearing",
+        "doorStyle": "Ward Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "SW3351(15)",
+          "description": "Stacked Wall Cabinets",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1199.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 299.75
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 100.0
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "SW3351(15)",
+          "description": "Stacked Wall Cabinets",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 1199.0,
+          "width": null,
+          "height": 42.0,
+          "depth": 15.0,
+          "modifications": [
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 299.75
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door {Upper Only}",
+              "price": 0.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 050725 Firebird ORDER STAIN.pdf",
+      "name": "050625 FIREBIRD",
+      "catalog": "ECL8_4A_1",
+      "materials": {
+        "species": "Maple Drawer Front Style 2 1/2 Ward Flat Panel Drawer Front",
+        "color": "Cashmere Maple",
+        "doorStyle": "Ward Flat Panel",
+        "construction": "Plywood/Partial Plywood",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "12",
+          "qty": 1,
+          "sku": "SB36",
+          "description": "Sink Base",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 761.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 18.0,
+          "modifications": [
+            {
+              "code": "FILL",
+              "description": "BB Fill Base Blind Area",
+              "price": 232.0
+            },
+            {
+              "code": "FHD",
+              "description": "Full Height Door",
+              "price": 0.0
+            },
+            {
+              "code": "ROT-FM",
+              "description": "1 Floor Mounted Roll Out Tray (Installed FroBm ATT)",
+              "price": 388.0
+            },
+            {
+              "code": "RCK",
+              "description": "LT Recess Toe Kick Left",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "24.2",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "RT Recess Toe Kick Right",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "25.2",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "26",
+          "qty": 1,
+          "sku": "B18R",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 487.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "SEND",
+              "description": "DOOR LOOSE Door(s) Sent Loose {Select Qty}",
+              "price": 100.0
+            },
+            {
+              "code": "RCK",
+              "description": "RT Recess Toe Kick Right",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "26.3",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "27",
+          "qty": 1,
+          "sku": "B18L",
+          "description": "Base Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 487.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RCK",
+              "description": "LT Recess Toe Kick Left",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "27.2",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": 0.0,
+          "height": 102.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "CUTOUT-MW|27|14",
+              "description": "see custom OM Spec page",
+              "price": 0.0
+            },
+            {
+              "code": "CUTOUT-OVEN|27|25",
+              "description": "Oven 27\"W x 25\"H",
+              "price": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 050725 WARD KITCHEN ORDER.pdf",
+      "name": "050725 WARD KITCHEN",
+      "catalog": "NEV24A_1",
+      "materials": {
+        "species": "Drawer Front Style",
+        "color": "Wearing",
+        "doorStyle": "Finish Technique",
+        "construction": "Drawer Guide",
+        "drawerType": "# Qty Manuf. code Description Fin.Side Hinge Side List Price"
+      },
+      "cabinets": [
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W3015",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 197.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "W3630",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 443.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W3615",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 256.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "W1230R",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 172.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "8",
+          "qty": 1,
+          "sku": "W2130L",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 277.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "9",
+          "qty": 1,
+          "sku": "W3015",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 197.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "10",
+          "qty": 1,
+          "sku": "W3030",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 379.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "12",
+          "qty": 1,
+          "sku": "B12L",
+          "description": "Base Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 275.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "15",
+          "qty": 1,
+          "sku": "SB36",
+          "description": "Sink Base Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 456.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "16",
+          "qty": 1,
+          "sku": "B9L-FHD",
+          "description": "Base Cabinet W/FHD",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 213.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 23.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "18",
+          "qty": 1,
+          "sku": "BBC36L-FHD",
+          "description": "Base Blind Corner w/FHD",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 447.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "19",
+          "qty": 1,
+          "sku": "B4D18",
+          "description": "4 Drw Base Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 572.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "20",
+          "qty": 1,
+          "sku": "B33",
+          "description": "Base Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 542.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "21",
+          "qty": 1,
+          "sku": "B33",
+          "description": "Base Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 542.0,
+          "width": 65.0,
+          "height": 34.0,
+          "depth": 0.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 050925 KAMISAR ORDER.pdf",
+      "name": "050725 KAMISAR KITCHEN",
+      "catalog": "ECL8_4A_1",
+      "materials": {
+        "species": "White Oak Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Almond White Oak",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "54L Flush Deco Door on Wall Left End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 548.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "54L Flush Deco Door on Wall Left End B",
+              "price": 548.0
+            }
+          ]
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "RW3621-27",
+          "description": "Refrigerator Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 817.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W3639",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 765.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "42R Flush Deco Door on Wall Rt End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "42R Flush Deco Door on Wall Rt End B",
+              "price": 367.0
+            }
+          ]
+        },
+        {
+          "lineNum": "3.2",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "42L Flush Deco Door on Wall Left End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "42L Flush Deco Door on Wall Left End B",
+              "price": 367.0
+            },
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "W1539L",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 466.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "42L Flush Deco Door on Wall Left End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": 24.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "42L Flush Deco Door on Wall Left End B",
+              "price": 367.0
+            },
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "W1539R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 466.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "7",
+          "qty": 1,
+          "sku": "W2439-2D",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 645.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "7.2",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "42R Flush Deco Door on Wall Rt End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "42R Flush Deco Door on Wall Rt End B",
+              "price": 367.0
+            }
+          ]
+        },
+        {
+          "lineNum": "8.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "9.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "13",
+          "qty": 1,
+          "sku": "BEP3R-RTK",
+          "description": "Base End Panel 3 Right - Recess Toe Kick",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 158.0,
+          "width": null,
+          "height": 28.0,
+          "depth": 24.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "17.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "18",
+          "qty": 1,
+          "sku": "B30-RT",
+          "description": "Base w/ Roll Out Trays",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 1155.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 18.0,
+          "modifications": [
+            {
+              "code": "FTK",
+              "description": "FLUSH TOE Flush Toe Kick",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "18.3",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": 30.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "20.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "22",
+          "qty": 1,
+          "sku": "B30-RT",
+          "description": "Base w/ Roll Out Trays",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1155.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "22.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": 0.0,
+          "height": 98.0,
+          "depth": 21.0,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        },
+        {
+          "lineNum": "25",
+          "qty": 1,
+          "sku": "FIO3393-27",
+          "description": "Flush Inset Oven Cab 93H 27D",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 2532.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 080525 3JSR Construction BATH ORDER.pdf",
+      "name": "080425 3JSR Construction BATH",
+      "catalog": "SHI34A_1",
+      "materials": {
+        "species": "Clear Alder Drawer Guide Blum FEG Guide",
+        "color": "Std",
+        "doorStyle": "Napa Vert Grain FP inset Wall Dr Sand-Through",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "BEP1",
+          "description": "1/2-FTK-R Base End Panel w/Flush Toe",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 145.0,
+          "width": 1.0,
+          "height": 34.0,
+          "depth": 21.0,
+          "modifications": [
+            {
+              "code": "MOD/SQ30",
+              "description": "% Square Modification Upcharge <6\"",
+              "price": 285.9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 080825 3JRS BAR ORDER.pdf",
+      "name": "080725 EKD 3JRS KITCHEN BAR",
+      "catalog": "SHI34A_1",
+      "materials": {
+        "species": "American Poplar Drawer Guide Blum FEG Guide",
+        "color": "Std",
+        "doorStyle": "Scottsdale FP Inset Wall Dr Sand-Through",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "PW3924",
+          "description": "Peninsula Wall",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 980.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "PFB",
+              "description": "Prep for Finished Bottom",
+              "price": 59.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 245.0
+            },
+            {
+              "code": "EL",
+              "description": "Extend Left Stile up to 34.5",
+              "price": 65.0
+            }
+          ]
+        },
+        {
+          "lineNum": "1.5",
+          "qty": 1,
+          "sku": "ER",
+          "description": "Extend Rt Stile up to 34.5",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 65.0,
+          "width": 16.0,
+          "height": 34.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "ER",
+              "description": "Extend Rt Stile up to 34.5 B",
+              "price": 65.0
+            }
+          ]
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "B33-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 754.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "BEP3-FTK-R",
+          "description": "Base End Panel w/Flush Toe",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 158.0,
+          "width": 42.0,
+          "height": 13.0,
+          "depth": 0.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 080825 3JRS KITCHEN BAR BAR ORDER.pdf",
+      "name": "080725 EKD 3JRS KITCHEN BAR",
+      "catalog": "SHI34A_1",
+      "materials": {
+        "species": "American Poplar Drawer Guide Blum FEG Guide",
+        "color": "Std",
+        "doorStyle": "Scottsdale FP Inset Wall Dr Sand-Through",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "PW3924",
+          "description": "Peninsula Wall",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 980.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "PFB",
+              "description": "Prep for Finished Bottom",
+              "price": 59.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 245.0
+            },
+            {
+              "code": "EL",
+              "description": "Extend Left Stile up to 34.5",
+              "price": 65.0
+            }
+          ]
+        },
+        {
+          "lineNum": "1.5",
+          "qty": 1,
+          "sku": "ER",
+          "description": "Extend Rt Stile up to 34.5",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 65.0,
+          "width": null,
+          "height": 13.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "ER",
+              "description": "Extend Rt Stile up to 34.5 B",
+              "price": 65.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 080825 3JRS KITCHEN ORDER.pdf",
+      "name": "080725 EKD 3JRS KITCHEN BAR",
+      "catalog": "ECL8_4A_1",
+      "materials": {
+        "species": "American Poplar Drawer Front Style Scottsdale FP Drawer Front",
+        "color": "Sterling American Poplar",
+        "doorStyle": "Scottsdale FP",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "10",
+          "qty": 1,
+          "sku": "B21L",
+          "description": "Base Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 522.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "RCK",
+              "description": "L & BACK Recess Toe Kick L & BACK",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "10.2",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "BACK Recess Toe Kick Back",
+              "price": 146.0
+            },
+            {
+              "code": "RCK",
+              "description": "R & BACK Recess Toe Kick R & BACK",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "12.2",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 081125 3JRS BAR ORDER.pdf",
+      "name": "080725 EKD 3JRS KITCHEN BAR",
+      "catalog": "SHI34A_1",
+      "materials": {
+        "species": "American Poplar Drawer Guide Blum FEG Guide",
+        "color": "Std",
+        "doorStyle": "Scottsdale FP Inset Wall Dr Sand-Through",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "PW3924",
+          "description": "Peninsula Wall",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 980.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "1.1",
+          "qty": 1,
+          "sku": "ER",
+          "description": "Extend Rt Stile up to 34.5",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 65.0,
+          "width": 42.0,
+          "height": 13.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "ER",
+              "description": "Extend Rt Stile up to 34.5 B",
+              "price": 65.0
+            },
+            {
+              "code": "EL",
+              "description": "Extend Left Stile up to 34.5",
+              "price": 65.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 245.0
+            },
+            {
+              "code": "PFB",
+              "description": "Prep for Finished Bottom",
+              "price": 59.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 081325 3JRS KITCHEN ORDER.pdf",
+      "name": "080725 EKD 3JRS KITCHEN BAR",
+      "catalog": "ECL8_4A_1",
+      "materials": {
+        "species": "American Poplar Drawer Front Style Scottsdale FP Drawer Front",
+        "color": "Sterling American Poplar",
+        "doorStyle": "Scottsdale FP",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "9",
+          "qty": 1,
+          "sku": "B21L",
+          "description": "Base Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 522.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "9.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "LT Flush Deco Door Left (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "LT Flush Deco Door Left (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "L & BACK Recess Toe Kick L & BACK",
+              "price": 146.0
+            },
+            {
+              "code": "RCK",
+              "description": "BACK Recess Toe Kick Back",
+              "price": 146.0
+            }
+          ]
+        },
+        {
+          "lineNum": "11.1",
+          "qty": 1,
+          "sku": "BDEP-F",
+          "description": "RT Flush Deco Door Right (ships loose)",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "BDEP-F",
+              "description": "RT Flush Deco Door Right (ships loose) B",
+              "price": 337.0
+            },
+            {
+              "code": "RCK",
+              "description": "R & BACK Recess Toe Kick R & BACK",
+              "price": 146.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 081524 WRS Beatty Order Form MARKED UP.pdf",
+      "name": "WRS Beatty",
+      "catalog": "ECL23J_1",
+      "materials": {
+        "species": "Rift Cut White Oak Drawer Front Style Hanover Flat Panel Drawer Front",
+        "color": "Almond Rift Cut White Oak",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "SB36-FHD",
+          "description": "Sink Base Full Hgt Door",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1100.0,
+          "width": 3.0,
+          "height": 34.0,
+          "depth": 14.0,
+          "modifications": [
+            {
+              "code": "BDEP",
+              "description": "LT Deco Door Left (ships loose)",
+              "price": 297.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 162.25
+            },
+            {
+              "code": "NO",
+              "description": "DOOR/DRW Remove Door and Drawer",
+              "price": 0.0
+            }
+          ]
+        },
+        {
+          "lineNum": "47",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96RCK-24R Refrig End Panel Right w/Rec TK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": null,
+          "height": 96.0,
+          "depth": 27.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "48",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96FTK-24R Refrig End Panel Right w/FTK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": null,
+          "height": 49.0,
+          "depth": 0.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 081524 WRS Beatty Order Form.pdf",
+      "name": "WRS Beatty",
+      "catalog": "ECL23J_1",
+      "materials": {
+        "species": "Rift Cut White Oak Drawer Front Style Hanover Flat Panel Drawer Front",
+        "color": "Almond Rift Cut White Oak",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "SB36-FHD",
+          "description": "Sink Base Full Hgt Door",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1100.0,
+          "width": 3.0,
+          "height": 34.0,
+          "depth": 14.0,
+          "modifications": [
+            {
+              "code": "BDEP",
+              "description": "LT Deco Door Left (ships loose)",
+              "price": 297.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 162.25
+            },
+            {
+              "code": "NO",
+              "description": "DOOR/DRW Remove Door and Drawer",
+              "price": 0.0
+            }
+          ]
+        },
+        {
+          "lineNum": "47",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96RCK-24R Refrig End Panel Right w/Rec TK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": 3.0,
+          "height": 96.0,
+          "depth": 27.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "48",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96FTK-24R Refrig End Panel Right w/FTK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": null,
+          "height": 49.0,
+          "depth": 0.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 081624 WRS BEATTY ORDER FORM MARKED UP.pdf",
+      "name": "WRS Beatty",
+      "catalog": "ECL23J_1",
+      "materials": {
+        "species": "Rift Cut White Oak Drawer Front Style Hanover Flat Panel Drawer Front",
+        "color": "Almond Rift Cut White Oak",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "SB36-FHD",
+          "description": "Sink Base Full Hgt Door",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1100.0,
+          "width": 24.0,
+          "height": 34.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "BDEP",
+              "description": "LT Deco Door Left (ships loose)",
+              "price": 297.0
+            },
+            {
+              "code": "NO",
+              "description": "DOOR/DRW Remove Door and Drawer",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 162.25
+            }
+          ]
+        },
+        {
+          "lineNum": "47",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96RCK-24R Refrig End Panel Right w/Rec TK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": null,
+          "height": 96.0,
+          "depth": 27.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "48",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96FTK-24R Refrig End Panel Right w/FTK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": null,
+          "height": 49.0,
+          "depth": 0.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 081624 WRS BEATTY ORDER FORM.pdf",
+      "name": "WRS Beatty",
+      "catalog": "ECL23J_1",
+      "materials": {
+        "species": "Rift Cut White Oak Drawer Front Style Hanover Flat Panel Drawer Front",
+        "color": "Almond Rift Cut White Oak",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "SB36-FHD",
+          "description": "Sink Base Full Hgt Door",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 1100.0,
+          "width": 24.0,
+          "height": 34.0,
+          "depth": 0.0,
+          "modifications": [
+            {
+              "code": "BDEP",
+              "description": "LT Deco Door Left (ships loose)",
+              "price": 297.0
+            },
+            {
+              "code": "NO",
+              "description": "DOOR/DRW Remove Door and Drawer",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 162.25
+            }
+          ]
+        },
+        {
+          "lineNum": "47",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96RCK-24R Refrig End Panel Right w/Rec TK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": 3.0,
+          "height": 96.0,
+          "depth": 27.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "48",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96FTK-24R Refrig End Panel Right w/FTK 27D",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 395.0,
+          "width": null,
+          "height": 49.0,
+          "depth": 0.0,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 090325 ARTISTIC KITCHEN CASE STUDY ECLIPSE PAINT ORDER.pdf",
+      "name": "090425 ARTISTIC KITCHEN CASE",
+      "catalog": "ECL8_6A_1",
+      "materials": {
+        "species": "Maple Drawer Guide Blum Edge Guide",
+        "color": "Pure White Paint (+%) Drawer Type 5/8\" Hdwd Dovetail Drw",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Drawer Front Style 2 1/2 Hanover Flat Panel",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "RW3612-27",
+          "description": "Refrigerator Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 655.0,
+          "width": null,
+          "height": 9.0,
+          "depth": 27.0,
+          "modifications": [
+            {
+              "code": "MOD/SQ30|36|9|27",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 196.5
+            },
+            {
+              "code": "AVENTOS",
+              "description": "HK Aventos Top Hinge HK Stay Lift Door",
+              "price": 435.0
+            }
+          ]
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W3336",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 634.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "2.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "36R Flush Deco Door on Wall Rt End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "36R Flush Deco Door on Wall Rt End B",
+              "price": 367.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W1836R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 449.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "36L Flush Deco Door on Wall Left End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "36L Flush Deco Door on Wall Left End B",
+              "price": 367.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "FILL",
+              "description": "W.B. Fill Wall Blind Area",
+              "price": 146.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "W1836L",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 449.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "6.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "36R Flush Deco Door on Wall Rt End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "36R Flush Deco Door on Wall Rt End B",
+              "price": 367.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            }
+          ]
+        },
+        {
+          "lineNum": "7",
+          "qty": 1,
+          "sku": "W1836R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 449.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "7.1",
+          "qty": 1,
+          "sku": "WDEP-F",
+          "description": "36L Flush Deco Door on Wall Left End",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 367.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "WDEP-F",
+              "description": "36L Flush Deco Door on Wall Left End B",
+              "price": 367.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "PWL",
+              "description": "Prep Cab for Lighting",
+              "price": 60.0
+            },
+            {
+              "code": "FDS",
+              "description": "Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "SB36",
+          "description": "Sink Base",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 761.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "12",
+          "qty": 1,
+          "sku": "B24-2D",
+          "description": "Base Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 649.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FDS",
+              "description": "Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FILL",
+              "description": "BB Fill Base Blind Area",
+              "price": 232.0
+            },
+            {
+              "code": "FDS",
+              "description": "Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "SEND",
+              "description": "DRW BOX LOOSE Drw Box(es) Sent Loose {Select Qty}",
+              "price": 100.0
+            },
+            {
+              "code": "FDS",
+              "description": "Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FDS",
+              "description": "Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "18",
+          "qty": 1,
+          "sku": "REP3",
+          "description": "96FTK-27R Refrig End Panel Right w/FTK 27D",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 474.0,
+          "width": null,
+          "height": 93.0,
+          "depth": 27.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "19",
+          "qty": 1,
+          "sku": "O3093-27",
+          "description": "Oven Cab 93H 27D",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 1887.0,
+          "width": null,
+          "height": 93.0,
+          "depth": 27.0,
+          "modifications": [
+            {
+              "code": "FDS",
+              "description": "Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 090325 ARTISTIC KITCHEN CASE STUDY ECLIPSE STAIN ORDER.pdf",
+      "name": "090425 ARTISTIC KITCHEN CASE",
+      "catalog": "ECL8_6B_1",
+      "materials": {
+        "species": "Cherry Drawer Guide Blum Edge Guide",
+        "color": "Carob Cherry",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Drawer Front Style Hanover Flat Panel",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": []
+    },
+    {
+      "filename": "Copy of 091624 LWH HARTLEY ORDER.pdf",
+      "name": "091624 LWH HARTLEY LAUNDRY",
+      "catalog": "ECL24_1",
+      "materials": {
+        "species": "Thermally Fused Laminate Drawer Front Style Metropolitan Drawer Front - Vert.",
+        "color": "Midnight Echo TFL Wearing",
+        "doorStyle": "Metropolitan Vertical Grain",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W2442L",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 656.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W2442R",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "R",
+          "listPrice": 656.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FILL",
+              "description": "B.B. Fill Base Blind Area",
+              "price": 232.0
+            }
+          ]
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "BEP3R-FTK",
+          "description": "Base End Panel 3 Right w/Flush Toe",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 158.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "7",
+          "qty": 1,
+          "sku": "UT2196L",
+          "description": "Utility Tall 96H 24D",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1475.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "8",
+          "qty": 1,
+          "sku": "3SRM3F",
+          "description": "-8' 3\" Face Sub Rail 8' {Vertical}",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 240.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 092524 SPELLMAN KITCHEN ECLIPSE ORDER 2.pdf",
+      "name": "092524 SPELLMAN KITCHEN ECL",
+      "catalog": "ECL24A-1_1",
+      "materials": {
+        "species": "Quarter Sawn White Oak Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Autumn Quarter Sawn White Oak Wearing",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W1236R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 410.0,
+          "width": null,
+          "height": 36.0,
+          "depth": 12.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "MOD/SQ50|12|36|12",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 256.25
+            },
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "MOD/ANGLE50|24|36|12",
+              "description": "Modify Angled Cabinet W-HT-D %",
+              "price": 613.5
+            }
+          ]
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "RW3615",
+          "description": "Refrigerator Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 493.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "W1836L",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 449.0,
+          "width": null,
+          "height": 36.0,
+          "depth": 12.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W3336",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 634.0,
+          "width": null,
+          "height": 36.0,
+          "depth": 12.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            }
+          ]
+        },
+        {
+          "lineNum": "7",
+          "qty": 1,
+          "sku": "SB42-1DR",
+          "description": "Sink Base w/1 Drawer Front",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 961.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            }
+          ]
+        },
+        {
+          "lineNum": "8",
+          "qty": 1,
+          "sku": "TB9R",
+          "description": "Tray Base",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 417.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "10",
+          "qty": 1,
+          "sku": "B27",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 685.0,
+          "width": 0.0,
+          "height": 96.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 105.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 092524 SPELLMAN KITCHEN ECLIPSE ORDER REV.pdf",
+      "name": "092524 SPELLMAN KITCHEN",
+      "catalog": "ECL24A-1_1",
+      "materials": {
+        "species": "Quarter Sawn White Oak Drawer Front Style Slab Drawer Front",
+        "color": "Autumn Quarter Sawn White Oak Wearing",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W1236R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 410.0,
+          "width": null,
+          "height": 36.0,
+          "depth": 12.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            },
+            {
+              "code": "MOD/SQ30|12|36|12",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 123.0
+            },
+            {
+              "code": "MOD/ANGLE50|24|36|12",
+              "description": "Modify Angled Cabinet W-HT-D %",
+              "price": 613.5
+            },
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "RW3615",
+          "description": "Refrigerator Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 493.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "W16",
+          "description": "1/2 36L Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 449.0,
+          "width": null,
+          "height": 36.0,
+          "depth": 12.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W32",
+          "description": "3/4 36 Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 634.0,
+          "width": null,
+          "height": 36.0,
+          "depth": 12.0,
+          "modifications": [
+            {
+              "code": "RBS",
+              "description": "Recessed Bottom Shelf",
+              "price": 87.0
+            }
+          ]
+        },
+        {
+          "lineNum": "6",
+          "qty": 1,
+          "sku": "MWC3236-12",
+          "description": "Microwave Custom Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 1136.0,
+          "width": null,
+          "height": 36.0,
+          "depth": 12.0,
+          "modifications": [
+            {
+              "code": "MOD/SQ30|32|36|12",
+              "description": "Modify Square Cabinet W-HT-D %",
+              "price": 340.8
+            }
+          ]
+        },
+        {
+          "lineNum": "8",
+          "qty": 1,
+          "sku": "SB42-1DR",
+          "description": "Sink Base w/1 Drawer Front",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 961.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "9",
+          "qty": 1,
+          "sku": "TB9R",
+          "description": "Tray Base",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 417.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "B26",
+          "description": "1/2 Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 685.0,
+          "width": 0.0,
+          "height": 96.0,
+          "depth": 24.0,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 210.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 210.0
+            },
+            {
+              "code": "SUB",
+              "description": "DRW FRONT Substituted Drawer Fronts",
+              "price": 210.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 101025 bennet^1 ORDER.pdf",
+      "name": "100825 BENNET",
+      "catalog": "ECL8_6A_1",
+      "materials": {
+        "species": "High Pressure Laminate Matte Drawer Guide Blum Edge Guide",
+        "color": "High Low HPL {Matte - Rauvisio Noir) Drawer Type 5/8\" Hdwd Dovetail Drw",
+        "doorStyle": "Metropolitan Vertical Grain",
+        "construction": "Mixed",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": []
+    },
+    {
+      "filename": "Copy of 102425 Helmer Mitchell ORDER.pdf",
+      "name": "102425 HELMER MITCHELL",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Thermally Fused Laminate Drawer Guide Blum FEG Guide",
+        "color": "Pearl White TFL Drawer Type 5/8\" Hdwd Dovetail Drw",
+        "doorStyle": "Metropolitan Vertical Grain",
+        "construction": "Drawer Front Style Metropolitan",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W1548L",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 601.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W1548R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 601.0,
+          "width": 27.0,
+          "height": 34.0,
+          "depth": 18.0,
+          "modifications": [
+            {
+              "code": "DROT5/8-FM",
+              "description": "1 Floor Mounted Roll Out Tray (installed fromB ATT)",
+              "price": 388.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL KITCHEN ALDER ORDER.pdf",
+      "name": "120324 DIEHL KITCHEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Alder Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Walnut Alder",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W2139L",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 536.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W2139R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 536.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "WSC2439-PHL",
+          "description": "Wall Square Corner",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W4239",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 830.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 207.5
+            },
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door per Door",
+              "price": 0.0
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "16",
+          "qty": 1,
+          "sku": "B24R",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 541.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "17",
+          "qty": 1,
+          "sku": "B24L-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 541.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 13.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "19",
+          "qty": 1,
+          "sku": "B24R-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 541.0,
+          "width": 0.0,
+          "height": 96.0,
+          "depth": 0.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "22",
+          "qty": 1,
+          "sku": "U1293L",
+          "description": "Utility 93H 24D",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1008.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL KITCHEN CHERRY ORDER.pdf",
+      "name": "120324 DIEHL KITCHEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Cherry Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Coffee Cherry",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W2139L",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 536.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W2139R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 536.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "WSC2439-PHL",
+          "description": "Wall Square Corner",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W4239",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 830.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door per Door",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 207.5
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "16",
+          "qty": 1,
+          "sku": "B24R",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 541.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "17",
+          "qty": 1,
+          "sku": "B24L-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 541.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 13.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "19",
+          "qty": 1,
+          "sku": "B24R-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 541.0,
+          "width": 0.0,
+          "height": 96.0,
+          "depth": 0.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "22",
+          "qty": 1,
+          "sku": "U1293L",
+          "description": "Utility 93H 24D",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1008.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL KITCHEN MAPLE ORDER.pdf",
+      "name": "120324 DIEHL KITCHEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Maple Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Cashmere Maple",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W2139L",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "L",
+          "listPrice": 536.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "3",
+          "qty": 1,
+          "sku": "W2139R",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "R",
+          "listPrice": 536.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "WSC2439-PHL",
+          "description": "Wall Square Corner",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1337.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "5",
+          "qty": 1,
+          "sku": "W4239",
+          "description": "Wall Cabinet",
+          "finishedSide": "B",
+          "hingeSide": "B",
+          "listPrice": 830.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "GFD",
+              "description": "Glass Frame Wall Door per Door",
+              "price": 0.0
+            },
+            {
+              "code": "FINISHED",
+              "description": "INT Finished Interior with Doors %",
+              "price": 207.5
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "16",
+          "qty": 1,
+          "sku": "B24R",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 541.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        },
+        {
+          "lineNum": "17",
+          "qty": 1,
+          "sku": "B24L-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 541.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 13.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "19",
+          "qty": 1,
+          "sku": "B24R-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "R",
+          "hingeSide": "R",
+          "listPrice": 541.0,
+          "width": 0.0,
+          "height": 96.0,
+          "depth": 0.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "22",
+          "qty": 1,
+          "sku": "U1293L",
+          "description": "Utility 93H 24D",
+          "finishedSide": "R",
+          "hingeSide": "L",
+          "listPrice": 1008.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL LAUNDRY ALDER ORDER.pdf",
+      "name": "120324 DIEHL LAUNDRY",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Alder Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Walnut Alder",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W1539L",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 466.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W3039",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 677.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "B15L",
+          "description": "Base Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 476.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL LAUNDRY CHERRY ORDER.pdf",
+      "name": "120324 DIEHL LAUNDRY",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Cherry Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Coffee Cherry",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W1539L",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 466.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W3039",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 677.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "B15L",
+          "description": "Base Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 476.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL LAUNDRY MAPLE ORDER.pdf",
+      "name": "120324 DIEHL LAUNDRY",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Maple Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Cashmere Maple",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "W1539L",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 466.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W3039",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 677.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "B15L",
+          "description": "Base Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "L",
+          "listPrice": 476.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": [
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            },
+            {
+              "code": "FULL",
+              "description": "SHELF Full Depth Shelves",
+              "price": 89.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL MAIN BATH ALDER ORDER.pdf",
+      "name": "120324 DIEHL MAIN BATH",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Alder Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Walnut Alder",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "VTSB27",
+          "description": "Vanity Tall Sink Base",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 633.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL MAIN BATH CHERRY ORDER.pdf",
+      "name": "120324 DIEHL MAIN BATH",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Cherry Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Coffee Cherry",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "VTSB27",
+          "description": "Vanity Tall Sink Base",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 633.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL MAIN BATH MAPLE ORDER.pdf",
+      "name": "120324 DIEHL MAIN BATH",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Maple Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Cashmere Maple",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "1",
+          "qty": 1,
+          "sku": "VTSB27",
+          "description": "Vanity Tall Sink Base",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 633.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        }
+      ]
+    },
+    {
+      "filename": "Copy of 120324 DIEHL PRI BATH ALDER ORDER.pdf",
+      "name": "120324 DIEHL KITCHEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Alder Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Walnut Alder",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": []
+    },
+    {
+      "filename": "Copy of 120324 DIEHL PRI BATH CHERRY ORDER.pdf",
+      "name": "120324 DIEHL KITCHEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Cherry Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Coffee Cherry",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": []
+    },
+    {
+      "filename": "Copy of 120324 DIEHL PRI BATH MAPLE ORDER.pdf",
+      "name": "120324 DIEHL KITCHEN",
+      "catalog": "ECL24A_1",
+      "materials": {
+        "species": "Maple Drawer Front Style 2 1/2 Hanover Flat Panel Drawer",
+        "color": "Cashmere Maple",
+        "doorStyle": "Hanover Flat Panel",
+        "construction": "Standard Box Construction",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": []
+    },
+    {
+      "filename": "Copy of 122225 EDDIES KITCHEN ECLIPSE EVERGREEN FOG ORDER.pdf",
+      "name": "122225 EDDIES KITCHEN",
+      "catalog": "ECL8_7A_1",
+      "materials": {
+        "species": "Maple Drawer Guide Blum Edge Guide",
+        "color": "Evergreen Fog Paint {+%} Drawer Type 5/8\" Hdwd Dovetail Drw",
+        "doorStyle": "Malibu FP",
+        "construction": "Standard",
+        "drawerType": "5/8\" Hdwd Dovetail Drw"
+      },
+      "cabinets": [
+        {
+          "lineNum": "2",
+          "qty": 1,
+          "sku": "W2439-2D",
+          "description": "Wall Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 645.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "4",
+          "qty": 1,
+          "sku": "W2439-2D",
+          "description": "Wall Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 645.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "11",
+          "qty": 1,
+          "sku": "B24-2D",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 649.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "12",
+          "qty": 1,
+          "sku": "BPOS-9",
+          "description": "Base w/4 Tier Pull Out Shelf",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 953.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "16",
+          "qty": 1,
+          "sku": "SB42-1DR",
+          "description": "Sink Base w/1 Drawer Front",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 961.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "17",
+          "qty": 1,
+          "sku": "BWDMB18",
+          "description": "Door Mounted Base Waste Cabinet",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 916.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 24.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "23",
+          "qty": 1,
+          "sku": "B30",
+          "description": "Base Cabinet",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 719.0,
+          "width": null,
+          "height": null,
+          "depth": null,
+          "modifications": []
+        },
+        {
+          "lineNum": "24",
+          "qty": 1,
+          "sku": "B27-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "L",
+          "hingeSide": "B",
+          "listPrice": 685.0,
+          "width": null,
+          "height": 34.0,
+          "depth": 13.0,
+          "modifications": []
+        },
+        {
+          "lineNum": "26",
+          "qty": 1,
+          "sku": "B27-FHD",
+          "description": "Base Full Height Door",
+          "finishedSide": "R",
+          "hingeSide": "B",
+          "listPrice": 685.0,
+          "width": 0.0,
+          "height": 93.0,
+          "depth": 24.0,
+          "modifications": []
+        }
+      ]
+    }
+  ],
+  "modifications": {
+    "RBS": "Recessed Bottom Shelf",
+    "GFD": "Glass Frame Wall Door per Door",
+    "FINISHED": "INT Finished Interior with Doors %",
+    "SUB": "DRW FRONT Substituted Drawer Fronts",
+    "FHD": "Full Height Door",
+    "FILL": "B.B. Fill Base Blind Area",
+    "ROT": "Rollout Tray (Installed From ATT)",
+    "MOD/SQ50|21|117|27": "Modify Square Cabinet W-HT-D %",
+    "FDS": "Full Depth Shelves",
+    "WTD": "Stainless Steel Wire Tray Divider",
+    "MOD/SQ30|30|21|21": "Modify Square Cabinet W-HT-D %",
+    "WTD-2": "Stainless Steel Wire Tray Divider",
+    "RMK": "Removeable Toe Kick",
+    "BDEP-F": "RT Flush Deco Door Right (ships loose) B",
+    "RCK": "R & BACK Recess Toe Kick R & BACK",
+    "CUTOUT-OVEN|27|25": "Oven 27\"W x 25\"H",
+    "CUTOUT-MW|27|14": "see custom OM Spec page",
+    "WDEP-F": "36L Flush Deco Door on Wall Left End B",
+    "PWL": "Prep Cab for Lighting",
+    "MOD/SQ50|27|90|21": "Modify Square Cabinet W-HT-D %",
+    "FULL": "SHELF Full Depth Shelves",
+    "MOD/SQ50|48|21|21": "Modify Square Cabinet W-HT-D %",
+    "MOD/SQ50": "% Square Mofication Upcharge >6\"",
+    "NTK": "No Toe Kick",
+    "MOD/SQ50|18|78|18": "Modify Square Cabinet W-HT-D %",
+    "ROT-FM": "1 Floor Mounted Roll Out Tray (Installed FroBm ATT)",
+    "BDEP": "LT Deco Door Left (ships loose)",
+    "SEND": "DRW BOX LOOSE Drw Box(es) Sent Loose {Select Qty}",
+    "FTK": "FLUSH TOE Flush Toe Kick",
+    "MOD/SQ30": "% Square Modification Upcharge <6\"",
+    "PFB": "Prep for Finished Bottom",
+    "EL": "Extend Left Stile up to 34.5",
+    "ER": "Extend Rt Stile up to 34.5 B",
+    "NO": "DOOR/DRW Remove Door and Drawer",
+    "MOD/SQ30|36|9|27": "Modify Square Cabinet W-HT-D %",
+    "AVENTOS": "HK Aventos Top Hinge HK Stay Lift Door",
+    "MOD/SQ50|12|36|12": "Modify Square Cabinet W-HT-D %",
+    "MOD/ANGLE50|24|36|12": "Modify Angled Cabinet W-HT-D %",
+    "MOD/SQ30|12|36|12": "Modify Square Cabinet W-HT-D %",
+    "MOD/SQ30|32|36|12": "Modify Square Cabinet W-HT-D %",
+    "DROT5/8-FM": "1 Floor Mounted Roll Out Tray (installed fromB ATT)"
+  }
+}

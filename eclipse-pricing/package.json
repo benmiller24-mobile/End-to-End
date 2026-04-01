@@ -1,0 +1,22 @@
+{
+  "name": "@eclipse/pricing",
+  "version": "8.8.0",
+  "description": "Eclipse Cabinetry shared pricing engine — C3 formula, 4,262+ SKUs, species/door/drawer/mod pricing",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./skuCatalog": "./src/skuCatalog.js",
+    "./finishData": "./src/finishData.js",
+    "./doorData": "./src/doorData.js",
+    "./modData": "./src/modData.js",
+    "./helpers": "./src/helpers.js",
+    "./pricingEngine": "./src/pricingEngine.js",
+    "./marginCalculator": "./src/marginCalculator.js"
+  },
+  "files": ["src/"],
+  "keywords": ["eclipse", "cabinetry", "pricing", "kitchen", "estimator"],
+  "author": "Pinnacle Sales",
+  "license": "UNLICENSED",
+  "private": true
+}

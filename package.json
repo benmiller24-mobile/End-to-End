@@ -1,0 +1,16 @@
+{
+  "name": "eclipse-kitchen-designer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "test": "cd eclipse-engine && node test.js && node test-extended.js && node test-pricing.js && node test-patterns.js && node test-configurator.js && node test-integration.js && node test-cli.js && node test-revisions.js",
+    "test:replay": "cd eclipse-engine && node test-replay.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "room": {
+    "layoutType": "single-wall",
+    "roomType": "kitchen",
+    "walls": [
+      {
+        "id": "A",
+        "length": 277,
+        "role": "sink",
+        "openings": [
+          {
+            "type": "window",
+            "posFromLeft": 80,
+            "width": 40
+          }
+        ]
+      }
+    ],
+    "island": {
+      "length": 129,
+      "depth": 30,
+      "endTreatment": "waterfall"
+    },
+    "appliances": [
+      {
+        "type": "sink",
+        "width": 36,
+        "wall": "A"
+      },
+      {
+        "type": "dishwasher",
+        "width": 24,
+        "wall": "A"
+      },
+      {
+        "type": "range",
+        "width": 48,
+        "wall": "island"
+      },
+      {
+        "type": "refrigerator",
+        "width": 36,
+        "wall": "A",
+        "position": "end"
+      }
+    ],
+    "prefs": {
+      "sophistication": "very_high",
+      "islandBackStyle": "fhd_seating",
+      "preferDrawerBases": true
+    }
+  },
+  "materials": {
+    "species": "Walnut",
+    "construction": "Plywood",
+    "doorStyle": "Napa VG FP"
+  }
+}

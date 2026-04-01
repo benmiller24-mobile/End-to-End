@@ -1,0 +1,622 @@
+{
+  "version": "8.8.0",
+  "extractedFrom": "Eclipse Interactive Catalog v8.8.0 (768 pages, Dec 2025)",
+  "lastUpdated": "2026-03-26",
+
+  "standardDimensions": {
+    "baseHeight": 34.5,
+    "baseDepth": 24,
+    "upperDepth": 13,
+    "toeKickHeight": 4.5,
+    "toeKickDepth": 3,
+    "countertopThickness": 1.5,
+    "counterHeight": 36,
+    "backsplashHeight": 18,
+    "upperBottom": 54,
+    "standardCeilingHeight": 96,
+    "lineBoringSpacing": 32,
+    "lineBoringSpacingInches": 1.25,
+    "fillerWidths": [3, 6],
+    "standardBaseWidths": [9, 12, 15, 18, 21, 22.5, 24, 27, 30, 33, 36, 39, 42],
+    "standardUpperHeights": [12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48],
+    "standardUpperWidths": [9, 12, 15, 18, 21, 22.5, 24, 27, 30, 33, 36, 39, 42],
+    "standardTallHeights": [84, 87, 90, 93, 96, 102, 108, 114]
+  },
+
+  "cabinetTypes": {
+
+    "B": {
+      "name": "Standard Base Cabinet",
+      "catalogPage": "I3",
+      "height": 34.5,
+      "depth": 24,
+      "altDepths": [13, 16, 18, 21],
+      "maxDepth": 27,
+      "availableWidths": [9, 12, 15, 18, 21, 22.5, 24, 27, 30, 33, 36, 39, 42],
+      "adjShelves": 1,
+      "doorRules": {
+        "9to24_singleDoor": {
+          "widths": [9, 12, 15, 18, 21, 22.5, 24],
+          "doors": 1,
+          "drawers": 1,
+          "hingeRequired": true,
+          "note": "1 door cabinets 24\" and under must note hinge left or right"
+        },
+        "24_2D": {
+          "widths": [24],
+          "sku_suffix": "-2D",
+          "doors": 2,
+          "drawers": 1,
+          "buttDoors": true
+        },
+        "27to36_doubleDoor": {
+          "widths": [27, 30, 33, 36],
+          "doors": 2,
+          "drawers": 1,
+          "buttDoors": true,
+          "note": "All 2 door cabinets are standard butt doors at no upcharge"
+        },
+        "39to42": {
+          "widths": [39, 42],
+          "doors": 2,
+          "drawers": 2,
+          "buttDoors": true,
+          "note": "Base Cabinets over 36\" wide will have 2 drawers"
+        }
+      },
+      "doorOpeningFormula": {
+        "width": "cab_width - 1.5",
+        "height": "cab_height - 12.25"
+      },
+      "drawerOpeningFormula": {
+        "width": "cab_width - 1.5",
+        "height": 6
+      },
+      "drawerBoxHeights": {
+        "sides": 4,
+        "interior": 3.25
+      },
+      "variants": {
+        "RT": { "name": "Roll Out Trays", "catalogPage": "I6", "note": "All Roll Out Trays are hardwood and easily adjustable" },
+        "FHD": { "name": "Full Height Door", "catalogPage": "I5" },
+        "1DR": { "name": "1 Drawer variant (39-42\" wide)", "note": "Base 1 Drawer not available over 42\" wide" },
+        "2D": { "name": "2 Door (on 24\" wide)", "note": "B24-2D available" }
+      },
+      "restrictions": [
+        "Not available under 13\" deep",
+        "Not available over 27\" deep",
+        "Base 1 Drawer Cabinets over 36\" wide will have 1 wide drawer",
+        "1 Drawer base cabinets will have a support brace added to drawer underside"
+      ]
+    },
+
+    "SB": {
+      "name": "Sink Base Cabinet",
+      "catalogPage": "I3",
+      "height": 34.5,
+      "depth": 24,
+      "altDepths": [13, 16, 18, 21],
+      "maxDepth": 27,
+      "availableWidths": [18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48],
+      "plumbingSkirtHeight": 8.25,
+      "requiresPlumbingWall": true,
+      "preferUnderWindow": true,
+      "doorRules": {
+        "18to24_singleDoor": { "widths": [18, 21, 24], "doors": 1, "drawers": 1, "hingeRequired": true },
+        "24_2D": { "widths": [24], "sku_suffix": "-2D", "doors": 2, "drawers": 1 },
+        "27to48": { "widths": [27, 30, 33, 36, 39, 42, 45, 48], "doors": 2, "drawers": 1 }
+      },
+      "doorOpeningFormula": {
+        "width": "cab_width - 1.5",
+        "height": "cab_height - 12.25"
+      },
+      "variants": {
+        "FHD": { "name": "Full Height Door", "catalogPage": "I5", "note": "SB-FHD has an 8 1/4\" tall plumbing skirt" },
+        "RT": { "name": "Roll Out Tray", "catalogPage": "I5" },
+        "1DR": { "name": "1 Drawer variant (39-48\" wide)" }
+      },
+      "restrictions": [
+        "Not available over 27\" deep",
+        "Sink Base 1 Drawer not available over 48\" wide"
+      ]
+    },
+
+    "BBC": {
+      "name": "Base Blind Corner Cabinet",
+      "catalogPage": "I9",
+      "height": 34.5,
+      "depth": 24,
+      "availableWidths": [36, 39, 42, 45, 48],
+      "blindPull": 4,
+      "blindSideDepth": 27,
+      "mullionExposedWhenNotPulled": 2.375,
+      "adjShelves": 1,
+      "requiresBlindSideSpec": true,
+      "doorOpeningFormula": {
+        "width": "cab_width - 27.75",
+        "height": "cab_height - 12.25"
+      },
+      "drawerOpeningFormula": {
+        "width": "cab_width - 27.75",
+        "height": 6
+      },
+      "altDepths": [13, 16, 18, 21],
+      "minDepth": 13,
+      "maxDepth": 27,
+      "adjacencyRules": {
+        "blindSide": {
+          "minFillerWidth": 3,
+          "adjacentWallStartOffset": "bbc_width + blind_pull",
+          "fillerInstalledToBlindArea": true,
+          "note": "Filler required for cabinets installed to blind area"
+        },
+        "doorSide": "standard"
+      },
+      "variants": {
+        "S": { "name": "Full Swing Chrome Wire Shelf", "catalogPage": "I10", "note": "BBC42-S, BBC45-S, BBC48-S" },
+        "WS": { "name": "Full Swing Wood Shelf", "catalogPage": "I11" },
+        "MC": { "name": "Magic Corner", "catalogPage": "I11", "note": "BBC48-MC only" }
+      },
+      "restrictions": [
+        "Specify blind left or blind right",
+        "Blind corners are actual width listed",
+        "Not available under 13\" deep or over 27\" deep"
+      ]
+    },
+
+    "SBBC": {
+      "name": "Sink Base Blind Corner Cabinet",
+      "catalogPage": "I9",
+      "height": 34.5,
+      "depth": 24,
+      "availableWidths": [36, 39, 42],
+      "blindPull": 4,
+      "blindSideDepth": 27,
+      "plumbingSkirtHeight": 8.25,
+      "requiresPlumbingWall": true,
+      "requiresBlindSideSpec": true,
+      "restrictions": [
+        "Specify blind left or blind right",
+        "Not available under 13\" deep or over 27\" deep"
+      ]
+    },
+
+    "BL": {
+      "name": "Base Right Angle Cabinet (Lazy Susan)",
+      "catalogPage": "I18",
+      "height": 34.5,
+      "depth": 24,
+      "depthEachSide": 24,
+      "availableSizes": [33, 36],
+      "requiredWallSpaceEachDirection": { "33": 33, "36": 36 },
+      "doorType": "bi-fold_hinged",
+      "interiorDoorClearance": 36,
+      "fixedShelves": 1,
+      "adjShelves": 0,
+      "doorOpeningFormula": {
+        "BL33": "7.5\" each direction",
+        "BL36": "10.5\" each direction"
+      },
+      "skuPattern": "BL{size}-PH",
+      "variants": {
+        "SS": { "name": "With Super Susan", "catalogPage": "I19" },
+        "WSS": { "name": "With Chrome Wire Super Susan", "catalogPage": "I20" },
+        "CP": { "name": "With Chrome Wire Pie-Cut Shelves", "catalogPage": "I21", "note": "BL36-CP-PH only" },
+        "RC": { "name": "With Recycle Center", "catalogPage": "I26", "note": "BL36-RC only" }
+      },
+      "restrictions": [
+        "BL33 cabinets require 33\" of wall space each direction",
+        "BL36 cabinets require 36\" of wall space each direction",
+        "36\" interior door clearance required (if clearance not available, removable toe kick recommended)",
+        "30 1/2\" min doorway opening required with removable toe kick",
+        "Not available with MNTG or CHRS door styles",
+        "Not available with soft close hinges",
+        "BLSB will not accept double bowl sink (single bowl recommended)"
+      ]
+    },
+
+    "BLE": {
+      "name": "Base Right Angle Cabinet With Expandable Leg",
+      "catalogPage": "I18",
+      "height": 34.5,
+      "depth": 24,
+      "depthEachSide": 24,
+      "standardLegLength": 36,
+      "maxLegLength": 42,
+      "maxCombinedLegs": 78,
+      "fixedShelves": 1,
+      "adjShelves": 0,
+      "doorOpeningFormula": {
+        "width": "length_of_leg - 24.75",
+        "height": "cab_height - 5.5"
+      },
+      "orderingNote": "Specify left leg first (Dimension A), then right leg (Dimension B). Example: BLE36-42",
+      "restrictions": [
+        "36\" interior door clearance required",
+        "30 1/2\" min doorway opening required with removable toe kick",
+        "Not available with MNTG or CHRS door styles",
+        "Not available with soft close hinges",
+        "Depth modifications not available"
+      ]
+    },
+
+    "PB": {
+      "name": "Peninsula Base Cabinet",
+      "catalogPage": "I8",
+      "height": 34.5,
+      "depth": 24,
+      "availableWidths": [12, 15, 18, 21, 22.5, 24, 27, 30, 33, 36],
+      "fullDepthAdjShelf": true,
+      "note": "When ordering flush toe kick, specify front back or both",
+      "restrictions": [
+        "Peninsula Base Cabinets must be securely anchored to floor"
+      ]
+    },
+
+    "PBBC": {
+      "name": "Peninsula Base Blind Corner Cabinet",
+      "catalogPage": "I9",
+      "height": 34.5,
+      "depth": 24,
+      "availableWidths": [36, 39, 42, 45, 48],
+      "blindPull": 4,
+      "blindSideDepth": 27,
+      "fullHeightDoorsOnBackSide": true,
+      "restrictions": [
+        "Specify blind left or blind right",
+        "Not available under 18\" deep or over 27\" deep",
+        "Peninsula Base Cabinets must be securely anchored to floor"
+      ]
+    },
+
+    "W": {
+      "name": "Wall Cabinet",
+      "catalogPage": "E6",
+      "depth": 13,
+      "availableWidths": [9, 12, 15, 18, 21, 22.5, 24, 27, 30, 33, 36, 39, 42],
+      "availableHeights": [12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48],
+      "skuPattern": "W{width}{height}",
+      "adjShelvesByHeight": {
+        "12to21": 0,
+        "24to27": 1,
+        "30to36": 2,
+        "39to45": 3,
+        "48": 4
+      },
+      "doorOpeningFormula": {
+        "width": "cab_width - 1.5",
+        "height": "cab_height - 1.5"
+      },
+      "doorRules": {
+        "9to24_singleDoor": { "doors": 1 },
+        "24_2D": { "sku_suffix": "-2D", "doors": 2 },
+        "27to42_doubleDoor": { "doors": 2, "buttDoors": true }
+      },
+      "restrictions": [
+        "On Cabinets 12\" wide & under, doors may be modified, substituted, or not available (see page B29)",
+        "On Cabinets 12\" tall, doors may be modified, substituted, or not available (see page B29)"
+      ]
+    },
+
+    "WBC": {
+      "name": "Wall Blind Corner Cabinet",
+      "catalogPage": "E6",
+      "depth": 13,
+      "availableWidths": [24, 27, 30, 33, 36, 39, 42, 45, 48],
+      "availableHeights": [24, 27, 30, 33, 36, 39, 42, 45, 48],
+      "skuPattern": "WBC{width}{height}",
+      "blindPull": 4,
+      "blindSideWidth": 16,
+      "mullionExposedWhenNotPulled": 2.375,
+      "doorOpeningFormula": {
+        "width": "cab_width - 16.75",
+        "height": "cab_height - 1.5"
+      },
+      "adjShelvesByHeight": {
+        "24to27": 1,
+        "30to36": 2,
+        "39to45": 3,
+        "48": 4
+      },
+      "restrictions": [
+        "Specify blind side (left or right)",
+        "Blind corners pull 4\"",
+        "When not pulled 2 3/8\" exposed on mullion",
+        "Filler required for cabinets installed to blind area",
+        "Blind area may be modified for use with cabinets other than 13\" deep"
+      ]
+    },
+
+    "RW": {
+      "name": "Refrigerator Wall Cabinet",
+      "catalogPage": "E11",
+      "depth": 24,
+      "note": "24\" deep to align with refrigerator depth",
+      "availableWidths": [30, 33, 36, 37, 39, 42, 45, 48, 51],
+      "standardHeight": 12,
+      "extendedHeights": [21, 24, 27, 30, 33, 36],
+      "placement": "above_refrigerator"
+    },
+
+    "O": {
+      "name": "Oven Cabinet",
+      "catalogPage": "L15",
+      "depths": [24, 27, 30],
+      "availableWidths": [27, 30, 33, 36],
+      "availableHeights": [84, 87, 90, 93, 96, 102, 108, 114],
+      "standardDrawers": 1,
+      "requiresOvenSpec": true,
+      "overlayFrameMinStileWidth": 1.375,
+      "adjShelfTopByOpening": {
+        "under22.4": 0,
+        "22.5to28.9": 1,
+        "29to37.4": 2,
+        "37.5to46.4": 3,
+        "46.5to58.5": 4
+      },
+      "restrictions": [
+        "Oven cabinets will not have a back panel in oven cut out area",
+        "Oven cabinets specifications must be submitted on W.W. Wood Products Inc. oven cut out specification sheet",
+        "For cabinets over 24\" deep, drawer will remain standard depth",
+        "Overlay frame available with 150 edge (TFL, Recon White Oak, Recon Walnut)",
+        "HPL, PV & Acrylic available 750 edge only",
+        "Not all TFLs available over 96\" tall",
+        "HPL, PV, Recon White Oak, and Recon Walnut not available over 120\" tall",
+        "Acrylic not available over 108\" tall"
+      ]
+    },
+
+    "UT_BC": {
+      "name": "Utility Tall Broom Closet",
+      "catalogPage": "L5",
+      "depths": [24, 27, 30],
+      "minDepth": 21,
+      "availableWidths": [22.5, 24, 27, 30, 33, 36],
+      "maxWidth": 36,
+      "availableHeights": [84, 87, 90, 93, 96, 102, 108, 114],
+      "adjShelvesTop": { "84to87": 0, "90to93": 1, "96to102": 2, "108": 3, "114": 4 },
+      "adjShelvesBottom": 5,
+      "topDoorOpeningFormula": {
+        "width": "cab_width - 1.5",
+        "heights": {
+          "84": 16.875, "87": 19.875, "90": 22.875, "93": 25.875,
+          "96": 28.875, "102": 34.875, "108": 40.875, "114": 46.875
+        }
+      },
+      "bottomDoorOpeningFormula": {
+        "width": "cab_width - 1.5",
+        "height": 60.875
+      },
+      "features": [
+        "1/2 depth shelves in top",
+        "Center divider in bottom with full depth shelves on right side and broom holder on left",
+        "Broom and shelf positioning may be reversed (contact customer service)"
+      ],
+      "restrictions": [
+        "Not available over 36\" wide",
+        "Not available under 21\" deep",
+        "Cabinets under 21\" wide will have no center partition"
+      ]
+    },
+
+    "B3D": {
+      "name": "3 Drawer Base Cabinet",
+      "catalogPage": "I13",
+      "height": 34.5,
+      "depth": 24,
+      "availableWidths": [12, 15, 18, 21, 22.5, 24, 27, 30, 33, 36, 39, 42],
+      "doors": 0,
+      "drawers": 3,
+      "drawerOpenings": {
+        "top": "6\" opening",
+        "bottom2": "10 3/4\" openings each"
+      }
+    },
+
+    "B4D": {
+      "name": "4 Drawer Base Cabinet",
+      "catalogPage": "I14",
+      "height": 34.5,
+      "depth": 24,
+      "availableWidths": [12, 15, 18, 21, 22.5, 24, 27, 30, 33, 36],
+      "doors": 0,
+      "drawers": 4,
+      "drawerOpenings": {
+        "top3": "6\" openings each",
+        "bottom": "8 3/4\" opening"
+      }
+    },
+
+    "BBB": {
+      "name": "3 Drawer Base Cabinet (Pots & Pans)",
+      "catalogPage": "I12",
+      "height": 34.5,
+      "depth": 24,
+      "availableWidths": [12, 15, 18, 21, 22.5, 24],
+      "doors": 0,
+      "drawers": 3,
+      "note": "Deeper drawers than B3D, designed for pots and pans storage"
+    }
+  },
+
+  "cornerSolutions": {
+    "base_L_corner": [
+      {
+        "type": "blind_corner",
+        "primarySKU": "BBC42",
+        "pull": 4,
+        "fillerRequired": true,
+        "minFiller": 3,
+        "adjacentWallStartOffset": 46,
+        "upperMatch": "WBC{width}{height}",
+        "popularity": 0.65,
+        "bestWhen": "Most common solution. Works with any wall length.",
+        "availableOptions": ["BBC36", "BBC39", "BBC42", "BBC45", "BBC48"]
+      },
+      {
+        "type": "lazy_susan",
+        "primarySKU": "BL36-PH",
+        "pull": 0,
+        "fillerRequired": false,
+        "requiredWallEachDirection": 36,
+        "upperMatch": "WDC2430 or diagonal gap",
+        "popularity": 0.25,
+        "bestWhen": "Both walls 36\"+ and client wants full corner access. Premium option.",
+        "availableOptions": ["BL33-PH", "BL36-PH"]
+      },
+      {
+        "type": "expandable_leg",
+        "primarySKU": "BLE36-36",
+        "pull": 0,
+        "fillerRequired": false,
+        "upperMatch": "none (open above or floating shelf)",
+        "popularity": 0.10,
+        "bestWhen": "Open-concept corner, sink in corner, or when maximum corner access needed."
+      }
+    ],
+    "upper_L_corner": [
+      {
+        "type": "blind_corner",
+        "primarySKU": "WBC3630",
+        "pull": 4,
+        "fillerRequired": true,
+        "note": "Must align above base blind corner"
+      },
+      {
+        "type": "diagonal",
+        "primarySKU": "WDC2430",
+        "pull": 0,
+        "note": "Used above lazy susan corners"
+      },
+      {
+        "type": "open_corner",
+        "note": "No upper at corner. Used with open shelving or when range hood is at corner."
+      }
+    ]
+  },
+
+  "applianceIntegration": {
+    "range": {
+      "standardWidths": [30, 36],
+      "requiresOpenBaseSlot": true,
+      "aboveCabinet": "range_hood_or_microwave",
+      "minClearanceToUpper": 18,
+      "recommendedClearanceToUpper": 24,
+      "landingArea": { "eachSide": 15, "note": "NKBA: 15\" landing on each side of cooktop" },
+      "fillerAdjacent": "recommended for service access"
+    },
+    "refrigerator": {
+      "standardWidths": [30, 33, 36],
+      "requiresOpenSlot": true,
+      "preferEndOfRun": true,
+      "aboveCabinet": "RW (refrigerator wall)",
+      "panelSKU": "REF",
+      "landingArea": { "handleSide": 24, "note": "NKBA: 24\" landing on handle side" },
+      "note": "If panel-ready, requires REF panel SKU + ice cutout specification"
+    },
+    "dishwasher": {
+      "standardWidth": 24,
+      "requiresOpenBaseSlot": true,
+      "mustBeAdjacentToSink": true,
+      "panelSKU": "DP",
+      "note": "Always adjacent to sink base, same wall"
+    },
+    "sink": {
+      "baseSKU": "SB",
+      "standardWidths": [30, 33, 36],
+      "requiresPlumbingWall": true,
+      "preferUnderWindow": true,
+      "landingArea": { "oneSide": 24, "otherSide": 18, "note": "NKBA landing areas" }
+    },
+    "wallOven": {
+      "baseSKU": "O",
+      "standardWidths": [27, 30],
+      "requiresOvenSpec": true,
+      "placement": "tall_cabinet_position",
+      "note": "Oven cabinet spec form required with every order"
+    },
+    "microwave": {
+      "options": ["above_range", "in_tall_cabinet", "in_base_drawer"],
+      "aboveRangeWidth": "matches range width",
+      "note": "Microwave above range replaces range hood for ventilation"
+    }
+  },
+
+  "placementRules": {
+    "endPanels": {
+      "required": [
+        "At every exposed cabinet side (run termination)",
+        "Adjacent to appliance openings (range, fridge, dishwasher)",
+        "Island ends",
+        "Peninsula exposed side"
+      ],
+      "skuPrefixes": {
+        "base": "FBEP",
+        "wall": "FWEP",
+        "vanity": "FVEP",
+        "tall": "FTEP"
+      }
+    },
+    "fillerPlacement": {
+      "validPositions": [
+        "At run termination (cabinet meets wall)",
+        "Adjacent to appliances (for service clearance)",
+        "At blind corner pull gap",
+        "Between cabinet and non-cabinet wall feature (door frame, pipe chase)"
+      ],
+      "invalidPositions": [
+        "Mid-run between two standard cabinets (never)",
+        "Between two door cabinets in a visible position"
+      ],
+      "skus": {
+        "F3": { "width": 3, "note": "Standard filler" },
+        "F6": { "width": 6, "note": "Wide filler" },
+        "OVF3": { "width": 3, "note": "Overlay filler" }
+      }
+    },
+    "hingeAssignment": {
+      "rule": "Hinge opens away from nearest wall end, appliance, or corner",
+      "atRunEnd_leftWall": "hinge right (opens toward center)",
+      "atRunEnd_rightWall": "hinge left (opens toward center)",
+      "adjacentToAppliance": "hinge opens away from appliance",
+      "twoAdjacentDoors": "should not open into each other"
+    },
+    "upperPlacement": {
+      "alignWithBaseBelow": true,
+      "neverWiderThanBase": true,
+      "skipAboveRange": "use range hood (RH series) or microwave",
+      "skipAtWindow": "no upper above window (or use short upper above window if sill is high enough)",
+      "consistentHeightPerWall": "all uppers on same wall should be same height for visual consistency"
+    }
+  },
+
+  "nkbaGuidelines": {
+    "workTriangle": {
+      "totalRange": { "min": 156, "max": 312, "unit": "inches", "note": "13-26 feet total" },
+      "singleLegMax": 108,
+      "singleLegMaxNote": "9 feet max single leg",
+      "noTrafficThroughTriangle": true
+    },
+    "clearances": {
+      "walkwayMin": 42,
+      "walkwayRecommended": 48,
+      "twoCookMin": 48,
+      "doorClearance": 32,
+      "applianceDoorClearance": "must not block walkway when open"
+    },
+    "landingAreas": {
+      "refrigerator_handleSide": 24,
+      "cooktop_eachSide": 15,
+      "sink_oneSide": 24,
+      "sink_otherSide": 18,
+      "oven_nearestCounter": 15,
+      "microwave_nearestCounter": 15
+    },
+    "counterHeight": {
+      "standard": 36,
+      "accessible": 34,
+      "barHeight": 42,
+      "note": "Standard Eclipse base at 34.5\" + 1.5\" countertop = 36\""
+    }
+  }
+}
