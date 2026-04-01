@@ -58,7 +58,7 @@ export async function exportPDF(options = {}) {
   doc.text(`Cabinetry: ${formatCurrency(cabinetTotal)}`, margin + 10, barY + 15);
   doc.text(`Appliances: ${applianceTotal > 0 ? formatCurrency(applianceTotal) : 'N/A'}`, margin + 180, barY + 15);
   const ctText = countertopEstimate
-    ? `${formatCurrency(countertopEstimate.totalLow)} \u2013 ${formatCurrency(countertopEstimate.totalHigh)}`
+    ? `${formatCurrency(countertopEstimate.totalLow)} – ${formatCurrency(countertopEstimate.totalHigh)}`
     : 'N/A';
   doc.text(`Countertops: ${ctText}`, margin + 340, barY + 15);
   const grandTotal = cabinetTotal + applianceTotal + (countertopEstimate ? (countertopEstimate.totalLow + countertopEstimate.totalHigh) / 2 : 0);
@@ -71,6 +71,7 @@ export async function exportPDF(options = {}) {
   if (floorPlanSvg) {
     try {
       const svgClone = floorPlanSvg.cloneNode(true);
+      // Set explicit dimensions for svg2pdf
       const vb = svgClone.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 500, 300];
       const availW = pageW - 2 * margin;
       const availH = pageH - barY - 50;
@@ -87,17 +88,17 @@ export async function exportPDF(options = {}) {
     } catch (e) {
       console.warn('Floor plan SVG export failed:', e);
       doc.setFontSize(12);
-      doc.text('Floor plan rendering \u2014 see interactive view', margin, barY + 60);
+      doc.text('Floor plan rendering — see interactive view', margin, barY + 60);
     }
   }
 
   // Footer
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184);
-  doc.text('Eclipse Kitchen Designer \u2014 Pinnacle Sales \u2014 Eclipse Cabinetry', margin, pageH - 15);
+  doc.text('Eclipse Kitchen Designer — Pinnacle Sales — Eclipse Cabinetry', margin, pageH - 15);
   doc.text('Page 1', pageW - margin - 30, pageH - 15);
 
-  // \u2500\u2500 Page 2+: Elevations \u2500\u2500
+  // ── Page 2+: Elevations ──
   const elevationSvgs = document.querySelectorAll('[data-pdf="elevation"]');
   if (elevationSvgs.length > 0) {
     doc.addPage('letter', 'landscape');
@@ -111,6 +112,7 @@ export async function exportPDF(options = {}) {
 
     for (let i = 0; i < elevationSvgs.length; i++) {
       if (yOffset + maxElevH > pageH - 30) {
+        // New page
         doc.addPage('letter', 'landscape');
         yOffset = margin + 10;
       }

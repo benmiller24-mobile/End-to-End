@@ -1,24 +1,24 @@
 /**
- * Eclipse Kitchen & Bath Designer â Appliance Database
+ * Eclipse Kitchen & Bath Designer — Appliance Database
  * Real manufacturer specs: Sub-Zero, Wolf, Thermador, Fisher & Paykel, Miele, KitchenAid
  * Dimensions in inches, prices in USD (MSRP where available)
  */
 
-// âââ BRANDS âââ
+// ═══ BRANDS ═══
 export const APPLIANCE_BRANDS = [
-  { id: 'subzero', name: 'Sub-Zero', tier: 'ultra', logo: 'âï¸', categories: ['refrigerator','freezer','wine'] },
-  { id: 'wolf', name: 'Wolf', tier: 'ultra', logo: 'ð¥', categories: ['range','cooktop','wallOven','microwave','hood'] },
-  { id: 'thermador', name: 'Thermador', tier: 'premium', logo: 'â­', categories: ['range','cooktop','wallOven','dishwasher','refrigerator','freezer'] },
-  { id: 'fisherPaykel', name: 'Fisher & Paykel', tier: 'premium', logo: 'ð¿', categories: ['range','cooktop','dishwasher','refrigerator'] },
-  { id: 'miele', name: 'Miele', tier: 'premium', logo: 'ðï¸', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
-  { id: 'kitchenaid', name: 'KitchenAid', tier: 'mid-premium', logo: 'ð³', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
+  { id: 'subzero', name: 'Sub-Zero', tier: 'ultra', logo: '❄️', categories: ['refrigerator','freezer','wine'] },
+  { id: 'wolf', name: 'Wolf', tier: 'ultra', logo: '🔥', categories: ['range','cooktop','wallOven','microwave','hood'] },
+  { id: 'thermador', name: 'Thermador', tier: 'premium', logo: '⭐', categories: ['range','cooktop','wallOven','dishwasher','refrigerator','freezer'] },
+  { id: 'fisherPaykel', name: 'Fisher & Paykel', tier: 'premium', logo: '🌿', categories: ['range','cooktop','dishwasher','refrigerator'] },
+  { id: 'miele', name: 'Miele', tier: 'premium', logo: '🏔️', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
+  { id: 'kitchenaid', name: 'KitchenAid', tier: 'mid-premium', logo: '🍳', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
 ];
 
-// âââ APPLIANCE CATALOG âââ
+// ═══ APPLIANCE CATALOG ═══
 // Each entry: { id, brand, type, subtype, model, width, height, depth, panelReady, ss, msrp, fuel?, features }
 export const APPLIANCES = [
 
-  // ââââââââââââ SUB-ZERO REFRIGERATION ââââââââââââ
+  // ──────────── SUB-ZERO REFRIGERATION ────────────
   { id:'sz-cl3650ufd', brand:'subzero', type:'refrigerator', subtype:'french-door', model:'CL3650UFD/O', width:36, height:84, depth:24, panelReady:true, ss:true, msrp:9615, builtIn:true, features:['French Door','Split Climate','Air Purification'] },
   { id:'sz-bi-36ufd', brand:'subzero', type:'refrigerator', subtype:'french-door', model:'BI-36UFD/S', width:36, height:84, depth:24, panelReady:true, ss:true, msrp:10500, builtIn:true, features:['French Door','NASA Air Purification'] },
   { id:'sz-bi-42s', brand:'subzero', type:'refrigerator', subtype:'side-by-side', model:'BI-42S/S', width:42, height:84, depth:24, panelReady:true, ss:true, msrp:12500, builtIn:true, features:['Side-by-Side','42"'] },
@@ -39,7 +39,7 @@ export const APPLIANCES = [
   { id:'sz-cl4250ufd', brand:'subzero', type:'refrigerator', subtype:'french-door', model:'CL4250UFD', width:42, height:84, depth:24, panelReady:true, ss:true, msrp:12000, builtIn:true, features:['42" French Door','24.7 cu ft','Panel-ready'] },
   { id:'sz-cl3650u', brand:'subzero', type:'refrigerator', subtype:'over-under', model:'CL3650U', width:36, height:84, depth:24, panelReady:true, ss:true, msrp:9000, builtIn:true, features:['36" Over-and-Under','Bottom Freezer','Panel-ready'] },
 
-  // ââââââââââââ WOLF COOKING ââââââââââââ
+  // ──────────── WOLF COOKING ────────────
   // Wolf Pro Ranges
   { id:'wolf-gr304', brand:'wolf', type:'range', subtype:'pro', model:'GR304', width:30, height:36, depth:28.5, panelReady:false, ss:true, msrp:5699, fuel:'gas', features:['4 Burners','4.4 cu ft','Dual VertiFlow Convection'] },
   { id:'wolf-gr366', brand:'wolf', type:'range', subtype:'pro', model:'GR366', width:36, height:36, depth:28.375, panelReady:false, ss:true, msrp:8999, fuel:'gas', features:['6 Burners','5.5 cu ft'] },
@@ -63,7 +63,7 @@ export const APPLIANCES = [
   { id:'wolf-pw362210', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW362210', width:36, height:22, depth:10, panelReady:false, ss:true, msrp:2800, features:['Pro Wall Hood','600 CFM'] },
   { id:'wolf-pw482210', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW482210', width:48, height:22, depth:10, panelReady:false, ss:true, msrp:3200, features:['Pro Wall Hood','1200 CFM'] },
 
-  // ââââââââââââ THERMADOR ââââââââââââ
+  // ──────────── THERMADOR ────────────
   // Thermador Pro Ranges
   { id:'therm-prd305whu', brand:'thermador', type:'range', subtype:'pro', model:'PRD305WHU', width:30, height:36, depth:24.75, panelReady:false, ss:true, msrp:5699, fuel:'dual', features:['5 Burners','4.6 cu ft','Dual Fuel'] },
   { id:'therm-prd364wdhu', brand:'thermador', type:'range', subtype:'pro', model:'PRD364WDHU', width:36, height:36, depth:24.75, panelReady:false, ss:true, msrp:8499, fuel:'dual', features:['4 Burners + Griddle','5.5 cu ft','Star Burner'] },
@@ -94,7 +94,7 @@ export const APPLIANCES = [
   { id:'therm-dwhd660wfp', brand:'thermador', type:'dishwasher', subtype:'sapphire', model:'DWHD660WFP', width:24, height:33.875, depth:24, panelReady:true, ss:true, msrp:2199, features:['Sapphire','44 dBA','StarDry'] },
   { id:'therm-dwhd560cfp', brand:'thermador', type:'dishwasher', subtype:'emerald', model:'DWHD560CFP', width:24, height:33.875, depth:24, panelReady:true, ss:true, msrp:1599, features:['Emerald','48 dBA','24/7 Aqua Stop'] },
 
-  // ââââââââââââ FISHER & PAYKEL ââââââââââââ
+  // ──────────── FISHER & PAYKEL ────────────
   // F&P Ranges
   { id:'fp-rhv3484n', brand:'fisherPaykel', type:'range', subtype:'pro', model:'RHV3-484-N', width:48, height:35.75, depth:29.125, panelReady:false, ss:true, msrp:17149, fuel:'hybrid', features:['4 Gas + 4 Induction','Twin Ovens','6.9 cu ft'] },
   { id:'fp-riv3486', brand:'fisherPaykel', type:'range', subtype:'pro', model:'RIV3-486', width:48, height:35.75, depth:29.125, panelReady:false, ss:true, msrp:16849, fuel:'induction', features:['Full Induction','Twin Convection Ovens'] },
@@ -112,7 +112,7 @@ export const APPLIANCES = [
   { id:'fp-cdv3365hn', brand:'fisherPaykel', type:'cooktop', subtype:'gas', model:'CDV3365HN', width:36, height:5.5, depth:21, panelReady:false, ss:true, msrp:2999, fuel:'gas', features:['5 Burners','20K BTU'] },
   { id:'fp-ci365dtb4', brand:'fisherPaykel', type:'cooktop', subtype:'induction', model:'CI365DTB4', width:36, height:4.5, depth:21, panelReady:false, ss:false, msrp:2499, fuel:'induction', features:['5 Zones','SmartZone'] },
 
-  // ââââââââââââ MIELE ââââââââââââ
+  // ──────────── MIELE ────────────
   // Miele Ranges
   { id:'miele-hr14223i', brand:'miele', type:'range', subtype:'pro', model:'HR 1422-3 I', width:30, height:36, depth:27.5, panelReady:false, ss:true, msrp:5499, fuel:'gas', features:['TwinPower Convection','SoftClose'] },
   { id:'miele-hr19362g', brand:'miele', type:'range', subtype:'pro', model:'HR 1936-2 G', width:36, height:36, depth:27.5, panelReady:false, ss:true, msrp:8899, fuel:'gas', features:['6 Burners','M Touch'] },
@@ -134,7 +134,7 @@ export const APPLIANCES = [
   { id:'miele-kf2912vi', brand:'miele', type:'refrigerator', subtype:'column', model:'KF 2912 VI', width:36, height:84, depth:24, panelReady:true, ss:false, msrp:8999, builtIn:true, features:['MasterCool','NoFrost','Panel Ready'] },
   { id:'miele-kf2982vi', brand:'miele', type:'refrigerator', subtype:'french-door', model:'KF 2982 VI', width:36, height:84, depth:24, panelReady:true, ss:false, msrp:9299, builtIn:true, features:['French Door','MasterCool','19.5 cu ft'] },
 
-  // ââââââââââââ KITCHENAID ââââââââââââ
+  // ──────────── KITCHENAID ────────────
   // KitchenAid Ranges
   { id:'ka-kfdc558jss', brand:'kitchenaid', type:'range', subtype:'commercial', model:'KFDC558JSS', width:48, height:36, depth:30.25, panelReady:false, ss:true, msrp:9576, fuel:'dual', features:['Griddle','Smart','6.3 cu ft','Even-Heat Convection'] },
   { id:'ka-kfgs936', brand:'kitchenaid', type:'range', subtype:'commercial', model:'KFGS936SSS', width:36, height:36, depth:28, panelReady:false, ss:true, msrp:5999, fuel:'gas', features:['6 Burners','5.1 cu ft','Even-Heat Convection'] },
@@ -156,7 +156,7 @@ export const APPLIANCES = [
   { id:'ka-kcgs356ess', brand:'kitchenaid', type:'cooktop', subtype:'gas', model:'KCGS356ESS', width:36, height:3.625, depth:21, panelReady:false, ss:true, msrp:1799, fuel:'gas', features:['5 Burners','ADA Compliant'] },
 ];
 
-// âââ APPLIANCE DESIGN RULES (from Eclipse Specs Reference) âââ
+// ═══ APPLIANCE DESIGN RULES (from Eclipse Specs Reference) ═══
 export const APPLIANCE_DESIGN_RULES = {
   // Counter-depth is the Eclipse default
   counterDepthDefault: true,
@@ -219,21 +219,21 @@ export const APPLIANCE_DESIGN_RULES = {
   panelReadyDefault: true,
 };
 
-// âââ APPLIANCE TYPES âââ
+// ═══ APPLIANCE TYPES ═══
 export const APPLIANCE_TYPES = {
-  refrigerator: { label: 'Refrigerator', icon: 'ð§', required: true, defaultWidth: 36 },
-  freezer: { label: 'Freezer', icon: 'âï¸', required: false, defaultWidth: 24 },
-  range: { label: 'Range', icon: 'ð¥', required: true, defaultWidth: 36 },
-  cooktop: { label: 'Cooktop', icon: 'â¨ï¸', required: false, defaultWidth: 36 },
-  wallOven: { label: 'Wall Oven', icon: 'ð¦', required: false, defaultWidth: 30 },
-  dishwasher: { label: 'Dishwasher', icon: 'ð§', required: true, defaultWidth: 24 },
-  microwave: { label: 'Microwave', icon: 'ð¡', required: false, defaultWidth: 30 },
-  hood: { label: 'Range Hood', icon: 'ð¨', required: false, defaultWidth: 36 },
-  wine: { label: 'Wine Column', icon: 'ð·', required: false, defaultWidth: 24 },
-  sink: { label: 'Sink', icon: 'ð°', required: true, defaultWidth: 33 },
+  refrigerator: { label: 'Refrigerator', icon: '🧊', required: true, defaultWidth: 36 },
+  freezer: { label: 'Freezer', icon: '❄️', required: false, defaultWidth: 24 },
+  range: { label: 'Range', icon: '🔥', required: true, defaultWidth: 36 },
+  cooktop: { label: 'Cooktop', icon: '♨️', required: false, defaultWidth: 36 },
+  wallOven: { label: 'Wall Oven', icon: '📦', required: false, defaultWidth: 30 },
+  dishwasher: { label: 'Dishwasher', icon: '💧', required: true, defaultWidth: 24 },
+  microwave: { label: 'Microwave', icon: '📡', required: false, defaultWidth: 30 },
+  hood: { label: 'Range Hood', icon: '💨', required: false, defaultWidth: 36 },
+  wine: { label: 'Wine Column', icon: '🍷', required: false, defaultWidth: 24 },
+  sink: { label: 'Sink', icon: '🚰', required: true, defaultWidth: 33 },
 };
 
-// âââ STANDARD SINK OPTIONS âââ
+// ═══ STANDARD SINK OPTIONS ═══
 export const SINKS = [
   { id: 'sink-ss-33', name: 'Stainless Undermount 33"', width: 33, depth: 22, material: 'stainless', msrp: 450 },
   { id: 'sink-ss-36', name: 'Stainless Undermount 36"', width: 36, depth: 22, material: 'stainless', msrp: 550 },
@@ -248,7 +248,7 @@ export const SINKS = [
   { id: 'sink-wall', name: 'Wall-Mount Sink', width: 18, depth: 15, material: 'porcelain', msrp: 400, bath: true },
 ];
 
-// âââ HELPERS âââ
+// ═══ HELPERS ═══
 export function filterAppliances(opts = {}) {
   let list = APPLIANCES;
   if (opts.brand) list = list.filter(a => a.brand === opts.brand);

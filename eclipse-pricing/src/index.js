@@ -2,6 +2,14 @@
  * Eclipse Cabinetry — Shared Pricing Module
  * ==========================================
  * Single import entry point for the Eclipse pricing engine.
+ * Used by both the standalone Eclipse Estimator and the Kitchen Design App.
+ *
+ * Usage:
+ *   import { calculateItemPrice, calculateLayoutPrice, CATALOG, findSku, SPECIES_PCT, ... } from '@eclipse/pricing';
+ *
+ * Or import specific modules:
+ *   import { CATALOG, findSku, searchSkus } from '@eclipse/pricing/skuCatalog';
+ *   import { calculateItemPrice } from '@eclipse/pricing/pricingEngine';
  */
 
 // SKU Catalog

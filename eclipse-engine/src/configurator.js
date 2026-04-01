@@ -1,5 +1,5 @@
 /**
- * Eclipse Cabinet Designer â Project Configurator
+ * Eclipse Cabinet Designer — Project Configurator
  * =================================================
  * Top-level orchestrator that takes room dimensions + material preferences,
  * runs the layout solver, feeds placements into the pricing engine,
@@ -7,10 +7,10 @@
  *
  * Pipeline:
  *   configureProject(input)
- *     â solve(roomInput)          // layout engine
- *     â mapPlacementsToPricing()  // bridge solver â pricing
- *     â priceProject(project)     // C3 pricing engine
- *     â assembleQuote()           // combined result
+ *     → solve(roomInput)          // layout engine
+ *     → mapPlacementsToPricing()  // bridge solver → pricing
+ *     → priceProject(project)     // C3 pricing engine
+ *     → assembleQuote()           // combined result
  *
  * Usage:
  *   import { configureProject } from '@eclipse/engine';
@@ -54,25 +54,25 @@ import {
 import { generateProjectSummary } from './summary.js';
 
 
-// âââ CATALOG LIST PRICES ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CATALOG LIST PRICES ────────────────────────────────────────────────────
 // Average list (stock) prices by SKU prefix, derived from 30 training projects.
 // These are Maple/Standard baseline prices before species/construction upcharges.
 // Keyed by cabinet prefix; width-based interpolation for non-standard widths.
 
 const CATALOG_PRICES = {
-  // ââ Base cabinets ââ
+  // ── Base cabinets ──
   base: {
-    // width â list price (Maple/Standard)
+    // width → list price (Maple/Standard)
     9:  185,   12: 220,   15: 275,   18: 330,   21: 385,
     24: 440,   27: 495,   30: 550,   33: 605,   36: 660,
     42: 770,   48: 880,
   },
-  // Drawer bases (B3D, B4D) â ~15% premium over standard
+  // Drawer bases (B3D, B4D) — ~15% premium over standard
   drawerBase: {
     9:  215,   12: 255,   15: 315,   18: 380,   21: 445,
     24: 510,   27: 570,   30: 635,   33: 695,   36: 760,
   },
-  // Heavy-duty drawer (B2HD) â ~20% premium
+  // Heavy-duty drawer (B2HD) — ~20% premium
   heavyDrawer: {
     18: 400,   21: 460,   24: 530,   27: 600,   30: 660,   33: 725,   36: 790,
   },
@@ -93,7 +93,7 @@ const CATALOG_PRICES = {
     18: 390,   21: 450,   24: 510,   27: 575,   30: 640,   33: 700,   36: 760,
   },
 
-  // ââ Corner cabinets ââ
+  // ── Corner cabinets ──
   lazySusan: {
     33: 850,   36: 950,
   },
@@ -107,7 +107,7 @@ const CATALOG_PRICES = {
     42: 780,
   },
 
-  // ââ Wall cabinets ââ
+  // ── Wall cabinets ──
   wall: {
     9:  130,   12: 160,   15: 195,   18: 230,   21: 270,
     24: 310,   27: 345,   30: 385,   33: 420,   36: 460,
@@ -122,7 +122,7 @@ const CATALOG_PRICES = {
     24: 620,   27: 700,   30: 780,   33: 860,   36: 940,
   },
 
-  // ââ Tall cabinets ââ
+  // ── Tall cabinets ──
   tall: {
     18: 950,   21: 1100,  24: 1250,  27: 1400,  30: 1550,
   },
@@ -131,7 +131,7 @@ const CATALOG_PRICES = {
     18: 1200,  21: 1400,  24: 1600,
   },
 
-  // ââ Vanity cabinets ââ
+  // ── Vanity cabinets ──
   vanity: {
     18: 320,   21: 380,   24: 440,   30: 540,   36: 640,   42: 740,   48: 840,
   },
@@ -139,7 +139,7 @@ const CATALOG_PRICES = {
     18: 780,   21: 900,   24: 1020,
   },
 
-  // ââ Office cabinets ââ
+  // ── Office cabinets ──
   fileCabinet: {
     18: 420,   21: 480,
   },
@@ -147,18 +147,18 @@ const CATALOG_PRICES = {
     36: 280,
   },
 
-  // ââ Island/specialty ââ
+  // ── Island/specialty ──
   island: {
     // Same as base pricing for work-side cabs
     12: 220,   15: 275,   18: 330,   21: 385,   24: 440,   30: 550,   36: 660,
   },
 
-  // ââ GOLA (FC-) prefix adds ~10%
+  // ── GOLA (FC-) prefix adds ~10%
   golaMultiplier: 1.10,
 };
 
 
-// âââ SKU PARSER ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── SKU PARSER ──────────────────────────────────────────────────────────────
 // Parses a solver-generated SKU string into component parts for pricing.
 
 function parseSku(sku) {
@@ -167,9 +167,9 @@ function parseSku(sku) {
   const isGola = sku.startsWith("FC-");
   const cleanSku = isGola ? sku.slice(3) : sku;
 
-  // Extract width â the significant dimensional number from the SKU.
+  // Extract width — the significant dimensional number from the SKU.
   // Strategy: strip known alpha prefix, then grab the first number that
-  // represents a cabinet width (typically 9â48 inches).
+  // represents a cabinet width (typically 9–48 inches).
   // Known prefixes: B3D, B4D, B2HD, BBC, BL, SBA, SB, BPOS, BTD, BKI,
   //   BWDMA, BWDMW, BWDMB, BWS, BO, BCF, BWC, BPTPO, BUBO, TB, W, RW, RH,
   //   NTK, TP, FIO, TC, FLVSB, VTSB3D, VTSB, UV, FD2HD, LD, VB3D, etc.
@@ -214,7 +214,7 @@ function parseSku(sku) {
     numDoors = 2;
   } else if (/^SBA/.test(cleanSku)) {
     family = "sinkBase";
-    numDoors = 1; // farmhouse apron â single front
+    numDoors = 1; // farmhouse apron — single front
   } else if (/^SB/.test(cleanSku)) {
     family = "sinkBase";
     numDoors = 2;
@@ -323,7 +323,7 @@ function parseSku(sku) {
     family = "fileCabinet";
     numDrawers = 3;
   } else if (/^F\d/.test(cleanSku)) {
-    // Filler â not a cabinet, priced differently
+    // Filler — not a cabinet, priced differently
     family = "filler";
     numDoors = 0;
   } else if (/^FBEP|^FWEP|^BEP|^FREP|^REP|^REF$|^EDGTL/.test(cleanSku)) {
@@ -353,7 +353,7 @@ function parseSku(sku) {
 function lookupListPrice(parsed) {
   const { family, width, isGola } = parsed;
 
-  // Non-cabinet items (accessories, fillers, trim) â priced separately
+  // Non-cabinet items (accessories, fillers, trim) — priced separately
   if (["filler", "endPanel", "accessory", "trim", "hardware"].includes(family)) {
     return 0; // priced through accessory channel
   }
@@ -395,7 +395,7 @@ function lookupListPrice(parsed) {
 }
 
 
-// âââ DRAWER UPGRADE APPLICATION âââââââââââââââââââââââââââââââââââââââââââ
+// ─── DRAWER UPGRADE APPLICATION ───────────────────────────────────────────
 
 /**
  * Apply drawer upgrades to a single cabinet line item.
@@ -432,7 +432,7 @@ function applyDrawerUpgradesToCabinet(cabinet, materials) {
       cabinet.modifications.push({ mod: "UMSC-DRW", qty: numDrawers });
     }
 
-    // Drawer inserts â match by width
+    // Drawer inserts — match by width
     if (drawerInserts && Array.isArray(drawerInserts)) {
       const cabinetWidth = cabinet.width || 0;
       for (const insert of drawerInserts) {
@@ -460,7 +460,7 @@ function mapInsertTypeToMod(insertType) {
 }
 
 
-// âââ PLACEMENT â LINE ITEM BRIDGE âââââââââââââââââââââââââââââââââââââââââââ
+// ─── PLACEMENT → LINE ITEM BRIDGE ───────────────────────────────────────────
 
 /**
  * Convert solver placements into pricing line items grouped by material spec.
@@ -550,9 +550,9 @@ function mapPlacementsToPricing(layout, materials) {
     // Single-spec
     specs.push({
       specId: materials.specId || "spec-1",
-      species: materials.species || "Maple",
+      species: materials.species || "White Oak",
       construction: materials.construction || "Standard",
-      doorStyle: materials.doorStyle || "Hanover FP",
+      doorStyle: materials.doorStyle || "HNVR",
       drawerType: materials.drawerType,
       drawerGuide: materials.drawerGuide,
       lineItems: cabinets,
@@ -594,7 +594,7 @@ function resolveAccessoryPrice(acc) {
     if (sku.startsWith(key)) return data.price;
   }
 
-  // Fillers â price per inch Ã typical width
+  // Fillers — price per inch × typical width
   for (const [key, data] of Object.entries(ACCESSORY_PRICING.fillers)) {
     if (sku.startsWith(key)) return data.pricePerInch * (acc.width || 3);
   }
@@ -604,17 +604,17 @@ function resolveAccessoryPrice(acc) {
     if (sku.startsWith(key)) return data.pricePerFt || data.price || 0;
   }
 
-  // Applied molding â price per door
+  // Applied molding — price per door
   for (const [key, data] of Object.entries(ACCESSORY_PRICING.appliedMolding || {})) {
     if (sku.startsWith(key)) return (data.pricePerDoor || 0) * (acc.qty || 1);
   }
 
-  // Base shoe â price per 8ft length
+  // Base shoe — price per 8ft length
   for (const [key, data] of Object.entries(ACCESSORY_PRICING.baseShoe || {})) {
     if (sku.startsWith(key)) return data.price || 0;
   }
 
-  // Counter mould â price per 8ft length
+  // Counter mould — price per 8ft length
   for (const [key, data] of Object.entries(ACCESSORY_PRICING.counterMould || {})) {
     if (sku.startsWith(key)) return data.price || 0;
   }
@@ -629,12 +629,12 @@ function resolveAccessoryPrice(acc) {
     if (sku.startsWith(key)) return data.price;
   }
 
-  // Valances â $45 flat per valance
+  // Valances — $45 flat per valance
   if (sku.startsWith("VLN-")) {
     return 45;
   }
 
-  // Light bridges â $8 per linear foot
+  // Light bridges — $8 per linear foot
   if (sku.startsWith("LB-")) {
     // Extract width from SKU format "LB-{width}"
     const match = sku.match(/LB-(\d+)/);
@@ -646,11 +646,11 @@ function resolveAccessoryPrice(acc) {
     return 0;
   }
 
-  // Toe kick â typically no charge (Eclipse includes with order)
+  // Toe kick — typically no charge (Eclipse includes with order)
   if (sku.startsWith("TK-N/C")) return 0;
 
   // Lighting accessories
-  // Under-cabinet LED strips (UCL) â $12/linear foot
+  // Under-cabinet LED strips (UCL) — $12/linear foot
   if (sku.startsWith("UCL-")) {
     const match = sku.match(/UCL-(\d+)'/);
     if (match) {
@@ -660,12 +660,12 @@ function resolveAccessoryPrice(acc) {
     return 0;
   }
 
-  // In-cabinet lighting (ICL) â $35 per unit
+  // In-cabinet lighting (ICL) — $35 per unit
   if (sku.startsWith("ICL-")) {
     return 35;
   }
 
-  // Toe kick LED strips (TKL) â $8/linear foot
+  // Toe kick LED strips (TKL) — $8/linear foot
   if (sku.startsWith("TKL-")) {
     const match = sku.match(/TKL-(\d+)'/);
     if (match) {
@@ -675,7 +675,7 @@ function resolveAccessoryPrice(acc) {
     return 0;
   }
 
-  // Display shelf lighting (DSL) â $45 per unit
+  // Display shelf lighting (DSL) — $45 per unit
   if (sku.startsWith("DSL-")) {
     return 45;
   }
@@ -684,10 +684,10 @@ function resolveAccessoryPrice(acc) {
 }
 
 
-// âââ MAIN CONFIGURATOR ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── MAIN CONFIGURATOR ──────────────────────────────────────────────────────
 
 /**
- * Configure a complete project: room â layout â pricing â quote.
+ * Configure a complete project: room → layout → pricing → quote.
  *
  * @param {Object} input
  *   @param {RoomInput} input.room - Room dimensions, appliances, preferences (passed to solve())
@@ -713,13 +713,13 @@ export function configureProject(input) {
     throw new Error("configureProject requires a 'room' input with walls and layout info.");
   }
 
-  // ââ Step 1: Run the solver ââ
+  // ── Step 1: Run the solver ──
   const layout = solve(room);
 
-  // ââ Step 2: Bridge solver placements â pricing line items ââ
+  // ── Step 2: Bridge solver placements → pricing line items ──
   const { specs, accessories } = mapPlacementsToPricing(layout, materials);
 
-  // ââ Step 3: Build project pricing input ââ
+  // ── Step 3: Build project pricing input ──
   const projectInput = {
     specs,
     accessories,
@@ -733,21 +733,21 @@ export function configureProject(input) {
     };
   }
 
-  // ââ Step 4: Run the pricing engine ââ
+  // ── Step 4: Run the pricing engine ──
   const pricing = priceProject(projectInput);
 
-  // ââ Step 5: Optional ballpark estimate ââ
+  // ── Step 5: Optional ballpark estimate ──
   let estimate = null;
   if (options.includeEstimate) {
     estimate = estimateProject({
       cabinetCount: layout.metadata.totalCabinets,
-      species: materials.species || "Maple",
+      species: materials.species || "White Oak",
       construction: materials.construction || "Standard",
       doorStyle: materials.doorStyle,
     });
   }
 
-  // ââ Step 6: Generate cost summary ââ
+  // ── Step 6: Generate cost summary ──
   const quote = {
     specs: pricing.specs,
     projectTotal: pricing.projectTotal,
@@ -756,7 +756,7 @@ export function configureProject(input) {
   };
   const summary = generateProjectSummary({ layout, quote });
 
-  // ââ Step 7: Assemble the complete quote ââ
+  // ── Step 7: Assemble the complete quote ──
   return {
     // Project header
     project: {
@@ -785,9 +785,9 @@ export function configureProject(input) {
 
     // Material configuration echo
     materials: {
-      species: materials.species || "Maple",
+      species: materials.species || "White Oak",
       construction: materials.construction || "Standard",
-      doorStyle: materials.doorStyle || "Hanover FP",
+      doorStyle: materials.doorStyle || "HNVR",
       drawerType: materials.drawerType || "Standard",
       drawerGuide: materials.drawerGuide || "Standard",
       specCount: specs.length,
@@ -813,7 +813,7 @@ export function configureProject(input) {
 
 /**
  * Quick-configure: minimal input for fast quoting.
- * Takes just room basics + species â returns a quote.
+ * Takes just room basics + species → returns a quote.
  *
  * @param {Object} params
  *   @param {string} params.layoutType - "l-shape", "single-wall", etc.
@@ -850,9 +850,9 @@ export function quickConfigure(params) {
       },
     },
     materials: {
-      species: species || "Maple",
+      species: species || "White Oak",
       construction: construction || "Standard",
-      doorStyle: doorStyle || "Hanover FP",
+      doorStyle: doorStyle || "HNVR",
     },
     options: {
       includeEstimate: true,
@@ -905,7 +905,7 @@ export function configureMultiRoom(input) {
   // Combined estimate
   const combinedEstimate = estimateProject({
     cabinetCount: combinedCabinets,
-    species: materials.species || "Maple",
+    species: materials.species || "White Oak",
     construction: materials.construction || "Standard",
     doorStyle: materials.doorStyle,
   });
@@ -927,6 +927,6 @@ export function configureMultiRoom(input) {
 }
 
 
-// âââ EXPORTED HELPERS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── EXPORTED HELPERS ────────────────────────────────────────────────────────
 
 export { parseSku, lookupListPrice, CATALOG_PRICES };

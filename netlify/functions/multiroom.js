@@ -8,10 +8,12 @@ export default async (req) => {
     const { rooms, materials } = await req.json();
 
     if (materials) {
+      // Full quote pipeline for multi-room
       const result = configureMultiRoom({ rooms, materials });
       return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
     }
 
+    // Layout-only multi-room solve
     const results = solveMultiRoom(rooms, solve);
     const summary = getMultiRoomSummary(results);
     return new Response(JSON.stringify({ results, summary }), { headers: { 'Content-Type': 'application/json' } });

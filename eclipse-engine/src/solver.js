@@ -75,6 +75,17 @@ import {
   buildMoldingPathSegments,
 } from './spatial-validator.js';
 
+import {
+  enforceFillerRule,
+  validateFillers,
+} from './filler-resize-logic.js';
+
+import {
+  ECLIPSE_DOOR_STYLES,
+  styleLogicBridge,
+  getDoorGeometry,
+} from './eclipse-door-styles.js';
+
 
 // ─── PROFESSIONAL DESIGN PATTERNS (from training data) ──────────────────────
 // Extracted from 47 real kitchen projects (Bollini, Spector, Owen, Huang, etc.)
@@ -528,6 +539,19 @@ export function solve(input) {
   // Add BEP (base end panels) and FWEP (wall flush end panels) to exposed wall runs
   addEndPanels(wallLayouts, upperLayouts, walls, corners, pf);
 
+  // Phase 4c: Enforce filler rule — never > 3" filler, redistribute to cabinets
+  for (const wl of wallLayouts) {
+    enforceFillerRule(wl, golaPrefix);
+  }
+
+  // Phase 4d: Validate fillers post-enforcement
+  for (const wl of wallLayouts) {
+    const fillerIssues = validateFillers(wl.cabinets, wl.wallLength);
+    for (const issue of fillerIssues) {
+      validation.push(issue);
+    }
+  }
+
   // Phase 5: Generate accessories (room-type-aware)
   const accessories = generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, walls, appliances, pf, talls);
 
@@ -724,6 +748,18 @@ export function solve(input) {
     lightRail: spatialReport.lightRailPaths || [],
   };
 
+  // ── Phase 7d: Countertop Polyline Generation ──
+  // Z=34.5" (base height), 1.5" thick, follows base cabinet perimeter.
+  // Overhang: 1.5" past front face, 0" at wall, wraps around island edges.
+  const countertopPolyline = generateCountertopPolyline(wallLayouts, islandLayout, peninsulaLayout, corners);
+
+  // ── Phase 7e: Symmetry Check for Flanking Zones ──
+  // Verify cabinets flanking range hoods and windows are symmetrical.
+  const symmetryIssues = checkFlankingSymmetry(wallLayouts, upperLayouts);
+  for (const issue of symmetryIssues) {
+    validation.push(issue);
+  }
+
   // Phase 8: Optionally assign 3D coordinates (when requested via prefs.coordinates)
   let coordinatedPlacements = null;
   if (pf.coordinates) {
@@ -875,6 +911,7 @@ export function solve(input) {
     validation,
     moldingPaths,           // path-based molding segments for renderer
     spatialValidation: spatialReport, // full spatial validation report
+    countertopPolyline,     // automated countertop path (Z=34.5, 1.5" thick)
     metadata: {
       totalCabinets: placements.filter(p => p.role !== "accessory").length,
       totalAccessories: accessories.length,
@@ -974,17 +1011,21 @@ function selectCornerTreatment(wallA, wallB, prefs) {
     };
   }
   if (prefs.cornerTreatment === "halfMoon" && aLen >= 36 && bLen >= 36) {
-    const size = aLen >= 42 && bLen >= 42 ? 42 : 36;
+    // Catalog: BBC{size}-WS (Wire Shelves). Sizes: 45, 48, 51.
+    // For smaller walls, use BL36-WSS-PH (Lazy Susan with Wire Shell Shelves)
+    const size = aLen >= 48 && bLen >= 48 ? 48 : (aLen >= 45 && bLen >= 45 ? 45 : 36);
+    const sku = size >= 45 ? `BBC${size}-WS` : `BL36-WSS-PH`;
+    const consumption = size >= 45 ? size : 36;
     return {
-      type: "halfMoon", sku: `BHM${size}R-SS`, size,
-      wallAConsumption: size,
-      wallBConsumption: size + 6,
-      fillerRequired: true, fillerWidth: 3, patternId: "half_moon_explicit",
+      type: "halfMoon", sku, size: consumption,
+      wallAConsumption: consumption,
+      wallBConsumption: consumption + (size >= 45 ? 7 : 0),
+      fillerRequired: size >= 45, fillerWidth: 3, patternId: "half_moon_explicit",
     };
   }
   if (prefs.cornerTreatment === "diagonalLazy" && aLen >= 36 && bLen >= 36) {
     return {
-      type: "diagonalLazy", sku: "BDL36-SS", size: 36,
+      type: "diagonalLazy", sku: "DSB36-SS", size: 36,
       wallAConsumption: 27, wallBConsumption: 27,
       fillerRequired: false, patternId: "diagonal_lazy_susan_explicit",
     };
@@ -992,18 +1033,18 @@ function selectCornerTreatment(wallA, wallB, prefs) {
   if (prefs.cornerTreatment === "magicCorner" && aLen >= 42 && bLen >= 42) {
     const bbcWidth = aLen >= 48 ? 48 : 42;
     return {
-      type: "magicCorner", sku: `BBC${bbcWidth}R-MC`, size: bbcWidth,
+      type: "magicCorner", sku: `BBC${bbcWidth}-MC`, size: bbcWidth,
       wallAConsumption: bbcWidth,
-      wallBConsumption: bbcWidth + 4 + 3,
+      wallBConsumption: 27, // cabinet depth (24") + 3" blind-side filler
       fillerRequired: true, fillerWidth: 3, patternId: "magic_corner_explicit",
     };
   }
   if (prefs.cornerTreatment === "quarterTurn" && aLen >= 42 && bLen >= 42) {
     const bbcWidth = aLen >= 48 ? 48 : 42;
     return {
-      type: "quarterTurnShelves", sku: `BBC${bbcWidth}R-S`, size: bbcWidth,
+      type: "quarterTurnShelves", sku: `BBC${bbcWidth}-S`, size: bbcWidth,
       wallAConsumption: bbcWidth,
-      wallBConsumption: bbcWidth + 4 + 3,
+      wallBConsumption: 27, // cabinet depth (24") + 3" blind-side filler
       fillerRequired: true, fillerWidth: 3, patternId: "quarter_turn_explicit",
     };
   }
@@ -1029,9 +1070,9 @@ function selectCornerTreatment(wallA, wallB, prefs) {
     if (prefs.cornerTreatment === "auto" && cornerSoph === "very_high" && aLen >= 42 && bLen >= 42) {
       const bbcWidth = aLen >= 48 ? 48 : 42;
       return {
-        type: "magicCorner", sku: `BBC${bbcWidth}R-MC`, size: bbcWidth,
+        type: "magicCorner", sku: `BBC${bbcWidth}-MC`, size: bbcWidth,
         wallAConsumption: bbcWidth,
-        wallBConsumption: bbcWidth + 4 + 3,
+        wallBConsumption: 27, // cabinet depth (24") + 3" blind-side filler
         fillerRequired: true, fillerWidth: 3, patternId: "magic_corner_auto",
         trainingFrequency: CORNER_TREATMENTS.blindCornerMagic?.frequency || 2,
       };
@@ -1046,9 +1087,9 @@ function selectCornerTreatment(wallA, wallB, prefs) {
     if (prefs.cornerTreatment === "auto" && cornerSoph === "high" && aLen >= 48 && bLen >= 48 && (minWall - bbcConsumption) >= 84) {
       const bbcWidth = aLen >= 48 ? 48 : 42;
       return {
-        type: "magicCorner", sku: `BBC${bbcWidth}R-MC`, size: bbcWidth,
+        type: "magicCorner", sku: `BBC${bbcWidth}-MC`, size: bbcWidth,
         wallAConsumption: bbcWidth,
-        wallBConsumption: bbcWidth + 4 + 3,
+        wallBConsumption: 27, // cabinet depth (24") + 3" blind-side filler
         fillerRequired: true, fillerWidth: 3, patternId: "magic_corner_auto_high",
         trainingFrequency: CORNER_TREATMENTS.blindCornerMagic?.frequency || 2,
       };
@@ -1069,21 +1110,21 @@ function selectCornerTreatment(wallA, wallB, prefs) {
     // Standard sophistication + small to medium walls: diagonal lazy susan
     if (prefs.cornerTreatment === "auto" && cornerSoph === "standard" && aLen >= 36 && aLen <= 48 && bLen >= 36 && bLen <= 48) {
       return {
-        type: "diagonalLazy", sku: "BDL36-SS", size: 36,
+        type: "diagonalLazy", sku: "DSB36-SS", size: 36,
         wallAConsumption: 27, wallBConsumption: 27,
         fillerRequired: false, patternId: "diagonal_lazy_susan_auto",
       };
     }
 
-    // Standard sophistication + LONG walls: quarter-turn shelves (Bissegger BBC42R-S)
-    // Training: BBC42R-S used in Bissegger Great Room
-    // BBC42R-S consumes 42" on wallA and 49" on wallB — only use when the shorter
+    // Standard sophistication + LONG walls: quarter-turn shelves (Bissegger BBC42-S)
+    // Training: BBC42-S used in Bissegger Great Room
+    // BBC42-S consumes 42" on wallA and 49" on wallB — only use when the shorter
     // wall still has ≥84" remaining after consumption (enough for range + flanking cabs).
     // For 120" walls: 120-49=71" remaining — NOT enough. Use BL36 instead.
     if (prefs.cornerTreatment === "auto" && cornerSoph === "standard" && aLen >= 42 && bLen >= 42 && (Math.min(aLen, bLen) - 49) >= 84) {
       return {
-        type: "quarterTurnShelves", sku: `BBC42R-S`, size: 42,
-        wallAConsumption: 42, wallBConsumption: 49,
+        type: "quarterTurnShelves", sku: `BBC42-S`, size: 42,
+        wallAConsumption: 42, wallBConsumption: 27, // cabinet depth (24") + 3" filler
         fillerRequired: true, fillerWidth: 3, patternId: "quarter_turn_auto",
       };
     }
@@ -1113,9 +1154,9 @@ function selectCornerTreatment(wallA, wallB, prefs) {
     // Training: BL36-PHL (DeLawyer, 1× budget build)
     const bbcWidth = aLen >= 42 ? 39 : 36;
     return {
-      type: "blindCorner", sku: `BL${bbcWidth}-PHL`, size: bbcWidth,
+      type: "blindCorner", sku: `BL${bbcWidth > 33 ? 36 : 33}-PH`, size: bbcWidth,
       wallAConsumption: bbcWidth,
-      wallBConsumption: bbcWidth + 4 + 3,
+      wallBConsumption: 27, // cabinet depth (24") + 3" blind-side filler
       fillerRequired: true, fillerWidth: 3, patternId: "blind_corner_default",
       trainingFrequency: CORNER_TREATMENTS.blindPullHardware.frequency,
     };
@@ -1123,8 +1164,8 @@ function selectCornerTreatment(wallA, wallB, prefs) {
 
   // Fallback
   return {
-    type: "blindCorner", sku: "BL36-PHL", size: 36,
-    wallAConsumption: 36, wallBConsumption: 43,
+    type: "blindCorner", sku: "BL36-PH", size: 36,
+    wallAConsumption: 36, wallBConsumption: 27, // cabinet depth (24") + 3" filler
     fillerRequired: true, fillerWidth: 3, patternId: "blind_corner_fallback",
   };
 }
@@ -2368,8 +2409,16 @@ function buildSku(cabType, width, golaPrefix) {
   }
   // Dash-suffix patterns: B-RT → B27-RT, B-FHD → B27-FHD, B-2D → B27-2D
   // Catalog format is B{width}-{suffix}, NOT B-{suffix}{width}
+  // Minimum widths: B-RT starts at 12", B-FHD at 9". If width < min, fall back to B{width}.
   const dashMatch = cabType.match(/^((?:FC-)?B)-(.+)$/);
   if (dashMatch) {
+    const suffix = dashMatch[2];
+    const minWidths = { 'RT': 12, '1DR-RT': 12, 'FHD': 9, '2D': 18, '2HD': 24 };
+    const minW = minWidths[suffix] || 9;
+    if (width < minW) {
+      // Fall back to plain base cabinet — suffix variant doesn't exist at this width
+      return `${dashMatch[1]}${wStr}`;
+    }
     return `${dashMatch[1]}${wStr}-${dashMatch[2]}`;
   }
   // BPOS → BPOS-{width}
@@ -2545,14 +2594,15 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
       const fridgeH = 84; // standard fridge height
       const ceilH = wallDef.ceilingHeight || DIMS.standardCeiling || 96;
       const availableAboveFridge = ceilH - fridgeH;
-      // Standard RW heights: 12, 15, 18, 21, 24. Pick largest that fits.
-      const rwStdHeights = [24, 21, 18, 15, 12];
-      const rwH = rwStdHeights.find(h => h <= availableAboveFridge) || 12;
-      if (rwH >= 9) {  // only place if meaningful space exists
+      // Standard RW heights from catalog: 21, 24, 27, 30, 33, 36. Pick largest that fits.
+      // Catalog format: RW{width}{height} — no depth suffix (depth is always 12-13")
+      const rwStdHeights = [36, 33, 30, 27, 24, 21];
+      const rwH = rwStdHeights.find(h => h <= availableAboveFridge) || 21;
+      if (rwH >= 21) {  // minimum catalog height is 21"
         baseCabs.push({
           ...fridgeApp,
           type: "base",
-          sku: `RW${Math.min(fridgeApp.width, 36)}${rwH}-27`,
+          sku: `RW${Math.min(fridgeApp.width, 36)}${rwH}`,
           width: fridgeApp.width,
           position: fridgeApp.position,
           _isFridgeUpper: true,
@@ -3320,9 +3370,10 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       continue;
     }
 
-    // Standard WSC: 24" × upperH, pie-hinged L+R pair
+    // Standard WSC: 24" pie-hinged pair
+    // Catalog format: WSC24-PH (single SKU, no height suffix, no L/R — one per corner)
     upperCorners.push({
-      sku: `WSC24${upperH}-PHL`,
+      sku: `WSC24-PH`,
       width: 24,
       height: upperH,
       type: "wall_corner",
@@ -3332,7 +3383,7 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       side: "left",
     });
     upperCorners.push({
-      sku: `WSC24${upperH}-PHR`,
+      sku: `WSC24-PH`,
       width: 24,
       height: upperH,
       type: "wall_corner",
@@ -3593,11 +3644,14 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     // Height: space between fridge top and panel top
     // Standard counter-depth fridges are 84" tall (70" is incorrect legacy default)
     const fridgeH = fridgeApp.height || 84;
-    const rwH = Math.max(12, Math.min(24, panelH - fridgeH - 3)); // 3" clearance
+    // Catalog RW heights: 21, 24, 27, 30, 33, 36. Format: RW{width}{height} — no depth suffix.
+    const rwStdH = [36, 33, 30, 27, 24, 21];
+    const rawRwH = Math.max(12, Math.min(36, panelH - fridgeH - 3)); // 3" clearance
+    const rwH = rwStdH.find(h => h <= rawRwH) || 21;
     const rwD = Math.min(panelD, 27); // RW depth matches or shallower than panel
 
     talls.push({
-      sku: `RW${fridgeWidth}${rwH}${rwD !== 24 ? `-${rwD}` : ""}`,
+      sku: `RW${fridgeWidth}${rwH}`,
       width: fridgeWidth,
       height: rwH,
       depth: rwD,
@@ -4433,13 +4487,14 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
       const hasRightCorner = wl.corners.some(c => corners.find(cr => cr.id === c && cr.wallA === wl.wallId));
 
       // For vanity rooms, use BEP (base end panel) with flush toe kick
+      // Catalog format: BEP3/4-FTK-L/R (single SKU for both sides)
       const endPanelPrefix = (prefs.roomType === "vanity" || prefs.roomType === "master_bath")
-        ? "BEP1 1/2" : "FBEP 3/4-FTK";
+        ? "BEP1 1/2" : "BEP3/4-FTK";
 
       // ── Left wall junction: filler + end panel ──
       if (!hasLeftCorner) {
         if (first.position <= 6) {
-          accessories.push({ sku: `${endPanelPrefix}-L`, wall: wl.wallId, role: "base-end-panel-left" });
+          accessories.push({ sku: `${endPanelPrefix}-L/R`, wall: wl.wallId, role: "base-end-panel-left" });
           totalEndPanels++;
         }
         // Cyncly: filler at left wall junction if gap between wall start and first cabinet
@@ -4463,7 +4518,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
         const lastCabEnd = last.position + (last.width || 0);
         const gapToWall = wl.wallLength - lastCabEnd;
 
-        accessories.push({ sku: `${endPanelPrefix}-R`, wall: wl.wallId, role: "base-end-panel-right" });
+        accessories.push({ sku: `${endPanelPrefix}-L/R`, wall: wl.wallId, role: "base-end-panel-right" });
         totalEndPanels++;
 
         // Cyncly: filler at right wall junction
@@ -6584,4 +6639,157 @@ export function generateComparisonQuotes(layoutResult, priceFn, options = {}) {
       ? Math.round(((results[results.length - 1].subtotal - results[0].subtotal) / results[0].subtotal) * 100)
       : 0,
   };
+}
+
+
+// ─── COUNTERTOP POLYLINE GENERATION ──────────────────────────────────────────
+// Generates a polyline path at Z=34.5" (base cabinet top), 1.5" thick.
+// Follows the front edge of all base cabinets on each wall, with 1.5" overhang.
+// Returns an array of wall segments with start/end coordinates.
+
+function generateCountertopPolyline(wallLayouts, islandLayout, peninsulaLayout, corners) {
+  const Z_TOP = DIMS.baseHeight;          // 34.5"
+  const THICKNESS = 1.5;                   // 1.5" thick countertop
+  const FRONT_OVERHANG = 1.5;             // 1.5" past front face of base cabs
+  const SIDE_OVERHANG = 0;                 // 0" at wall sides (flush with cabinet)
+
+  const segments = [];
+
+  // Wall-based countertop segments
+  for (const wl of wallLayouts) {
+    const baseCabs = wl.cabinets.filter(c =>
+      c.type === 'base' || c.role === 'sink-base' ||
+      (c.type === 'appliance' && (c.applianceType === 'sink' || c.applianceType === 'dishwasher'))
+    );
+    if (baseCabs.length === 0) continue;
+
+    const sorted = [...baseCabs].sort((a, b) => (a.position || 0) - (b.position || 0));
+    const firstPos = sorted[0].position || 0;
+    const lastCab = sorted[sorted.length - 1];
+    const lastEnd = (lastCab.position || 0) + (lastCab.width || 0);
+
+    segments.push({
+      wallId: wl.wallId,
+      type: 'wall',
+      startX: firstPos,
+      endX: lastEnd,
+      width: lastEnd - firstPos,
+      depth: DIMS.baseDepth + FRONT_OVERHANG,
+      z: Z_TOP,
+      thickness: THICKNESS,
+      overhang: FRONT_OVERHANG,
+    });
+  }
+
+  // Island countertop
+  if (islandLayout) {
+    const workCabs = islandLayout.workSide || [];
+    const backCabs = islandLayout.backSide || [];
+    const allIsland = [...workCabs, ...backCabs];
+    if (allIsland.length > 0) {
+      const totalWidth = allIsland.reduce((s, c) => s + (c.width || 0), 0);
+      const overhangDist = islandLayout.overhang?.distance || 12; // seating overhang
+      segments.push({
+        wallId: 'island',
+        type: 'island',
+        startX: 0,
+        endX: totalWidth,
+        width: totalWidth + (FRONT_OVERHANG * 2),  // overhang both sides
+        depth: DIMS.baseDepth + FRONT_OVERHANG + overhangDist,
+        z: Z_TOP,
+        thickness: THICKNESS,
+        overhang: FRONT_OVERHANG,
+        seatingOverhang: overhangDist,
+      });
+    }
+  }
+
+  // Peninsula countertop
+  if (peninsulaLayout) {
+    const penCabs = peninsulaLayout.cabinets || peninsulaLayout.workSide || [];
+    if (penCabs.length > 0) {
+      const totalWidth = penCabs.reduce((s, c) => s + (c.width || 0), 0);
+      segments.push({
+        wallId: 'peninsula',
+        type: 'peninsula',
+        startX: 0,
+        endX: totalWidth,
+        width: totalWidth + FRONT_OVERHANG,
+        depth: DIMS.baseDepth + FRONT_OVERHANG + (peninsulaLayout.overhang?.distance || 12),
+        z: Z_TOP,
+        thickness: THICKNESS,
+        overhang: FRONT_OVERHANG,
+      });
+    }
+  }
+
+  return {
+    segments,
+    z: Z_TOP,
+    thickness: THICKNESS,
+    totalLinearFeet: segments.reduce((s, seg) => s + seg.width, 0) / 12,
+    totalSqFt: segments.reduce((s, seg) => s + (seg.width * seg.depth) / 144, 0),
+    cornerMiters: corners.filter(c => c.type !== 'none').length,
+  };
+}
+
+
+// ─── FLANKING SYMMETRY CHECK ─────────────────────────────────────────────────
+// Verifies cabinets on each side of range hoods and windows are symmetrical.
+// Professional design rule: flanking cabinets should be equal width when possible.
+
+function checkFlankingSymmetry(wallLayouts, upperLayouts) {
+  const issues = [];
+  const TOLERANCE = 3; // 3" tolerance for asymmetry
+
+  // Check upper cabinets flanking hoods
+  for (const ul of upperLayouts) {
+    const cabs = ul.cabinets || [];
+    for (let i = 0; i < cabs.length; i++) {
+      const cab = cabs[i];
+      const isHood = cab.role === 'range_hood' || cab.type === 'rangeHood' || cab._isHood;
+      if (!isHood) continue;
+
+      const left = i > 0 ? cabs[i - 1] : null;
+      const right = i < cabs.length - 1 ? cabs[i + 1] : null;
+
+      if (left && right && left.type !== 'rangeHood' && right.type !== 'rangeHood') {
+        const diff = Math.abs((left.width || 0) - (right.width || 0));
+        if (diff > TOLERANCE) {
+          issues.push({
+            severity: 'warning',
+            rule: 'hood_flanking_asymmetry',
+            message: `Wall ${ul.wallId}: cabinets flanking hood are asymmetric (${left.width}" left vs ${right.width}" right, diff=${diff}")`,
+            fix: `Consider equalizing flanking cabinets to ${Math.round(((left.width || 0) + (right.width || 0)) / 2)}" each`,
+          });
+        }
+      }
+    }
+  }
+
+  // Check base cabinets flanking ranges
+  for (const wl of wallLayouts) {
+    const cabs = wl.cabinets || [];
+    for (let i = 0; i < cabs.length; i++) {
+      const cab = cabs[i];
+      if (cab.type !== 'appliance' || (cab.applianceType !== 'range' && cab.applianceType !== 'cooktop')) continue;
+
+      const left = cabs.slice(0, i).filter(c => c.type === 'base').pop();
+      const right = cabs.slice(i + 1).find(c => c.type === 'base');
+
+      if (left && right) {
+        const diff = Math.abs((left.width || 0) - (right.width || 0));
+        if (diff > TOLERANCE) {
+          issues.push({
+            severity: 'info',
+            rule: 'range_flanking_asymmetry',
+            message: `Wall ${wl.wallId}: cabinets flanking range are asymmetric (${left.width}" left vs ${right.width}" right)`,
+            fix: `Pro tip: equal-width flanking cabinets create balanced visual composition`,
+          });
+        }
+      }
+    }
+  }
+
+  return issues;
 }

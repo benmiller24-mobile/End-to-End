@@ -7,6 +7,9 @@ export const DOOR_GROUP_CHARGES = { A: 0, B: 44, C: 88, D: 150 };
 
 export const DOORS = [
   { v: "METRO", l: "Metropolitan (Slab)", g: "A" },
+  { v: "MET-V", l: "Metropolitan Vertical Grain", g: "A" },
+  { v: "MET-H", l: "Metropolitan Horizontal Grain", g: "A" },
+  { v: "MET-MDF", l: "Metropolitan MDF (Painted M1)", g: "A" },
   { v: "AFP", l: "Arch Flat Panel", g: "A" }, { v: "ARP", l: "Arch Raised Panel", g: "A" },
   { v: "BCP", l: "Beaded Century", g: "B" }, { v: "CHRS", l: "Charleston Appl. Mould.", g: "B" },
   { v: "CFP", l: "Crown Flat Panel", g: "A" }, { v: "CRP", l: "Crown Raised Panel", g: "A" },
@@ -67,7 +70,10 @@ export const DOORS = [
 ];
 
 export const DRAWER_FRONTS = [
-  { v: "DF-MET", l: "Metropolitan (Slab)", g: "A" }, { v: "DF-S", l: "Slab", g: "A" }, { v: "DF-SCLPT", l: "Sculpted", g: "A" },
+  { v: "DF-MET", l: "Metropolitan (Slab)", g: "A" },
+  { v: "DF-MET-V", l: "Metropolitan Vertical Grain", g: "A" },
+  { v: "DF-MET-H", l: "Metropolitan Horizontal Grain", g: "A" },
+  { v: "DF-MET-MDF", l: "Metropolitan MDF (Painted M1)", g: "A" }, { v: "DF-S", l: "Slab", g: "A" }, { v: "DF-SCLPT", l: "Sculpted", g: "A" },
   { v: "DF-BCP", l: "Beaded Century", g: "B" }, { v: "DF2.5-BCP", l: "Beaded Century (2.5 rail)", g: "B" },
   { v: "DF-CHRS", l: "Charleston", g: "B" },
   { v: "DF-FP", l: "Flat Panel", g: "B" }, { v: "DF2.5-SFP", l: "Square Flat Panel (2.5 rail)", g: "B" },

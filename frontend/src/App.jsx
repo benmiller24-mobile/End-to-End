@@ -82,7 +82,24 @@ function findSkuNormalized(sku) {
 }
 
 function buildPricingPlacements(placements) {
-  return placements.filter(p => p.sku && p.type !== 'appliance').map(p => {
+  // Include all items with SKUs. Appliances WITHOUT a sku (range, fridge, DW) are excluded.
+  // Appliances WITH a sku (sink base = SB36-FHD) ARE real cabinets that must be priced.
+  //
+  // Exclude fabrication/labor items that don't have catalog entries:
+  // TK (toe kick), CRN (crown), LR (light rail), SCRIBE, DWP (DW panel),
+  // FDP/FZP (fridge panels), GRILLE, TUK (touch-up), STK-BOX, FTP, PLN,
+  // FBM (furniture legs), PTKL, CEIL, VLN, LB (light bridge), DW-TK
+  const FABRICATION_PREFIXES = [
+    'TK-', 'CRN-', 'LR-', 'SCRIBE', 'DWP-', 'DW-TK', 'FDP-', 'FZP-',
+    'GRILLE-', 'TUK-', 'STK-BOX', 'FTP-', 'PLN-', 'FBM-', 'PTKL',
+    'CEIL-', 'VLN-', 'LB-', 'RH', '3SRM', 'SFLS',
+  ];
+  return placements.filter(p => {
+    if (!p.sku) return false;
+    // Skip fabrication/labor SKUs that aren't in the catalog
+    if (FABRICATION_PREFIXES.some(pfx => p.sku.startsWith(pfx))) return false;
+    return true;
+  }).map(p => {
     const ce = findSku(p.sku);
     const tc = ce?.t || (p.sku.match(/^W/) ? 'W' : p.sku.match(/^[UOT]/) ? 'T' : 'B');
     return { sku: p.sku, qty: p.qty || 1, wall: p.wall || 'other',

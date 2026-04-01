@@ -1,5 +1,5 @@
 /**
- * Eclipse Kitchen Designer â Room Template Library
+ * Eclipse Kitchen Designer — Room Template Library
  * ==================================================
  * Pre-built room configurations for quick starts.
  * Each template is a complete solve() input object with real-world
@@ -16,12 +16,12 @@
  * @property {Object} input - Complete solve() input object (walls, appliances, prefs, island, peninsula)
  */
 
-// âââ TEMPLATE LIBRARY âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── TEMPLATE LIBRARY ───────────────────────────────────────────────────────
 
 const TEMPLATES = [
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
   // GALLEY KITCHENS
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
 
   {
     id: "galley_small",
@@ -67,9 +67,9 @@ const TEMPLATES = [
     },
   },
 
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
   // L-SHAPE KITCHENS
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
 
   {
     id: "l_shape_standard",
@@ -115,9 +115,9 @@ const TEMPLATES = [
     },
   },
 
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
   // U-SHAPE KITCHENS
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
 
   {
     id: "u_shape_family",
@@ -175,9 +175,9 @@ const TEMPLATES = [
     },
   },
 
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
   // SINGLE-WALL KITCHENS
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
 
   {
     id: "single_wall_compact",
@@ -224,9 +224,9 @@ const TEMPLATES = [
     },
   },
 
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
   // PENINSULA KITCHENS
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
 
   {
     id: "peninsula_breakfast",
@@ -242,7 +242,7 @@ const TEMPLATES = [
       ],
       peninsula: {
         length: 60,
-        depth: 24,
+        depth: 24.875,
       },
       appliances: [
         { type: "sink", width: 36, wall: "A", position: "center" },
@@ -254,9 +254,35 @@ const TEMPLATES = [
     },
   },
 
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  {
+    id: "peninsula_l_shape",
+    name: "L-Shape with Peninsula",
+    description: "L-shape kitchen with peninsula extending from short wall for extra counter + seating",
+    category: "peninsula",
+    input: {
+      layoutType: "l-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 156, role: "sink" },
+        { id: "B", length: 120, role: "range" },
+      ],
+      peninsula: {
+        length: 72,
+        depth: 24.875,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "left" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 30, wall: "B", position: "center" },
+        { type: "refrigerator", width: 36, wall: "A", position: "end" },
+      ],
+      prefs: { sophistication: "high", seatingStyle: "bar" },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // ISLAND-FOCUSED KITCHENS
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
 
   {
     id: "island_centerpiece",
@@ -284,9 +310,353 @@ const TEMPLATES = [
     },
   },
 
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  {
+    id: "island_double",
+    name: "Double-Island Kitchen",
+    description: "Grand kitchen with two islands — one prep, one seating/serving",
+    category: "island",
+    input: {
+      layoutType: "u-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 216, ceilingHeight: 108, role: "sink" },
+        { id: "B", length: 156, ceilingHeight: 108, role: "general" },
+        { id: "C", length: 216, ceilingHeight: 108, role: "range" },
+      ],
+      island: {
+        length: 120,
+        depth: 42,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "left" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 48, wall: "C", position: "center" },
+        { type: "wallOven", width: 30, wall: "B", position: "center" },
+        { type: "refrigerator", width: 36, wall: "C", position: "end" },
+      ],
+      prefs: { sophistication: "very_high", islandBackStyle: "fhd_seating" },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // L-SHAPE WITH ISLAND KITCHENS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "l_island_family",
+    name: "Family L-Shape + Island",
+    description: "Classic L-shape with center island for prep and casual dining",
+    category: "l-shape",
+    input: {
+      layoutType: "l-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 168, role: "sink" },
+        { id: "B", length: 132, role: "range" },
+      ],
+      island: {
+        length: 84,
+        depth: 36,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "left" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 30, wall: "B", position: "center" },
+        { type: "refrigerator", width: 36, wall: "B", position: "right" },
+      ],
+      prefs: { sophistication: "high", islandBackStyle: "fhd_seating" },
+    },
+  },
+
+  {
+    id: "l_island_gourmet",
+    name: "Gourmet L-Shape + Island",
+    description: "Upscale L-shape with 48\" range, prep sink in island, and pantry wall",
+    category: "l-shape",
+    input: {
+      layoutType: "l-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 192, ceilingHeight: 108, role: "sink" },
+        { id: "B", length: 156, ceilingHeight: 108, role: "range" },
+      ],
+      island: {
+        length: 108,
+        depth: 42,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "left" },
+        { type: "sink", width: 18, wall: "island", position: "left" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 48, wall: "B", position: "center" },
+        { type: "refrigerator", width: 36, wall: "B", position: "right" },
+      ],
+      prefs: { sophistication: "very_high", islandBackStyle: "fhd_seating" },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // U-SHAPE WITH ISLAND KITCHENS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "u_island_entertainer",
+    name: "Entertainer's U-Shape + Island",
+    description: "Open U-shape with oversized island for hosting — wine cooler and beverage center",
+    category: "u-shape",
+    input: {
+      layoutType: "u-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 192, ceilingHeight: 108, role: "sink" },
+        { id: "B", length: 156, ceilingHeight: 108, role: "general" },
+        { id: "C", length: 192, ceilingHeight: 108, role: "range" },
+      ],
+      island: {
+        length: 120,
+        depth: 42,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "left" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 36, wall: "C", position: "center" },
+        { type: "refrigerator", width: 36, wall: "C", position: "end" },
+        { type: "wineCooler", width: 24, wall: "B", position: "left" },
+        { type: "beverageCenter", width: 24, wall: "B", position: "right" },
+      ],
+      prefs: { sophistication: "very_high", islandBackStyle: "fhd_seating" },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GALLEY WITH ISLAND
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "galley_island",
+    name: "Galley with Island",
+    description: "Modern galley kitchen with center island for extra workspace and seating",
+    category: "galley",
+    input: {
+      layoutType: "galley",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 168, role: "sink" },
+        { id: "B", length: 168, role: "range" },
+      ],
+      island: {
+        length: 72,
+        depth: 36,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "center" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 30, wall: "B", position: "center" },
+        { type: "refrigerator", width: 36, wall: "B", position: "left" },
+      ],
+      prefs: { sophistication: "high", islandBackStyle: "fhd_seating" },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OPEN CONCEPT / GREAT ROOM KITCHENS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "open_concept_l",
+    name: "Open Concept L-Shape",
+    description: "Open-plan L-shape flowing into living space, island defines the room boundary",
+    category: "l-shape",
+    input: {
+      layoutType: "l-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 204, role: "sink" },
+        { id: "B", length: 144, role: "range" },
+      ],
+      island: {
+        length: 108,
+        depth: 42,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "left" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 36, wall: "B", position: "center" },
+        { type: "refrigerator", width: 36, wall: "A", position: "end" },
+        { type: "wallOven", width: 30, wall: "B", position: "right" },
+      ],
+      prefs: { sophistication: "very_high", islandBackStyle: "fhd_seating" },
+    },
+  },
+
+  {
+    id: "great_room",
+    name: "Great Room Kitchen",
+    description: "Grand kitchen for open great rooms — long single wall + oversized island with seating",
+    category: "single-wall",
+    input: {
+      layoutType: "single-wall",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 264, ceilingHeight: 108, role: "general" },
+      ],
+      island: {
+        length: 132,
+        depth: 42,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "center-left" },
+        { type: "dishwasher", width: 24, wall: "A", position: "center" },
+        { type: "range", width: 48, wall: "A", position: "center-right" },
+        { type: "refrigerator", width: 36, wall: "A", position: "right" },
+        { type: "wallOven", width: 30, wall: "A", position: "left" },
+      ],
+      prefs: { sophistication: "very_high", islandBackStyle: "fhd_seating" },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPECIALTY KITCHEN SHAPES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "g_shape",
+    name: "G-Shape Kitchen",
+    description: "Four-wall kitchen with peninsula return — maximum counter and storage space",
+    category: "g-shape",
+    input: {
+      layoutType: "u-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 156, role: "sink" },
+        { id: "B", length: 120, role: "general" },
+        { id: "C", length: 156, role: "range" },
+      ],
+      peninsula: {
+        length: 72,
+        depth: 24.875,
+      },
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "center" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 30, wall: "C", position: "center" },
+        { type: "refrigerator", width: 36, wall: "C", position: "end" },
+      ],
+      prefs: { sophistication: "high" },
+    },
+  },
+
+  {
+    id: "broken_u",
+    name: "Broken U Kitchen",
+    description: "U-shape with pass-through opening on one side — great for open-plan flow",
+    category: "u-shape",
+    input: {
+      layoutType: "u-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 144, role: "sink" },
+        { id: "B", length: 72, role: "general" },
+        { id: "C", length: 144, role: "range" },
+      ],
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "center" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 30, wall: "C", position: "center" },
+        { type: "refrigerator", width: 36, wall: "C", position: "end" },
+      ],
+      prefs: { sophistication: "standard" },
+    },
+  },
+
+  {
+    id: "u_shape_compact",
+    name: "Compact U-Shape Kitchen",
+    description: "Efficient U-shape for smaller spaces — maximizes storage in tight footprint",
+    category: "u-shape",
+    input: {
+      layoutType: "u-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 108, role: "sink" },
+        { id: "B", length: 96, role: "general" },
+        { id: "C", length: 108, role: "range" },
+      ],
+      appliances: [
+        { type: "sink", width: 30, wall: "A", position: "center" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 30, wall: "C", position: "center" },
+        { type: "refrigerator", width: 30, wall: "B", position: "center" },
+      ],
+      prefs: { sophistication: "standard" },
+    },
+  },
+
+  {
+    id: "corner_sink",
+    name: "Corner Sink L-Shape",
+    description: "L-shape with diagonal corner sink — efficient triangle workflow",
+    category: "l-shape",
+    input: {
+      layoutType: "l-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 132, role: "sink" },
+        { id: "B", length: 132, role: "range" },
+      ],
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "end" },
+        { type: "dishwasher", width: 24, wall: "A", position: "right" },
+        { type: "range", width: 30, wall: "B", position: "center" },
+        { type: "refrigerator", width: 36, wall: "B", position: "right" },
+      ],
+      prefs: { sophistication: "high" },
+    },
+  },
+
+  {
+    id: "bar_wet_bar",
+    name: "Wet Bar / Beverage Center",
+    description: "Compact wet bar with sink, undercounter fridge, and wine cooler",
+    category: "utility",
+    input: {
+      layoutType: "single-wall",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 96, role: "general" },
+      ],
+      appliances: [
+        { type: "sink", width: 18, wall: "A", position: "center" },
+        { type: "wineCooler", width: 24, wall: "A", position: "left" },
+        { type: "beverageCenter", width: 24, wall: "A", position: "right" },
+      ],
+      prefs: { sophistication: "high" },
+    },
+  },
+
+  {
+    id: "outdoor_kitchen",
+    name: "Outdoor Kitchen",
+    description: "L-shape outdoor kitchen with grill station and bar seating",
+    category: "l-shape",
+    input: {
+      layoutType: "l-shape",
+      roomType: "kitchen",
+      walls: [
+        { id: "A", length: 120, role: "general" },
+        { id: "B", length: 84, role: "general" },
+      ],
+      appliances: [
+        { type: "range", width: 36, wall: "A", position: "center" },
+        { type: "sink", width: 24, wall: "B", position: "center" },
+      ],
+      prefs: { sophistication: "standard" },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // UTILITY ROOMS (non-kitchen)
-  // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // ═══════════════════════════════════════════════════════════════════════════
 
   {
     id: "butler_pantry",
@@ -321,9 +691,206 @@ const TEMPLATES = [
       prefs: { sophistication: "standard" },
     },
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // POWDER ROOM (HALF BATH)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "powder_room_compact",
+    name: "Compact Powder Room",
+    description: "Small half-bath vanity — single sink, minimal storage (30\"-36\" wide)",
+    category: "powder_room",
+    input: {
+      layoutType: "single-wall",
+      roomType: "vanity",
+      walls: [
+        { id: "A", length: 36, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 18, wall: "A", position: "center" },
+      ],
+      prefs: { sophistication: "standard", vanityHeight: 36 },
+    },
+  },
+
+  {
+    id: "powder_room_standard",
+    name: "Standard Powder Room",
+    description: "Typical half-bath vanity with sink base and side storage (42\"-48\" wide)",
+    category: "powder_room",
+    input: {
+      layoutType: "single-wall",
+      roomType: "vanity",
+      walls: [
+        { id: "A", length: 48, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 24, wall: "A", position: "center" },
+      ],
+      prefs: { sophistication: "standard", vanityHeight: 36 },
+    },
+  },
+
+  {
+    id: "powder_room_furniture",
+    name: "Furniture-Style Powder Room",
+    description: "Upscale half-bath with furniture-style vanity and decorative legs (48\"-60\")",
+    category: "powder_room",
+    input: {
+      layoutType: "single-wall",
+      roomType: "vanity",
+      walls: [
+        { id: "A", length: 60, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 24, wall: "A", position: "center" },
+      ],
+      prefs: { sophistication: "high", vanityHeight: 36 },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MASTER BATH
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "master_bath_single",
+    name: "Master Bath — Single Vanity",
+    description: "Single-sink floating vanity with storage towers (60\"-72\" wall)",
+    category: "master_bath",
+    input: {
+      layoutType: "single-wall",
+      roomType: "master_bath",
+      walls: [
+        { id: "A", length: 72, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "center" },
+      ],
+      prefs: { sophistication: "high", vanityHeight: 21, floatingVanity: true },
+    },
+  },
+
+  {
+    id: "master_bath_his_hers",
+    name: "Master Bath — His & Hers Double Vanity",
+    description: "Symmetrical double-sink vanity with center tower (96\"-120\" wall)",
+    category: "master_bath",
+    input: {
+      layoutType: "single-wall",
+      roomType: "master_bath",
+      walls: [
+        { id: "A", length: 120, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "left" },
+        { type: "sink", width: 36, wall: "A", position: "right" },
+      ],
+      prefs: { sophistication: "very_high", vanityHeight: 21, floatingVanity: true, doubleSink: true },
+    },
+  },
+
+  {
+    id: "master_bath_l_shape",
+    name: "Master Bath — L-Shape Double Vanity",
+    description: "Corner master bath with vanities on adjacent walls and makeup area",
+    category: "master_bath",
+    input: {
+      layoutType: "l-shape",
+      roomType: "master_bath",
+      walls: [
+        { id: "A", length: 96, role: "vanity" },
+        { id: "B", length: 72, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 36, wall: "A", position: "center" },
+        { type: "sink", width: 36, wall: "B", position: "center" },
+      ],
+      prefs: { sophistication: "very_high", vanityHeight: 21, floatingVanity: true, doubleSink: true },
+    },
+  },
+
+  {
+    id: "master_bath_luxury",
+    name: "Master Bath — Luxury Suite",
+    description: "Grand master bath with dual floating vanities, center tower, and linen storage (144\"+ wall)",
+    category: "master_bath",
+    input: {
+      layoutType: "single-wall",
+      roomType: "master_bath",
+      walls: [
+        { id: "A", length: 144, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 42, wall: "A", position: "left" },
+        { type: "sink", width: 42, wall: "A", position: "right" },
+      ],
+      prefs: { sophistication: "very_high", vanityHeight: 21, floatingVanity: true, doubleSink: true },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GUEST BATH
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  {
+    id: "guest_bath_compact",
+    name: "Guest Bath — Compact Vanity",
+    description: "Small guest bathroom with single-sink vanity (36\"-48\" wall)",
+    category: "guest_bath",
+    input: {
+      layoutType: "single-wall",
+      roomType: "vanity",
+      walls: [
+        { id: "A", length: 48, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 24, wall: "A", position: "center" },
+      ],
+      prefs: { sophistication: "standard", vanityHeight: 36 },
+    },
+  },
+
+  {
+    id: "guest_bath_standard",
+    name: "Guest Bath — Standard Vanity",
+    description: "Typical guest bathroom with sink base and storage (48\"-60\" wall)",
+    category: "guest_bath",
+    input: {
+      layoutType: "single-wall",
+      roomType: "vanity",
+      walls: [
+        { id: "A", length: 60, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 30, wall: "A", position: "center" },
+      ],
+      prefs: { sophistication: "standard", vanityHeight: 36 },
+    },
+  },
+
+  {
+    id: "guest_bath_double",
+    name: "Guest Bath — Double Vanity",
+    description: "Guest bathroom with double-sink vanity for shared use (72\"-96\" wall)",
+    category: "guest_bath",
+    input: {
+      layoutType: "single-wall",
+      roomType: "vanity",
+      walls: [
+        { id: "A", length: 84, role: "vanity" },
+      ],
+      appliances: [
+        { type: "sink", width: 30, wall: "A", position: "left" },
+        { type: "sink", width: 30, wall: "A", position: "right" },
+      ],
+      prefs: { sophistication: "high", vanityHeight: 36, doubleSink: true },
+    },
+  },
 ];
 
-// âââ TEMPLATE FUNCTIONS âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── TEMPLATE FUNCTIONS ─────────────────────────────────────────────────────
 
 /**
  * Get a single template by ID (returns deep clone)

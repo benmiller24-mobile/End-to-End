@@ -1,12 +1,12 @@
 /**
- * Eclipse Cabinet Designer â Revision & Change Order Tracking
+ * Eclipse Cabinet Designer — Revision & Change Order Tracking
  * ============================================================
  * Diff two layouts and compute price deltas for change orders.
  *
  * Functions:
- *   - diffLayouts(layoutA, layoutB) â Compare two solve() results
- *   - diffQuotes(quoteA, quoteB) â Compare two configureProject() results with pricing
- *   - createRevision(originalQuote, changes) â Apply changes and auto-generate diff
+ *   - diffLayouts(layoutA, layoutB) — Compare two solve() results
+ *   - diffQuotes(quoteA, quoteB) — Compare two configureProject() results with pricing
+ *   - createRevision(originalQuote, changes) — Apply changes and auto-generate diff
  */
 
 /**
@@ -88,7 +88,7 @@ export function diffLayouts(layoutA, layoutB) {
     }
   }
 
-  // Check all keys in A that weren't in B â those are removed
+  // Check all keys in A that weren't in B — those are removed
   for (const [key, itemsA] of mapA) {
     if (!processedKeysA.has(key)) {
       removed.push(...itemsA);

@@ -8,7 +8,7 @@ create table projects (
   name text not null,
   description text,
   status text default 'draft' check (status in ('draft', 'active', 'archived', 'completed')),
-  materials jsonb default '{}',
+  materials jsonb default '{}',  -- species, doorStyle, construction, finish
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -19,11 +19,11 @@ create table rooms (
   project_id uuid references projects(id) on delete cascade,
   name text not null default 'Kitchen',
   room_type text default 'kitchen',
-  layout_type text not null,
-  input jsonb not null,
-  layout jsonb,
-  quote jsonb,
-  coordinates jsonb,
+  layout_type text not null,  -- l-shape, u-shape, galley, single-wall, island
+  input jsonb not null,       -- full solver input {walls, appliances, prefs}
+  layout jsonb,               -- solver output (placements, metadata)
+  quote jsonb,                -- pricing output (lineItems, totals)
+  coordinates jsonb,          -- 3D coordinate data
   sort_order int default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -34,8 +34,8 @@ create table revisions (
   id uuid primary key default uuid_generate_v4(),
   room_id uuid references rooms(id) on delete cascade,
   revision_number int not null default 1,
-  changes jsonb not null,
-  diff jsonb,
+  changes jsonb not null,     -- what changed
+  diff jsonb,                 -- layout diff output
   price_delta numeric(10,2),
   notes text,
   created_at timestamptz default now()
@@ -46,7 +46,7 @@ create table saved_templates (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid references auth.users(id) on delete cascade,
   name text not null,
-  base_template_id text,
+  base_template_id text,     -- references built-in template ID
   input_overrides jsonb default '{}',
   created_at timestamptz default now()
 );

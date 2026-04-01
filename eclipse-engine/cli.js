@@ -155,11 +155,13 @@ function extractQuoteSummary(quote) {
   let warnings = 0;
 
   if (quote.layout) {
+    // Check multiple possible field names for cabinet count
     totalCabinets = quote.layout.totalCabinets ||
                     quote.layout.metadata?.totalCabinets ||
                     0;
   }
 
+  // Check multiple possible pricing total fields
   if (quote.pricing) {
     totalPrice = quote.pricing.total ||
                  quote.pricing.projectTotal ||
@@ -167,6 +169,7 @@ function extractQuoteSummary(quote) {
                  0;
   }
 
+  // Count validation errors and warnings
   if (quote.layout) {
     if (quote.layout.validationErrors && Array.isArray(quote.layout.validationErrors)) {
       errors = quote.layout.validationErrors.length;
@@ -176,6 +179,7 @@ function extractQuoteSummary(quote) {
     }
   }
 
+  // Also collect pricing warnings
   if (quote.pricing && quote.pricing.warnings && Array.isArray(quote.pricing.warnings)) {
     warnings += quote.pricing.warnings.length;
   }
@@ -282,6 +286,8 @@ async function main() {
         result = extractSummary(result);
       }
     } else if (opts.command === 'price') {
+      // For now, price mode just echoes the input with metadata
+      // A full implementation would require a pricing-only function
       throw new Error('price mode not yet implemented');
     }
 

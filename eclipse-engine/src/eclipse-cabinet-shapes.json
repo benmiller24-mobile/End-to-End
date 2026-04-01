@@ -1,0 +1,2535 @@
+{
+  "version": "8.8.0",
+  "source": "Eclipse Cabinetry Catalog v8.8.0",
+  "catalogDate": "2026-03-29",
+  "categories": {
+    "wall": [
+      {
+        "skuPrefix": "W",
+        "name": "Standard Wall Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          12,
+          15,
+          18,
+          24,
+          30,
+          36,
+          42,
+          48
+        ],
+        "defaultHeight": 36,
+        "depth": 13.875,
+        "zone": "UPPER",
+        "shapeType": "box",
+        "yMount": 54,
+        "notes": "Standard wall cabinet, all widths 9-42 inches. Heights 12-48 inches. Standard installation 30 or 36 inches high."
+      }
+    ],
+    "wall_blind_corner": [
+      {
+        "skuPrefix": "WBC",
+        "name": "Wall Blind Corner",
+        "widths": [
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          30,
+          36,
+          42
+        ],
+        "defaultHeight": 30,
+        "depth": 13.875,
+        "blindPull": 3,
+        "mullion": 7.5,
+        "opening": 18.75,
+        "zone": "UPPER",
+        "shapeType": "blind_corner",
+        "yMount": 54,
+        "notes": "L-shaped blind corner. 13 inch door side, 3 inch blind pull, 7.5 inch mullion, 18.75 inch opening."
+      }
+    ],
+    "stacked_wall": [
+      {
+        "skuPrefix": "SW",
+        "name": "Stacked Wall Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "combinedHeights": [
+          42,
+          48,
+          54,
+          60,
+          66
+        ],
+        "upperSection": 12,
+        "lowerSectionOptions": [
+          30,
+          36,
+          42,
+          48,
+          54
+        ],
+        "depth": 13.875,
+        "zone": "UPPER",
+        "shapeType": "box",
+        "yMount": 54,
+        "notes": "Two stacked sections: 12 inch upper plus variable lower (12+30=42, 12+36=48, 12+42=54, 12+48=60, 12+54=66)."
+      }
+    ],
+    "stacked_wall_blind_corner": [
+      {
+        "skuPrefix": "SWBC",
+        "name": "Stacked Wall Blind Corner",
+        "widths": [
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "combinedHeights": [
+          42,
+          48,
+          54,
+          60,
+          66
+        ],
+        "depth": 13.875,
+        "blindPull": 3,
+        "mullion": 7.5,
+        "zone": "UPPER",
+        "shapeType": "blind_corner",
+        "yMount": 54,
+        "notes": "Stacked blind corner configuration with same blind pull and mullion as WBC."
+      }
+    ],
+    "refrigerator_wall": [
+      {
+        "skuPrefix": "RW",
+        "name": "Refrigerator Wall Cabinet",
+        "widths": [
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48,
+          51
+        ],
+        "heights": [
+          12,
+          15,
+          18,
+          24
+        ],
+        "defaultHeight": 24,
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "zone": "ABOVE_TALL",
+        "shapeType": "box",
+        "notes": "Deeper than standard wall (24, 27, or 30 inches) to sit flush with refrigerator appliance."
+      }
+    ],
+    "wall_spice": [
+      {
+        "skuPrefix": "WSP",
+        "name": "Wall Spice Cabinet",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          24
+        ],
+        "heights": [
+          30,
+          36,
+          42
+        ],
+        "defaultHeight": 30,
+        "depth": 13.875,
+        "zone": "UPPER",
+        "shapeType": "box",
+        "yMount": 54,
+        "notes": "Shallow spice rack cabinet for narrow width storage."
+      }
+    ],
+    "wall_pullout_spice_rack": [
+      {
+        "skuPrefix": "WPOSR",
+        "name": "Wall Pull-Out Spice Rack",
+        "widths": [
+          9,
+          12
+        ],
+        "heights": [
+          30,
+          36,
+          42
+        ],
+        "defaultHeight": 30,
+        "depth": 13.875,
+        "zone": "UPPER",
+        "shapeType": "box",
+        "yMount": 54,
+        "notes": "Narrow pull-out spice rack with gliding mechanism."
+      }
+    ],
+    "base": [
+      {
+        "skuPrefix": "B",
+        "name": "Standard Base Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "defaultHeight": 30.5,
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "yMount": 4,
+        "notes": "Standard base cabinet. 30.5 inch body height, 4 inch toe kick = 34.5 inch total. 24 inch depth standard."
+      }
+    ],
+    "sink_base": [
+      {
+        "skuPrefix": "SB",
+        "name": "Sink Base Cabinet",
+        "widths": [
+          18,
+          21,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          30.5
+        ],
+        "defaultHeight": 30.5,
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "SINK_BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "yMount": 4,
+        "notes": "Open interior for plumbing installation. Same height/depth as standard base."
+      }
+    ],
+    "sink_base_fhd": [
+      {
+        "skuPrefix": "SB-FHD",
+        "name": "Sink Base Full Height Door",
+        "widths": [
+          18,
+          21,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "SINK_BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Full height door variant of sink base cabinet."
+      }
+    ],
+    "sink_base_reverse": [
+      {
+        "skuPrefix": "SBR",
+        "name": "Sink Base Reverse",
+        "widths": [
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "SINK_BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Reverse configuration sink base for mirrored layouts."
+      }
+    ],
+    "sink_base_apron": [
+      {
+        "skuPrefix": "SBA",
+        "name": "Sink Base Apron",
+        "widths": [
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "SINK_BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Apron front cutout for farmhouse-style sink installation."
+      }
+    ],
+    "base_rollout_tray": [
+      {
+        "skuPrefix": "BROT",
+        "name": "Base Roll Out Tray Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Standard base cabinet with integrated roll-out tray system."
+      }
+    ],
+    "base_fhd": [
+      {
+        "skuPrefix": "B-FHD",
+        "name": "Base Full Height Door",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Full height door variant of standard base cabinet."
+      }
+    ],
+    "tray_base": [
+      {
+        "skuPrefix": "TB",
+        "name": "Tray Base Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Specialized base for tray and baking sheet storage."
+      }
+    ],
+    "peninsula_base": [
+      {
+        "skuPrefix": "PB",
+        "name": "Peninsula Base Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Finished on both sides for island or peninsula installation."
+      }
+    ],
+    "base_blind_corner": [
+      {
+        "skuPrefix": "BBC",
+        "name": "Base Blind Corner Cabinet",
+        "widths": [
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "blindPull": 4,
+        "mullion": 7.5,
+        "opening": 18.75,
+        "zone": "BASE",
+        "shapeType": "blind_corner",
+        "toeKick": 4,
+        "notes": "L-shaped blind corner base. 24 inch depth each side, 4 inch blind pull, 7.5 inch mullion, 18.75 inch opening."
+      }
+    ],
+    "base_blind_corner_quarter_turn_shelf": [
+      {
+        "skuPrefix": "BBC-S",
+        "name": "Base Blind Corner with 1/4 Turn Shelf",
+        "widths": [
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "blindPull": 4,
+        "mullion": 7.5,
+        "zone": "BASE",
+        "shapeType": "blind_corner",
+        "toeKick": 4,
+        "notes": "BBC variant with 1/4 turn rotating shelf configuration."
+      }
+    ],
+    "base_blind_corner_wire_shelf": [
+      {
+        "skuPrefix": "BBC-WS",
+        "name": "Base Blind Corner with Full Swing Wire Shelf",
+        "widths": [
+          45,
+          48,
+          51
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "blind_corner",
+        "toeKick": 4,
+        "notes": "BBC variant with full-swing chrome wire shelf system."
+      }
+    ],
+    "base_blind_corner_magic_corner": [
+      {
+        "skuPrefix": "BBC-MC",
+        "name": "Base Blind Corner with Magic Corner",
+        "widths": [
+          48
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "blind_corner",
+        "toeKick": 4,
+        "notes": "BBC variant with Magic Corner rotating tray system."
+      }
+    ],
+    "peninsula_blind_corner": [
+      {
+        "skuPrefix": "PBBC",
+        "name": "Peninsula Base Blind Corner",
+        "widths": [
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "blindPull": 4,
+        "mullion": 7.5,
+        "zone": "BASE",
+        "shapeType": "blind_corner",
+        "toeKick": 4,
+        "notes": "Blind corner base finished on both sides for island/peninsula."
+      }
+    ],
+    "sink_base_blind_corner": [
+      {
+        "skuPrefix": "SBBC",
+        "name": "Sink Base Blind Corner",
+        "widths": [
+          54,
+          57,
+          60
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "blindPull": 4,
+        "mullion": 7.5,
+        "zone": "SINK_BASE",
+        "shapeType": "blind_corner",
+        "toeKick": 4,
+        "notes": "Blind corner sink base (SBBC54 \u2248 SB30 + blind, SBBC57 \u2248 SB33 + blind, SBBC60 \u2248 SB36 + blind)."
+      }
+    ],
+    "drawer_base_3d": [
+      {
+        "skuPrefix": "B3D",
+        "name": "3 Drawer Base Cabinet",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "drawers": 3,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Three full-width drawers in standard base cabinet body."
+      }
+    ],
+    "drawer_base_4d": [
+      {
+        "skuPrefix": "B4D",
+        "name": "4 Drawer Base Cabinet",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "drawers": 4,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Four full-width drawers in standard base cabinet body."
+      }
+    ],
+    "drawer_base_2td": [
+      {
+        "skuPrefix": "B2TD",
+        "name": "2 Drawer Base with 2 Tiered Drawers",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Two standard drawers plus two tiered/shallow drawers for small items."
+      }
+    ],
+    "drawer_base_2hd": [
+      {
+        "skuPrefix": "B2HD",
+        "name": "2 Drawer Base with Heavy Duty",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Two drawers with heavy-duty glide system for maximum weight capacity."
+      }
+    ],
+    "split_top_4drawer": [
+      {
+        "skuPrefix": "STB4D",
+        "name": "Split Top 4 Drawer Base",
+        "widths": [
+          30,
+          33,
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "drawers": 4,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Four drawers with split top configuration for divided upper storage."
+      }
+    ],
+    "breadboard_base": [
+      {
+        "skuPrefix": "BBB",
+        "name": "Base with Bread Board",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Base cabinet with integrated fold-out bread board."
+      }
+    ],
+    "breadboard_3drawer": [
+      {
+        "skuPrefix": "BBB3D",
+        "name": "3 Drawer Base with Bread Board",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "drawers": 3,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Three drawer base with bread board insert."
+      }
+    ],
+    "breadboard_4drawer": [
+      {
+        "skuPrefix": "BBB4D",
+        "name": "4 Drawer Base with Bread Board",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "drawers": 4,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Four drawer base with bread board insert."
+      }
+    ],
+    "base_right_angle": [
+      {
+        "skuPrefix": "BL",
+        "name": "Base Right Angle Corner",
+        "widths": [
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "zone": "BASE",
+        "shapeType": "right_angle",
+        "toeKick": 4,
+        "notes": "L-shaped right angle corner. 24 inch depth each direction. Requires wall space on both sides."
+      }
+    ],
+    "sink_base_right_angle": [
+      {
+        "skuPrefix": "BLSB",
+        "name": "Sink Base Right Angle Corner",
+        "widths": [
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "zone": "SINK_BASE",
+        "shapeType": "right_angle",
+        "toeKick": 4,
+        "notes": "L-shaped sink base right angle corner with open plumbing space."
+      }
+    ],
+    "base_right_angle_super_susan": [
+      {
+        "skuPrefix": "BL-SS",
+        "name": "Base Right Angle with Super Susan",
+        "widths": [
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "zone": "BASE",
+        "shapeType": "right_angle",
+        "toeKick": 4,
+        "notes": "Right angle corner with integrated Super Susan rotating tray system."
+      }
+    ],
+    "base_right_angle_expandable": [
+      {
+        "skuPrefix": "BLE",
+        "name": "Base Right Angle Expandable Leg",
+        "widths": [
+          36
+        ],
+        "expandableLeg": "36 to 42",
+        "totalBothLegs": 78,
+        "minCornerEachSide": [
+          11,
+          17
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "zone": "BASE",
+        "shapeType": "right_angle_expandable",
+        "toeKick": 4,
+        "notes": "Standard leg 36 inches, expandable to 42 inches. Total both legs not to exceed 78 inches."
+      }
+    ],
+    "base_right_angle_recycling": [
+      {
+        "skuPrefix": "BL36-RC",
+        "name": "Base Right Angle Recycling",
+        "widths": [
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "zone": "BASE",
+        "shapeType": "right_angle",
+        "toeKick": 4,
+        "notes": "Right angle corner with integrated recycling bin system."
+      }
+    ],
+    "base_right_angle_corner_pantry": [
+      {
+        "skuPrefix": "BL36-CP",
+        "name": "Base Right Angle with Corner Pantry",
+        "widths": [
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "zone": "BASE",
+        "shapeType": "right_angle",
+        "toeKick": 4,
+        "notes": "Right angle corner with revolving corner pantry shelf system."
+      }
+    ],
+    "diagonal_sink_base": [
+      {
+        "skuPrefix": "DSB",
+        "name": "Diagonal Sink Base",
+        "widths": [
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "angle": 45,
+        "zone": "SINK_BASE",
+        "shapeType": "diagonal",
+        "toeKick": 4,
+        "notes": "45-degree diagonal corner with sink opening. Widths measured along each wall. 24 inch depth each side."
+      }
+    ],
+    "diagonal_sink_base_lazy_susan": [
+      {
+        "skuPrefix": "DSB-LS",
+        "name": "Diagonal Sink Base with Lazy Susan",
+        "widths": [
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "angle": 45,
+        "zone": "SINK_BASE",
+        "shapeType": "diagonal",
+        "toeKick": 4,
+        "notes": "Diagonal sink base with lazy susan rotating tray."
+      }
+    ],
+    "diagonal_sink_base_super_susan": [
+      {
+        "skuPrefix": "DSB-SS",
+        "name": "Diagonal Sink Base with Super Susan",
+        "widths": [
+          36,
+          39,
+          42
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthEachSide": 24,
+        "angle": 45,
+        "zone": "SINK_BASE",
+        "shapeType": "diagonal",
+        "toeKick": 4,
+        "notes": "Diagonal sink base with integrated Super Susan rotating tray system."
+      }
+    ],
+    "waste_base_door_mounted_wood": [
+      {
+        "skuPrefix": "BWDMW",
+        "name": "Door Mounted Wood Waste Cabinet",
+        "widths": [
+          15,
+          18,
+          21
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Door-mounted waste bin in wood finish. FHD and Servo-Drive (BWDMWSD) variants available."
+      }
+    ],
+    "waste_base_door_mounted_aluminum": [
+      {
+        "skuPrefix": "BWDMA",
+        "name": "Door Mounted Aluminum Waste Cabinet",
+        "widths": [
+          15,
+          18,
+          21
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Door-mounted waste bin in brushed aluminum. FHD variant available."
+      }
+    ],
+    "waste_base_door_mounted_plastic": [
+      {
+        "skuPrefix": "BWDMB",
+        "name": "Door Mounted Plastic Waste Cabinet",
+        "widths": [
+          15,
+          18,
+          21
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Door-mounted waste bin in durable plastic. FHD variant available."
+      }
+    ],
+    "wine_base_rack": [
+      {
+        "skuPrefix": "BWRX",
+        "name": "Base Wine Rack Cabinet",
+        "widths": [
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 13.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Shallow wine rack cabinet 13 inches deep (not standard 24 inch base depth)."
+      }
+    ],
+    "wine_base_cross": [
+      {
+        "skuPrefix": "BWC",
+        "name": "Base Wine Cross Cabinet",
+        "widths": [
+          30
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 13.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Wine cross storage configuration 13 inches deep."
+      }
+    ],
+    "wine_base_diagonal": [
+      {
+        "skuPrefix": "BWDG",
+        "name": "Base Wine Diagonal Cabinet",
+        "widths": [
+          15,
+          18,
+          21,
+          22.5,
+          24
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 13.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Diagonal wine bottle storage 13 inches deep."
+      }
+    ],
+    "wine_base_shelf": [
+      {
+        "skuPrefix": "BWS",
+        "name": "Base Wine Shelf Cabinet",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 13.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Wine shelf storage with 13 inch depth."
+      }
+    ],
+    "wine_base_stack": [
+      {
+        "skuPrefix": "BWST",
+        "name": "Base Wine Stack Cabinet",
+        "widths": [
+          6,
+          12,
+          18
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "falseBackDepth": 12,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Stacked wine storage 24 inches deep with 12 inch false back."
+      }
+    ],
+    "wine_base_concave_shelf": [
+      {
+        "skuPrefix": "BCNCWS",
+        "name": "Base Concave Wine Shelf",
+        "widths": [
+          42,
+          48,
+          54
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthMin": 15.9375,
+        "depthMid": 18,
+        "depthMax": 18.75,
+        "zone": "BASE",
+        "shapeType": "concave_curved",
+        "toeKick": 4,
+        "notes": "Curved inward (concave) wine shelf. Dimensions: 15 15/16 inch min, 18 inch mid, 18.75 inch max."
+      }
+    ],
+    "wine_base_convex_shelf": [
+      {
+        "skuPrefix": "BCVXWS",
+        "name": "Base Convex Wine Shelf",
+        "widths": [
+          42,
+          48,
+          54
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthMin": 15,
+        "depthMid": 16,
+        "depthMax": 17,
+        "zone": "BASE",
+        "shapeType": "convex_curved",
+        "toeKick": 4,
+        "notes": "Curved outward (convex) wine shelf. Dimensions: 15 inch min, 16 inch mid, 17 inch max."
+      }
+    ],
+    "oven_base": [
+      {
+        "skuPrefix": "BO",
+        "name": "Base Oven Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Base cabinet with oven cutout opening for built-in oven installation."
+      }
+    ],
+    "base_warming_drawer": [
+      {
+        "skuPrefix": "BWD",
+        "name": "Base Warming Drawer Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Base cabinet with warming drawer cutout opening."
+      }
+    ],
+    "flush_inset_base_oven": [
+      {
+        "skuPrefix": "FIBO",
+        "name": "Flush Inset Base Oven Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Flush inset base oven cabinet for seamless appliance integration."
+      }
+    ],
+    "flush_inset_base_warming_drawer": [
+      {
+        "skuPrefix": "FIBWD",
+        "name": "Flush Inset Base Warming Drawer Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Flush inset base warming drawer cabinet."
+      }
+    ],
+    "range_top_base": [
+      {
+        "skuPrefix": "RTB",
+        "name": "Range Top Base Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48
+        ],
+        "heights": [
+          28.5
+        ],
+        "maxHeight": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "notes": "Range or cooktop base cabinet. Standard 28.5 inches, can increase to 34.5 inches. Depth not over 27 inches."
+      }
+    ],
+    "base_no_door_valance": [
+      {
+        "skuPrefix": "BNDVA",
+        "name": "Base No Door with Valance",
+        "widths": [
+          18,
+          21,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Open base cabinet with decorative valance. No door, open front."
+      }
+    ],
+    "base_no_door": [
+      {
+        "skuPrefix": "BND",
+        "name": "Base No Door Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18,
+          21,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Open base cabinet with no door for display or open shelving."
+      }
+    ],
+    "base_pullout_shelf": [
+      {
+        "skuPrefix": "BPOS",
+        "name": "Base Pull-Out Shelf Cabinet",
+        "widths": [
+          9,
+          12,
+          15,
+          18
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthClosed": 22.25,
+        "depthOpen": 24,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Base cabinet with pull-out shelf mechanism. 22.25 inches when closed, 24 inches when extended."
+      }
+    ],
+    "base_wire_pullout_shelf": [
+      {
+        "skuPrefix": "BPWOS",
+        "name": "Base with Chrome Wire Pull-Out Shelf",
+        "widths": [
+          12,
+          15,
+          18,
+          21
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Base cabinet with chrome wire pull-out shelf system."
+      }
+    ],
+    "angle_end_base": [
+      {
+        "skuPrefix": "AEB24",
+        "name": "Angle End Base Cabinet",
+        "widths": [
+          24
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthFace": 12,
+        "depthSide": 13,
+        "depthBody": 24,
+        "angle": 46,
+        "zone": "BASE",
+        "shapeType": "angled_end",
+        "toeKick": 4,
+        "notes": "Angled end cabinet. 24 inch body, 12 inch face, 13 x 24 inch side, 46-degree angle."
+      }
+    ],
+    "angle_base": [
+      {
+        "skuPrefix": "AB24",
+        "name": "Angle Base Cabinet",
+        "widths": [
+          24
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthFace": 12,
+        "depthSide": 13,
+        "depthBody": 24,
+        "angle": 46,
+        "zone": "BASE",
+        "shapeType": "angled_end",
+        "toeKick": 4,
+        "notes": "Angled base cabinet configuration."
+      }
+    ],
+    "angle_left_right_base": [
+      {
+        "skuPrefix": "ABL12",
+        "name": "Left Angle Base Cabinet",
+        "widths": [
+          12
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthFace": 12,
+        "depthSide": 13,
+        "depthBody": 24,
+        "angle": 46,
+        "zone": "BASE",
+        "shapeType": "angled_end",
+        "toeKick": 4,
+        "notes": "12-inch left angle base. 12 inch face, 13 inch side, 24 x 24 inch body."
+      },
+      {
+        "skuPrefix": "ABR12",
+        "name": "Right Angle Base Cabinet",
+        "widths": [
+          12
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depthFace": 12,
+        "depthSide": 13,
+        "depthBody": 24,
+        "angle": 46,
+        "zone": "BASE",
+        "shapeType": "angled_end",
+        "toeKick": 4,
+        "notes": "12-inch right angle base. 12 inch face, 13 inch side, 24 x 24 inch body."
+      }
+    ],
+    "base_end_shelf": [
+      {
+        "skuPrefix": "BESL9",
+        "name": "Base End Shelf Left",
+        "widths": [
+          9
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "curveRadius": 6,
+        "zone": "BASE",
+        "shapeType": "end_shelf_curved",
+        "toeKick": 4,
+        "notes": "9-inch end shelf with R6-inch curved front. Left orientation."
+      },
+      {
+        "skuPrefix": "BESR9",
+        "name": "Base End Shelf Right",
+        "widths": [
+          9
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "curveRadius": 6,
+        "zone": "BASE",
+        "shapeType": "end_shelf_curved",
+        "toeKick": 4,
+        "notes": "9-inch end shelf with R6-inch curved front. Right orientation."
+      },
+      {
+        "skuPrefix": "BESP9",
+        "name": "Base End Shelf Peninsula",
+        "widths": [
+          9
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "curveRadius": 6,
+        "zone": "BASE",
+        "shapeType": "end_shelf_curved",
+        "toeKick": 4,
+        "notes": "9-inch peninsula end shelf with R6-inch curved front."
+      }
+    ],
+    "base_knife_insert": [
+      {
+        "skuPrefix": "BKI",
+        "name": "Base Cabinet with Knife Insert",
+        "widths": [
+          9,
+          12,
+          15
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Base cabinet with integrated knife block insert."
+      }
+    ],
+    "base_tray_divider": [
+      {
+        "skuPrefix": "BTD",
+        "name": "Base Cabinet with Chrome Tray Divider",
+        "widths": [
+          9,
+          12
+        ],
+        "heights": [
+          30.5
+        ],
+        "heightWithToeKick": 34.5,
+        "depth": 24.875,
+        "zone": "BASE",
+        "shapeType": "box",
+        "toeKick": 4,
+        "notes": "Base cabinet with chrome tray divider system for baking sheets."
+      }
+    ],
+    "utility_cabinet": [
+      {
+        "skuPrefix": "U",
+        "name": "Utility Cabinet",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Tall utility cabinet. Standard 24 inch depth, also 27 or 30 inches. Heights 84-102 inches."
+      }
+    ],
+    "utility_tall_cabinet": [
+      {
+        "skuPrefix": "UT",
+        "name": "Utility Tall Cabinet",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Extra-tall utility cabinet. Standard 24 inch depth, also 27 or 30 inches. Heights 84-114 inches."
+      }
+    ],
+    "utility_tall_closet": [
+      {
+        "skuPrefix": "UT-CC",
+        "name": "Utility Tall Clothes Closet Cabinet",
+        "widths": [
+          21,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Tall cabinet for clothes closet. Not available under 21 inch wide or under 24 inch deep."
+      }
+    ],
+    "utility_tall_broom_closet": [
+      {
+        "skuPrefix": "UT-BC",
+        "name": "Utility Tall Broom Closet Cabinet",
+        "widths": [
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Tall cabinet for broom/utility closet. Not available under 21 inch wide or under 24 inch deep."
+      }
+    ],
+    "utility_3drawer": [
+      {
+        "skuPrefix": "U3DR",
+        "name": "Utility Cabinet with 3 Drawers",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Utility cabinet with 3 drawers. Drawer stays standard depth if cabinet over 24 inches."
+      }
+    ],
+    "utility_fhd": [
+      {
+        "skuPrefix": "U-FHD",
+        "name": "Utility Cabinet with Full Height Door",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Utility cabinet with full-height single door configuration."
+      }
+    ],
+    "utility_tall_rollout": [
+      {
+        "skuPrefix": "UT-RT",
+        "name": "Utility Tall with Roll Out Tray",
+        "widths": [
+          15,
+          18,
+          21,
+          22.5,
+          24,
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Utility tall cabinet with roll-out tray system. Not under 15 inch deep."
+      }
+    ],
+    "utility_wire_pantry_rack": [
+      {
+        "skuPrefix": "UWPOP",
+        "name": "Utility with Chrome Wire Pull-Out Pantry Rack",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          24
+        ],
+        "depths": [
+          24.875
+        ],
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Utility cabinet with chrome wire pantry rack. Depth 24 inches only (not under 24 or over 27)."
+      }
+    ],
+    "utility_tall_wire_pantry_rack": [
+      {
+        "skuPrefix": "UTWPOP",
+        "name": "Utility Tall with Chrome Wire Pull-Out Pantry Rack",
+        "widths": [
+          12,
+          15,
+          18,
+          21,
+          24
+        ],
+        "depths": [
+          24.875
+        ],
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Utility tall cabinet with chrome wire pantry rack. Depth 24 inches only (not under 24 or over 30)."
+      }
+    ],
+    "utility_pullout_pantry": [
+      {
+        "skuPrefix": "UPOP",
+        "name": "Utility with Pull-Out Pantry Rack",
+        "widths": [
+          12,
+          15,
+          18
+        ],
+        "depths": [
+          24.875
+        ],
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Utility cabinet with pull-out pantry rack. Depth 24 inches (not over 30)."
+      }
+    ],
+    "utility_tall_pullout_pantry": [
+      {
+        "skuPrefix": "UTPOP",
+        "name": "Utility Tall with Pull-Out Pantry Rack",
+        "widths": [
+          12,
+          15,
+          18
+        ],
+        "depths": [
+          24.875
+        ],
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Utility tall cabinet with pull-out pantry rack. Depth 24 inches (not over 30)."
+      }
+    ],
+    "utility_tall_chefs_pantry": [
+      {
+        "skuPrefix": "UT36-CP",
+        "name": "Utility Tall Chef's Pantry Cabinet",
+        "widths": [
+          36
+        ],
+        "depths": [
+          24.875
+        ],
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "36-inch wide utility tall cabinet with chef's pantry organization. Depth 24 inches."
+      }
+    ],
+    "pantry_entry_cabinet": [
+      {
+        "skuPrefix": "PEC",
+        "name": "Pantry Entry Cabinet",
+        "widths": [
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Pantry entry cabinet with finished interior and both ends for island installation."
+      }
+    ],
+    "oven_tall_cabinet": [
+      {
+        "skuPrefix": "O",
+        "name": "Oven Tall Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Tall cabinet with oven cutout opening for built-in oven installation."
+      }
+    ],
+    "oven_microwave_cabinet": [
+      {
+        "skuPrefix": "OM",
+        "name": "Oven Microwave Tall Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Tall cabinet with oven and microwave cutout openings."
+      }
+    ],
+    "flush_inset_oven_tall": [
+      {
+        "skuPrefix": "FIO",
+        "name": "Flush Inset Oven Tall Cabinet",
+        "widths": [
+          27,
+          30,
+          33,
+          36
+        ],
+        "depths": [
+          24.875,
+          27.875,
+          30.875
+        ],
+        "defaultDepth": 24.875,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "box",
+        "notes": "Flush inset tall cabinet for seamless oven installation."
+      }
+    ],
+    "wall_end_panel": [
+      {
+        "skuPrefix": "WEP",
+        "name": "Wall End Panel",
+        "thicknesses": [
+          0.75,
+          1.5,
+          3
+        ],
+        "thickness_labels": [
+          "3/4\"",
+          "1.5\"",
+          "3\""
+        ],
+        "depth": 13,
+        "heights": [
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48,
+          51,
+          54,
+          57,
+          60,
+          63,
+          66,
+          69,
+          72,
+          75,
+          78
+        ],
+        "zone": "UPPER",
+        "shapeType": "panel",
+        "notes": "Decorative end panel for wall cabinets. 3/4, 1.5, or 3 inch thickness. 13 inch standard depth."
+      }
+    ],
+    "base_end_panel": [
+      {
+        "skuPrefix": "BEP",
+        "name": "Base End Panel",
+        "thicknesses": [
+          0.75,
+          1.5,
+          3
+        ],
+        "thickness_labels": [
+          "3/4\"",
+          "1.5\"",
+          "3\""
+        ],
+        "depth": 24,
+        "heights": [
+          30,
+          34.5
+        ],
+        "zone": "BASE",
+        "shapeType": "panel",
+        "notes": "Decorative end panel for base cabinets. 3/4, 1.5, or 3 inch thickness. 24 inch depth."
+      }
+    ],
+    "vanity_end_panel": [
+      {
+        "skuPrefix": "VEP",
+        "name": "Vanity End Panel",
+        "thicknesses": [
+          0.75,
+          1.5,
+          3
+        ],
+        "thickness_labels": [
+          "3/4\"",
+          "1.5\"",
+          "3\""
+        ],
+        "depth": 21,
+        "heights": [
+          30,
+          34.5
+        ],
+        "zone": "BASE",
+        "shapeType": "panel",
+        "notes": "Decorative end panel for vanity cabinets. 3/4, 1.5, or 3 inch thickness. 21 inch depth."
+      }
+    ],
+    "refrigerator_end_panel": [
+      {
+        "skuPrefix": "REP",
+        "name": "Refrigerator End Panel",
+        "thicknesses": [
+          0.75,
+          1.5,
+          3
+        ],
+        "thickness_labels": [
+          "3/4\"",
+          "1.5\"",
+          "3\""
+        ],
+        "depths": [
+          24,
+          27,
+          30
+        ],
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "panel",
+        "notes": "Decorative end panel for tall cabinets. 3/4, 1.5, or 3 inch thickness. 24, 27, or 30 inch depth."
+      }
+    ],
+    "flush_wall_end_panel": [
+      {
+        "skuPrefix": "FWEP",
+        "name": "Flush Wall End Panel",
+        "thickness": 0.75,
+        "depth": 13.875,
+        "heights": [
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48,
+          51,
+          54,
+          57,
+          60,
+          63,
+          66,
+          69,
+          72,
+          75,
+          78
+        ],
+        "zone": "UPPER",
+        "shapeType": "panel",
+        "notes": "Flush-mount wall end panel. 3/4 inch thick, 13.875 inch depth for seamless integration."
+      }
+    ],
+    "flush_base_end_panel": [
+      {
+        "skuPrefix": "FBEP",
+        "name": "Flush Base End Panel",
+        "thickness": 0.75,
+        "depth": 24.875,
+        "heights": [
+          30,
+          34.5
+        ],
+        "zone": "BASE",
+        "shapeType": "panel",
+        "notes": "Flush-mount base end panel. 3/4 inch thick, 24.875 inch depth."
+      }
+    ],
+    "flush_vanity_end_panel": [
+      {
+        "skuPrefix": "FVEP",
+        "name": "Flush Vanity End Panel",
+        "thickness": 0.75,
+        "depth": 21.875,
+        "zone": "BASE",
+        "shapeType": "panel",
+        "notes": "Flush-mount vanity end panel. 3/4 inch thick, 21.875 inch depth."
+      }
+    ],
+    "flush_refrigerator_end_panel": [
+      {
+        "skuPrefix": "FREP",
+        "name": "Flush Refrigerator End Panel",
+        "thickness": 0.75,
+        "depths": [
+          30.875
+        ],
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "panel",
+        "notes": "Flush-mount refrigerator end panel for 30-inch deep appliance. 3/4 inch thick."
+      }
+    ],
+    "end_panel_returns": [
+      {
+        "skuPrefix": "BEP6R",
+        "name": "Base End Panel with 6-inch Returns",
+        "thicknesses": [
+          0.75,
+          1.5,
+          3
+        ],
+        "thickness_labels": [
+          "3/4\"",
+          "1.5\"",
+          "3\""
+        ],
+        "depth": 24,
+        "returnDepth": 6.75,
+        "heights": [
+          30,
+          34.5
+        ],
+        "zone": "BASE",
+        "shapeType": "panel",
+        "notes": "Base end panel with 6.75-inch return for flush inset appliance installation."
+      },
+      {
+        "skuPrefix": "REP6R",
+        "name": "Refrigerator End Panel with 6-inch Returns",
+        "thicknesses": [
+          0.75,
+          1.5,
+          3
+        ],
+        "thickness_labels": [
+          "3/4\"",
+          "1.5\"",
+          "3\""
+        ],
+        "depths": [
+          24,
+          27,
+          30
+        ],
+        "returnDepth": 6.75,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "panel",
+        "notes": "Refrigerator end panel with 6.75-inch return for appliance integration."
+      }
+    ],
+    "filler": [
+      {
+        "skuPrefix": "F",
+        "name": "Filler Strip",
+        "widths": [
+          3,
+          6
+        ],
+        "heights": [
+          26.5,
+          30,
+          34.5,
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "depth": 0.75,
+        "zone": "UNIVERSAL",
+        "shapeType": "filler",
+        "notes": "Thin filler strips 3 or 6 inches wide. Various heights for gap bridging."
+      }
+    ],
+    "overlay_filler": [
+      {
+        "skuPrefix": "OVF",
+        "name": "Overlay Filler",
+        "widths": [
+          3,
+          6
+        ],
+        "heights": [
+          26.5,
+          30,
+          34.5,
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          110
+        ],
+        "zone": "UNIVERSAL",
+        "shapeType": "filler",
+        "notes": "Overlay filler strips for covering gaps between cabinet groups."
+      }
+    ],
+    "column": [
+      {
+        "skuPrefix": "WC3",
+        "name": "Wall Column",
+        "width": 3,
+        "columnWidth": 1.5,
+        "flutedDepth": 0.25,
+        "heights": [
+          24,
+          27,
+          30,
+          33,
+          36,
+          39,
+          42,
+          45,
+          48,
+          51,
+          54,
+          57,
+          60,
+          63,
+          66,
+          69,
+          72,
+          75,
+          78
+        ],
+        "zone": "UPPER",
+        "shapeType": "column",
+        "notes": "3-inch wall column with 1.5-inch wide flutes and 0.25-inch depth."
+      },
+      {
+        "skuPrefix": "VC",
+        "name": "Vanity Column",
+        "width": 3,
+        "columnWidth": 1.5,
+        "flutedDepth": 0.25,
+        "heights": [
+          30,
+          34.5
+        ],
+        "zone": "BASE",
+        "shapeType": "column",
+        "notes": "3-inch vanity column with 1.5-inch wide flutes."
+      },
+      {
+        "skuPrefix": "BC",
+        "name": "Base Column",
+        "width": 3,
+        "columnWidth": 1.5,
+        "flutedDepth": 0.25,
+        "heights": [
+          30,
+          34.5,
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "BASE",
+        "shapeType": "column",
+        "notes": "3-inch base column with 1.5-inch wide flutes. Multiple height options."
+      },
+      {
+        "skuPrefix": "UC",
+        "name": "Utility Column",
+        "width": 3,
+        "columnWidth": 1.5,
+        "flutedDepth": 0.25,
+        "heights": [
+          84,
+          87,
+          90,
+          93,
+          96,
+          102,
+          108,
+          114
+        ],
+        "zone": "TALL",
+        "shapeType": "column",
+        "notes": "3-inch utility column with 1.5-inch wide flutes for tall cabinet runs."
+      }
+    ]
+  },
+  "constants": {
+    "standardBaseHeight": 30,
+    "toeKickHeight": 4.5,
+    "totalBaseHeight": 34.5,
+    "counttertopThickness": 1.5,
+    "totalCounterHeight": 36,
+    "standardWallDepth": 13,
+    "standardBaseDepth": 24,
+    "standardWallMount": 54,
+    "standardUnitWidths": [
+      9,
+      12,
+      15,
+      18,
+      21,
+      22.5,
+      24,
+      27,
+      30,
+      33,
+      36,
+      39,
+      42
+    ],
+    "cornerBlindPullBase": 4,
+    "cornerBlindPullWall": 3,
+    "cornerMullionWidth": 7.5,
+    "cornerOpeningWidth": 18.75,
+    "diagonalAngle": 45,
+    "angleCornerAngle": 46,
+    "curveRadiusEndShelf": 6,
+    "minUtilityDepth": 24,
+    "maxUtilityDepth": 30
+  },
+  "notes": {
+    "installation": "All base cabinets include 4.5-inch toe kick. Total height to countertop is 34.5 inches. Add 1.5-inch countertop for 36-inch total counter height.",
+    "mounting": "Standard wall cabinet mounting height is 54 inches from floor (18 inches above 36-inch counter).",
+    "corners": "Blind corner widths are actual dimensions. Blind side pulls 3-4 inches into corner. Mullion is 7.5 inches exposed. Opening is 18.75 inches.",
+    "diagonals": "Diagonal corner bases are 45-degree angles with 24-inch depth each wall. Width is measured along wall (not diagonal).",
+    "rightAngles": "Right angle corners are 24 inches deep each direction, require wall space on both sides. Some models have expandable legs.",
+    "appliances": "Refrigerator wall cabinets are 24, 27, or 30 inches deep to sit flush with appliance. Oven and cooktop bases require specific cutouts.",
+    "specialization": "Wine cabinets, waste bins, and organizers have specific dimensions. Wine racks are 13 inches deep (not 24).",
+    "depths": "Most utility/tall cabinets available in 24, 27, or 30 inch depths. Some restrictions apply (e.g., pantry racks limited to 24 inch)."
+  }
+}

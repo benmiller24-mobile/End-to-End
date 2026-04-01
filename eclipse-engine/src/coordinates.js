@@ -1,5 +1,5 @@
 /**
- * Eclipse Cabinet Designer â 3D Coordinate Assignment
+ * Eclipse Cabinet Designer — 3D Coordinate Assignment
  * ====================================================
  * Assigns X/Y/Z placement coordinates to every cabinet for visualization export.
  *
@@ -84,14 +84,26 @@ export function assignCoordinates(layoutResult, wallConfig) {
  * @returns {Object} Wall configuration mapping
  */
 export function autoWallConfig(layoutResult) {
-  const { layoutType, walls = [] } = layoutResult;
+  const { layoutType, walls: rawWalls = [] } = layoutResult;
   const config = {};
+  // Normalize: solver output uses wallId/wallLength, input uses id/length
+  const walls = rawWalls.map(w => ({
+    id: w.id || w.wallId,
+    length: w.length || w.wallLength || 120,
+  }));
 
-  if (layoutType === 'single-wall') {
+  if (layoutType === 'single-wall' || layoutType === 'single-wall-island') {
     // Single wall at origin, running east
     if (walls[0]) {
       config[walls[0].id] = {
         origin: { x: 0, y: 0, z: 0 },
+        direction: 'east',
+      };
+    }
+    // Island parallel to wall, centered, at standard walkway distance
+    if (layoutType === 'single-wall-island') {
+      config['island'] = {
+        origin: { x: (walls[0]?.length || 120) * 0.15, y: 0, z: 42 },
         direction: 'east',
       };
     }
@@ -118,6 +130,25 @@ export function autoWallConfig(layoutResult) {
     config[walls[2].id] = {
       origin: { x: walls[0].length, y: 0, z: walls[1].length },
       direction: 'west',
+    };
+  } else if (layoutType === 'g-shape' && walls.length >= 4) {
+    // G-shape: U-shape + partial 4th wall (peninsula turn)
+    // Wall A east, B north, C west, D south (partial)
+    config[walls[0].id] = {
+      origin: { x: 0, y: 0, z: 0 },
+      direction: 'east',
+    };
+    config[walls[1].id] = {
+      origin: { x: walls[0].length, y: 0, z: 0 },
+      direction: 'north',
+    };
+    config[walls[2].id] = {
+      origin: { x: walls[0].length, y: 0, z: walls[1].length },
+      direction: 'west',
+    };
+    config[walls[3].id] = {
+      origin: { x: 0, y: 0, z: walls[1].length },
+      direction: 'south',
     };
   } else if (layoutType === 'galley' && walls.length >= 2) {
     // Two parallel walls, wall A at z=0, wall B at z=walkway
@@ -494,4 +525,292 @@ export function exportForVisualization(coordinatedPlacements) {
       material: placement.material || 'Maple',
     };
   });
+}
+
+/**
+ * Export a complete 2D overhead floor plan for rendering.
+ * Produces wall outlines, cabinet footprints (top-down), appliance positions,
+ * island/peninsula footprints, openings (doors/windows), and traffic flow arrows.
+ *
+ * Coordinate space: X = horizontal, Z = vertical (overhead view). Y is ignored (floor plane).
+ *
+ * @param {Object} layoutResult - Full result from solve()
+ * @param {Object} [wallConfig] - Optional wall config (auto-generated if not provided)
+ * @returns {Object} Floor plan data with layers for rendering
+ */
+export function exportFloorPlan(layoutResult, wallConfig) {
+  const { layoutType, walls = [], island, peninsula, placements = [], validation = [] } = layoutResult;
+  const config = wallConfig || autoWallConfig(layoutResult);
+
+  // ── Wall outlines (structural shell) ──
+  const wallOutlines = walls.map(wall => {
+    const wId = wall.id || wall.wallId;
+    const wc = config[wId];
+    if (!wc) return null;
+    const len = wall.length || wall.wallLength || 120;
+    const thickness = 5; // 5" wall thickness for visual
+    return wallRectFromConfig(wId, wc, len, thickness, wall.role || null, wall.partial || false);
+  }).filter(Boolean);
+
+  // ── Cabinet footprints (top-down rectangles) ──
+  const cabinetFootprints = [];
+  for (const p of placements) {
+    const coords = p.coordinates;
+    if (!coords) continue;
+    const depth = coords.depth || (p.type === 'upper' || p.type === 'hutch' ? 13 : 24);
+    const fp = {
+      id: p.id || `${p.wall}_${p.sku}`,
+      sku: p.sku,
+      type: p.type || 'base',
+      wall: p.wall,
+      role: p.role || null,
+      // Top-down rect: x/z plane
+      x: coords.x || 0,
+      z: coords.z || 0,
+      width: coords.width || p.width || 0,
+      depth,
+      rotation: coords.rotation || 0,
+      sitsOnCounter: p.sitsOnCounter || false,
+      isHutch: p.type === 'hutch',
+      zone: p._zone || null,
+    };
+    // Only include floor-level items in floor plan (bases, tall, appliances, island)
+    // Skip uppers unless they're hutch (sit on counter and matter for footprint)
+    if (p.type === 'upper' && !p.sitsOnCounter) continue;
+    if (p.type === 'floating_shelf') continue;
+    if (p.type === 'rangeHood') continue;
+    cabinetFootprints.push(fp);
+  }
+
+  // ── Appliance footprints ──
+  const applianceFootprints = [];
+  for (const p of placements) {
+    if (p.role !== 'appliance' && p.type !== 'appliance') continue;
+    const coords = p.coordinates;
+    if (!coords) continue;
+    applianceFootprints.push({
+      id: p.id || `app_${p.sku}`,
+      sku: p.sku,
+      applianceType: p.applianceType || p.type,
+      x: coords.x || 0,
+      z: coords.z || 0,
+      width: coords.width || p.width || 0,
+      depth: coords.depth || 24,
+      rotation: coords.rotation || 0,
+      wall: p.wall,
+      doorSwingDirection: getSwingDirection(p),
+    });
+  }
+
+  // ── Island / Peninsula footprint ──
+  let islandFootprint = null;
+  if (island && config['island']) {
+    const ic = config['island'];
+    const iLen = island.length || 72;
+    const iDepth = island.depth || 39;
+    islandFootprint = {
+      x: ic.origin.x,
+      z: ic.origin.z,
+      width: iLen,
+      depth: iDepth,
+      hasSeating: !!island.seating,
+      seatingOverhang: island.seatingOverhang || 12,
+      seatingSide: island.seatingSide || 'back',
+      seatingCapacity: island.seatingCapacity || 0,
+    };
+  }
+  let peninsulaFootprint = null;
+  if (peninsula && config['peninsula']) {
+    const pc = config['peninsula'];
+    peninsulaFootprint = {
+      x: pc.origin.x,
+      z: pc.origin.z,
+      width: peninsula.length || 60,
+      depth: peninsula.depth || 25,
+      attachedTo: peninsula.attachedTo || null,
+    };
+  }
+
+  // ── Openings (doors, windows, archways) ──
+  const openings = [];
+  for (const wall of walls) {
+    if (!wall.openings) continue;
+    const wc = config[wall.id];
+    if (!wc) continue;
+    for (const op of wall.openings) {
+      const worldPos = localToWorld(op.posFromLeft || 0, 0, wc);
+      openings.push({
+        type: op.type, // 'door', 'window', 'entry', 'archway'
+        wall: wall.id,
+        x: worldPos.x,
+        z: worldPos.z,
+        width: op.width || 36,
+        swingDirection: op.swingDirection || null,
+        trafficLane: op.type === 'door' || op.type === 'entry' || op.type === 'archway',
+      });
+    }
+  }
+
+  // ── Traffic flow indicators ──
+  const trafficArrows = buildTrafficArrows(walls, config, openings, islandFootprint);
+
+  // ── Work triangle (sink → range → fridge) ──
+  const workTriangle = buildWorkTriangle(placements);
+
+  // ── Bounding box (overall room extents) ──
+  const bbox = computeBoundingBox(wallOutlines, islandFootprint, peninsulaFootprint);
+
+  return {
+    layoutType,
+    boundingBox: bbox,
+    layers: {
+      walls: wallOutlines,
+      cabinets: cabinetFootprints,
+      appliances: applianceFootprints,
+      island: islandFootprint,
+      peninsula: peninsulaFootprint,
+      openings,
+      trafficArrows,
+      workTriangle,
+    },
+    validation: validation.map(v => ({
+      code: v.code,
+      severity: v.severity,
+      message: v.message,
+    })),
+  };
+}
+
+// ── Floor Plan Helpers ──
+
+function wallRectFromConfig(wallId, wc, length, thickness, role, partial) {
+  const dir = wc.direction;
+  const ox = wc.origin.x;
+  const oz = wc.origin.z;
+
+  let x, z, w, d;
+  if (dir === 'east' || dir === 'west') {
+    x = dir === 'east' ? ox : ox - length;
+    z = oz - thickness / 2;
+    w = length;
+    d = thickness;
+  } else {
+    // north or south
+    x = ox - thickness / 2;
+    z = dir === 'north' ? oz : oz - length;
+    w = thickness;
+    d = length;
+  }
+
+  return { id: wallId, x, z, width: w, depth: d, direction: dir, role, partial };
+}
+
+function localToWorld(localPos, localDepth, wc) {
+  const dir = wc.direction;
+  const ox = wc.origin.x;
+  const oz = wc.origin.z;
+  if (dir === 'east') return { x: ox + localPos, z: oz + localDepth };
+  if (dir === 'west') return { x: ox - localPos, z: oz - localDepth };
+  if (dir === 'north') return { x: ox - localDepth, z: oz + localPos };
+  if (dir === 'south') return { x: ox + localDepth, z: oz - localPos };
+  return { x: ox + localPos, z: oz + localDepth };
+}
+
+function getSwingDirection(placement) {
+  const t = (placement.applianceType || placement.type || '').toLowerCase();
+  if (t.includes('fridge') || t.includes('refrigerator')) return 'out'; // into room
+  if (t.includes('oven')) return 'down'; // drops down
+  if (t.includes('dishwasher') || t === 'dw') return 'down';
+  return null;
+}
+
+function buildTrafficArrows(walls, config, openings, islandFootprint) {
+  const arrows = [];
+  // Draw flow arrows from each door/entry through the room
+  for (const op of openings) {
+    if (!op.trafficLane) continue;
+    // Arrow from opening into the room center
+    const targetX = islandFootprint
+      ? islandFootprint.x + islandFootprint.width / 2
+      : op.x + 36; // default 36" into room
+    const targetZ = islandFootprint
+      ? islandFootprint.z - 12
+      : op.z + 36;
+    arrows.push({
+      from: { x: op.x, z: op.z },
+      to: { x: targetX, z: targetZ },
+      type: 'traffic_entry',
+      doorWall: op.wall,
+    });
+  }
+  return arrows;
+}
+
+function buildWorkTriangle(placements) {
+  let sink = null, range = null, fridge = null;
+  for (const p of placements) {
+    const coords = p.coordinates;
+    if (!coords) continue;
+    const cx = (coords.x || 0) + (coords.width || 0) / 2;
+    const cz = (coords.z || 0) + (coords.depth || 0) / 2;
+    const t = (p.applianceType || p.type || p.role || '').toLowerCase();
+    if ((t.includes('sink') || p.role === 'sink') && !sink) {
+      sink = { x: cx, z: cz, label: 'Sink' };
+    }
+    if ((t.includes('range') || t.includes('cooktop') || p.role === 'range') && !range) {
+      range = { x: cx, z: cz, label: 'Range' };
+    }
+    if ((t.includes('fridge') || t.includes('refrigerator') || p.role === 'refrigerator') && !fridge) {
+      fridge = { x: cx, z: cz, label: 'Fridge' };
+    }
+  }
+  if (!sink || !range || !fridge) return null;
+
+  const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.z - b.z) ** 2);
+  const sinkToRange = dist(sink, range);
+  const rangeToFridge = dist(range, fridge);
+  const fridgeToSink = dist(fridge, sink);
+  const perimeter = sinkToRange + rangeToFridge + fridgeToSink;
+
+  return {
+    points: [sink, range, fridge],
+    legs: [
+      { from: 'Sink', to: 'Range', distance: Math.round(sinkToRange) },
+      { from: 'Range', to: 'Fridge', distance: Math.round(rangeToFridge) },
+      { from: 'Fridge', to: 'Sink', distance: Math.round(fridgeToSink) },
+    ],
+    perimeter: Math.round(perimeter),
+    // NKBA guideline: triangle perimeter 12'-26' (144"-312")
+    nkbaCompliant: perimeter >= 144 && perimeter <= 312,
+  };
+}
+
+function computeBoundingBox(wallOutlines, islandFP, peninsulaFP) {
+  let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+  for (const w of wallOutlines) {
+    minX = Math.min(minX, w.x);
+    minZ = Math.min(minZ, w.z);
+    maxX = Math.max(maxX, w.x + w.width);
+    maxZ = Math.max(maxZ, w.z + w.depth);
+  }
+  if (islandFP) {
+    minX = Math.min(minX, islandFP.x);
+    minZ = Math.min(minZ, islandFP.z);
+    maxX = Math.max(maxX, islandFP.x + islandFP.width);
+    maxZ = Math.max(maxZ, islandFP.z + islandFP.depth);
+  }
+  if (peninsulaFP) {
+    minX = Math.min(minX, peninsulaFP.x);
+    minZ = Math.min(minZ, peninsulaFP.z);
+    maxX = Math.max(maxX, peninsulaFP.x + peninsulaFP.width);
+    maxZ = Math.max(maxZ, peninsulaFP.z + peninsulaFP.depth);
+  }
+  // Add padding
+  const pad = 12;
+  return {
+    min: { x: minX - pad, z: minZ - pad },
+    max: { x: maxX + pad, z: maxZ + pad },
+    width: (maxX - minX) + pad * 2,
+    depth: (maxZ - minZ) + pad * 2,
+  };
 }

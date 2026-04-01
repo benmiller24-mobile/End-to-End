@@ -1,0 +1,28 @@
+{
+  "layoutType": "single-wall",
+  "roomType": "kitchen",
+  "walls": [
+    {
+      "id": "A",
+      "length": 120,
+      "role": "sink"
+    }
+  ],
+  "appliances": [
+    {
+      "type": "sink",
+      "width": 36,
+      "wall": "A"
+    },
+    {
+      "type": "dishwasher",
+      "width": 24,
+      "wall": "A"
+    }
+  ],
+  "prefs": {
+    "cornerTreatment": "auto",
+    "preferDrawerBases": true,
+    "sophistication": "standard"
+  }
+}

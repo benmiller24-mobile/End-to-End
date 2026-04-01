@@ -10,6 +10,7 @@ export default async (req) => {
 
     const layout = solve({ walls, appliances, prefs, layoutType, roomType, island, peninsula });
 
+    // Optionally attach 3D coordinates
     let coordinates = null;
     if (body.includeCoordinates !== false) {
       const wallConfig = body.wallConfig || autoWallConfig(layout);

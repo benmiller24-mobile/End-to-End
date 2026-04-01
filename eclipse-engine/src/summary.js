@@ -1,5 +1,5 @@
 /**
- * Eclipse Kitchen Designer â Project Cost Summary & Export
+ * Eclipse Kitchen Designer — Project Cost Summary & Export
  * ===========================================================
  * Aggregates pricing data into formatted summaries with category breakdowns,
  * modification analysis, species/construction surcharge details, and top items.
@@ -30,7 +30,7 @@ export function generateProjectSummary(quoteResult) {
   const validationErrors = layout?.metadata?.errors ?? 0;
   const validationWarnings = layout?.metadata?.warnings ?? 0;
 
-  // ââ CATEGORY AGGREGATION ââ
+  // ── CATEGORY AGGREGATION ──
   const categories = {
     baseCabinets: { count: 0, subtotal: 0 },
     wallCabinets: { count: 0, subtotal: 0 },
@@ -51,7 +51,7 @@ export function generateProjectSummary(quoteResult) {
 
     // Categorize by SKU prefix and family
     if (sku.startsWith("FC-")) {
-      // GOLA special â still count as its base type
+      // GOLA special — still count as its base type
       categorizeByCabinet(sku.slice(3), categories, item);
     } else {
       categorizeByCabinet(sku, categories, item);
@@ -77,7 +77,7 @@ export function generateProjectSummary(quoteResult) {
     }
   }
 
-  // ââ MODIFICATION BREAKDOWN ââ
+  // ── MODIFICATION BREAKDOWN ──
   // Aggregate modifications by type across all items
   const modMap = new Map();
   for (const item of allPricedItems) {
@@ -99,7 +99,7 @@ export function generateProjectSummary(quoteResult) {
     totalCharge: data.totalCharge,
   }));
 
-  // ââ SPECIES SURCHARGE ââ
+  // ── SPECIES SURCHARGE ──
   let speciesSurcharge = { species: "", pct: 0, totalAdded: 0 };
   if (quote.specs.length > 0) {
     const species = quote.specs[0].species || "Maple";
@@ -122,7 +122,7 @@ export function generateProjectSummary(quoteResult) {
     }
   }
 
-  // ââ CONSTRUCTION SURCHARGE ââ
+  // ── CONSTRUCTION SURCHARGE ──
   let constructionSurcharge = { construction: "", pct: 0, totalAdded: 0 };
   if (quote.specs.length > 0) {
     const construction = quote.specs[0].construction || "Standard";
@@ -144,7 +144,7 @@ export function generateProjectSummary(quoteResult) {
     }
   }
 
-  // ââ TOP ITEMS (by price, descending) ââ
+  // ── TOP ITEMS (by price, descending) ──
   const topItems = allPricedItems
     .map(item => ({
       sku: item.sku,
@@ -154,7 +154,7 @@ export function generateProjectSummary(quoteResult) {
     .sort((a, b) => b.price - a.price)
     .slice(0, 5);
 
-  // ââ PROJECT TOTAL ââ
+  // ── PROJECT TOTAL ──
   const projectTotal = quote.projectTotal || 0;
 
   return {
@@ -267,14 +267,14 @@ export function generateCostBreakdownText(summary) {
     .join(" ");
 
   const lines = [];
-  lines.push("â".repeat(55));
-  lines.push("ECLIPSE KITCHEN DESIGNER â PROJECT COST SUMMARY");
-  lines.push("â".repeat(55));
+  lines.push("═".repeat(55));
+  lines.push("ECLIPSE KITCHEN DESIGNER — PROJECT COST SUMMARY");
+  lines.push("═".repeat(55));
   lines.push("");
   lines.push(`Layout: ${layoutLabel} ${roomLabel}`);
   lines.push(`Total Cabinets: ${roomSummary.totalCabinets}`);
   lines.push("");
-  lines.push("â Category Breakdown " + "â".repeat(33));
+  lines.push("─ Category Breakdown " + "─".repeat(33));
 
   // Category entries (non-zero only)
   const categoryLabels = {
@@ -300,13 +300,13 @@ export function generateCostBreakdownText(summary) {
     }
   }
 
-  lines.push(" ".repeat(30) + "â".repeat(15));
+  lines.push(" ".repeat(30) + "─".repeat(15));
   lines.push(`${"PROJECT TOTAL".padEnd(30)} ${fmt(projectTotal).padStart(14)}`);
   lines.push("");
 
   // Top 5 items
   if (topItems.length > 0) {
-    lines.push("â Top 5 Items " + "â".repeat(40));
+    lines.push("─ Top 5 Items " + "─".repeat(40));
     topItems.forEach((item, i) => {
       const numLabel = `${i + 1}.`;
       const skuLabel = item.sku;
@@ -318,7 +318,7 @@ export function generateCostBreakdownText(summary) {
   }
 
   // Species / Construction surcharges
-  lines.push("â Species/Construction " + "â".repeat(32));
+  lines.push("─ Species/Construction " + "─".repeat(32));
   if (speciesSurcharge.pct !== 0) {
     lines.push(`Species: ${speciesSurcharge.species} (+${speciesSurcharge.pct}%)`.padEnd(30) +
       `${fmt(speciesSurcharge.totalAdded).padStart(14)} added`);
@@ -339,7 +339,7 @@ export function generateCostBreakdownText(summary) {
 
   // Modification breakdown (if any)
   if (modificationBreakdown.length > 0) {
-    lines.push("â Modifications " + "â".repeat(38));
+    lines.push("─ Modifications " + "─".repeat(38));
     for (const mod of modificationBreakdown) {
       const modLabel = mod.mod.padEnd(20);
       const qtyLabel = `Qty: ${mod.totalQty}`.padEnd(12);
@@ -348,7 +348,7 @@ export function generateCostBreakdownText(summary) {
     lines.push("");
   }
 
-  lines.push("â".repeat(55));
+  lines.push("═".repeat(55));
 
   return lines.join("\n");
 }

@@ -1,4 +1,4 @@
-// âââ Eclipse Kitchen Designer â Countertop Material Database âââ
+// ─── Eclipse Kitchen Designer — Countertop Material Database ───
 // Real manufacturer colors, collections, and 2025-2026 pricing tiers
 // Sources: Neolith, Dekton/Cosentino, Caesarstone, Cambria, regional quartzite suppliers
 
@@ -10,7 +10,7 @@ export const COUNTERTOP_BRANDS = {
   quartzite:  'Natural Quartzite'
 };
 
-// âââ Pricing tiers (installed $/sqft, 2025-2026) âââ
+// ─── Pricing tiers (installed $/sqft, 2025-2026) ───
 export const COUNTERTOP_PRICING = {
   neolith:     { low: 95, high: 155, material: 'Sintered Stone' },
   dekton:      { low: 80, high: 210, material: 'Ultra-Compact Surface' },
@@ -27,7 +27,7 @@ export const COUNTERTOP_ADDONS = {
   seaming:       { pctAdder: 15, note: '+10-20% for complex seaming patterns' }
 };
 
-// âââ Edge profile options âââ
+// ─── Edge profile options ───
 export const EDGE_PROFILES = [
   { id: 'straight',  label: 'Straight / Eased' },
   { id: 'bevel',     label: 'Beveled' },
@@ -38,12 +38,12 @@ export const EDGE_PROFILES = [
   { id: 'dupont',    label: 'DuPont' }
 ];
 
-// âââ Color catalog âââ
+// ─── Color catalog ───
 // Each entry: { id, brand, collection, name, code?, hex, finishes[], popularity(1-5), priceTier }
 // priceTier: 'standard' | 'mid' | 'premium' | 'luxury'
 export const COUNTERTOP_COLORS = [
-  // ââââââââââ NEOLITH ââââââââââ
-  { id: 'neo-estatuario',     brand: 'neolith', collection: 'Classtone',  name: 'Estatuario',       hex: '#F5F5F5', finishes: ['Ultrasoft','DÃ©cor Polished','Silk'], popularity: 5, priceTier: 'premium' },
+  // ────────── NEOLITH ──────────
+  { id: 'neo-estatuario',     brand: 'neolith', collection: 'Classtone',  name: 'Estatuario',       hex: '#F5F5F5', finishes: ['Ultrasoft','Décor Polished','Silk'], popularity: 5, priceTier: 'premium' },
   { id: 'neo-calacatta',      brand: 'neolith', collection: 'Marble Style', name: 'Calacatta',      hex: '#F8F8F8', finishes: ['Polished','Honed'], popularity: 4, priceTier: 'premium' },
   { id: 'neo-calacatta-gold', brand: 'neolith', collection: 'Marble Style', name: 'Calacatta Gold', hex: '#FAF3E0', finishes: ['Polished','Honed'], popularity: 3, priceTier: 'premium' },
   { id: 'neo-calacatta-luxe', brand: 'neolith', collection: 'Marble Style', name: 'Calacatta Luxe', hex: '#F8F8F8', finishes: ['Polished','Honed'], popularity: 3, priceTier: 'premium' },
@@ -59,7 +59,7 @@ export const COUNTERTOP_COLORS = [
   { id: 'neo-boho',           brand: 'neolith', collection: 'Faux Wood',    name: 'Boho',           hex: '#C4A574', finishes: ['Matte'], popularity: 1, priceTier: 'mid' },
   { id: 'neo-summerdale',     brand: 'neolith', collection: 'Faux Wood',    name: 'Summerdale',     hex: '#D4B896', finishes: ['Matte'], popularity: 1, priceTier: 'mid' },
 
-  // ââââââââââ DEKTON ââââââââââ
+  // ────────── DEKTON ──────────
   { id: 'dek-olimpo',   brand: 'dekton', collection: 'Stonika',    name: 'Olimpo',   hex: '#F0F0F0', finishes: ['Matte','Polished'], popularity: 4, priceTier: 'premium' },
   { id: 'dek-bergen',   brand: 'dekton', collection: 'Stonika',    name: 'Bergen',   hex: '#D4C5B0', finishes: ['Matte','Polished'], popularity: 2, priceTier: 'premium' },
   { id: 'dek-arga',     brand: 'dekton', collection: 'Stonika',    name: 'Arga',     hex: '#E8E0D0', finishes: ['Matte','Polished'], popularity: 3, priceTier: 'premium' },
@@ -69,14 +69,14 @@ export const COUNTERTOP_COLORS = [
   { id: 'dek-rem',      brand: 'dekton', collection: 'Natural',    name: 'Rem',      hex: '#B0A090', finishes: ['Matte','Polished'], popularity: 2, priceTier: 'mid' },
   { id: 'dek-trilium',  brand: 'dekton', collection: 'Industrial', name: 'Trilium',  hex: '#3A3A38', finishes: ['Matte','Polished'], popularity: 3, priceTier: 'mid' },
 
-  // ââââââââââ CAESARSTONE ââââââââââ
+  // ────────── CAESARSTONE ──────────
   { id: 'cs-pure-white',      brand: 'caesarstone', collection: 'Standard',      name: 'Pure White',        code: '1141', hex: '#FFFFFF', finishes: ['Polished'], popularity: 4, priceTier: 'standard' },
   { id: 'cs-calacatta-nuvo',  brand: 'caesarstone', collection: 'Supernatural',  name: 'Calacatta Nuvo',    code: '5131', hex: '#F5F0E8', finishes: ['Polished'], popularity: 5, priceTier: 'mid' },
   { id: 'cs-statuario-max',   brand: 'caesarstone', collection: 'Supernatural',  name: 'Statuario Maximus', code: '5031', hex: '#F5F5F5', finishes: ['Polished'], popularity: 4, priceTier: 'mid' },
   { id: 'cs-statuario-nuvo',  brand: 'caesarstone', collection: 'Supernatural',  name: 'Statuario Nuvo',    code: '5111', hex: '#E8DCC8', finishes: ['Polished'], popularity: 3, priceTier: 'mid' },
   { id: 'cs-empira-white',    brand: 'caesarstone', collection: 'Supernatural',  name: 'Empira White',      code: '5151', hex: '#F8F8F8', finishes: ['Polished'], popularity: 2, priceTier: 'mid' },
 
-  // ââââââââââ CAMBRIA ââââââââââ
+  // ────────── CAMBRIA ──────────
   { id: 'cam-inverness-frost',brand: 'cambria', collection: 'Signature',     name: 'Inverness Frost',       hex: '#F0F0F0', finishes: ['Polished'], popularity: 5, priceTier: 'mid' },
   { id: 'cam-brittanicca-gw', brand: 'cambria', collection: 'Signature',     name: 'Brittanicca Gold Warm', hex: '#E8D8C0', finishes: ['Polished'], popularity: 4, priceTier: 'premium' },
   { id: 'cam-brittanicca',    brand: 'cambria', collection: 'White Family',  name: 'Brittanicca',           hex: '#E8E8E0', finishes: ['Polished'], popularity: 5, priceTier: 'premium' },
@@ -88,7 +88,7 @@ export const COUNTERTOP_COLORS = [
   { id: 'cam-claremont',      brand: 'cambria', collection: '2025 New',      name: 'Claremont',             hex: '#E8D8C8', finishes: ['Polished'], popularity: 2, priceTier: 'mid' },
   { id: 'cam-kenwood',        brand: 'cambria', collection: '2025 New',      name: 'Kenwood',               hex: '#D0C0A8', finishes: ['Polished'], popularity: 1, priceTier: 'mid' },
 
-  // ââââââââââ NATURAL QUARTZITE ââââââââââ
+  // ────────── NATURAL QUARTZITE ──────────
   { id: 'qz-taj-mahal',         brand: 'quartzite', collection: 'Premium',  name: 'Taj Mahal',          hex: '#E8D8C8', finishes: ['Polished','Honed','Leathered'], popularity: 5, priceTier: 'luxury',  origin: 'Brazil', priceOverride: { low: 100, high: 250 } },
   { id: 'qz-super-white',       brand: 'quartzite', collection: 'Premium',  name: 'Super White',        hex: '#F5F5F0', finishes: ['Polished','Honed','Leathered'], popularity: 5, priceTier: 'premium', origin: 'Brazil', priceOverride: { low: 90, high: 180 } },
   { id: 'qz-calacatta-macaubas',brand: 'quartzite', collection: 'Premium',  name: 'Calacatta Macaubas', hex: '#E8E0D8', finishes: ['Polished','Honed','Leathered'], popularity: 4, priceTier: 'premium', origin: 'Brazil', priceOverride: { low: 90, high: 180 } },
@@ -96,7 +96,7 @@ export const COUNTERTOP_COLORS = [
   { id: 'qz-fantasy-macaubas',  brand: 'quartzite', collection: 'Standard', name: 'Fantasy Macaubas',   hex: '#D0C8C0', finishes: ['Polished','Honed','Leathered'], popularity: 3, priceTier: 'premium', origin: 'Brazil', priceOverride: { low: 90, high: 180 } }
 ];
 
-// âââ Thickness options by brand âââ
+// ─── Thickness options by brand ───
 export const THICKNESS_OPTIONS = {
   neolith:     ['6mm', '12mm', '20mm'],
   dekton:      ['8mm', '12mm', '20mm', '30mm'],
@@ -105,7 +105,7 @@ export const THICKNESS_OPTIONS = {
   quartzite:   ['20mm', '30mm']
 };
 
-// âââ Helper functions âââ
+// ─── Helper functions ───
 
 /** Get all colors for a brand */
 export function getColorsByBrand(brandId) {
