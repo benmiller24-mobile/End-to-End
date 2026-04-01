@@ -23,8 +23,8 @@ const MIN_FILLER = 0.75;    // overlay filler minimum
 
 // ─── SKU BUILDERS ──────────────────────────────────────────────
 const BASE_SKU_MAP = {
-  rangeFlanking:  (w) => w <= 12 ? `BKI-${w}` : `B-RT${w}`,
-  sinkAdjacent:   (w) => w <= 15 ? `BTD-${w}` : `B3D${w}`,
+  rangeFlanking:  (w) => w <= 12 ? `BKI${w}` : `B${w}-RT`,
+  sinkAdjacent:   (w) => w <= 15 ? `BTD${w}` : `B3D${w}`,
   fridgeAdjacent: (w) => `B3D${w}`,
   general:        (w) => w <= 18 ? `B3D${w}` : `B3D${w}`,
   pantry:         (w) => `B3D${w}`,
@@ -37,8 +37,8 @@ const UPPER_SKU_MAP = {
 const FILLER_SKUS = {
   overlay:    (w) => `OVF${w < 3 ? 1.5 : 3}`,
   strip:      (w) => `F${Math.ceil(w)}30`,
-  endPanel:   (side) => side === 'left' ? 'BEP3/4L-FTK' : 'BEP3/4R-FTK',
-  wallEndPanel: (side) => side === 'left' ? 'FWEP3/4-L' : 'FWEP3/4-R',
+  endPanel:   () => 'BEP3/4-FTK-L/R',
+  wallEndPanel: (h) => `FWEP3/4-L/R-${h || 27}"`,
 };
 
 
