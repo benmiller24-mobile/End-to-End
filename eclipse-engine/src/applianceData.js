@@ -8,6 +8,7 @@
 export const APPLIANCE_BRANDS = [
   { id: 'subzero', name: 'Sub-Zero', tier: 'ultra', logo: '❄️', categories: ['refrigerator','freezer','wine'] },
   { id: 'wolf', name: 'Wolf', tier: 'ultra', logo: '🔥', categories: ['range','cooktop','wallOven','microwave','hood'] },
+  { id: 'cove', name: 'Cove', tier: 'ultra', logo: '💎', categories: ['dishwasher'] },
   { id: 'thermador', name: 'Thermador', tier: 'premium', logo: '⭐', categories: ['range','cooktop','wallOven','dishwasher','refrigerator','freezer'] },
   { id: 'fisherPaykel', name: 'Fisher & Paykel', tier: 'premium', logo: '🌿', categories: ['range','cooktop','dishwasher','refrigerator'] },
   { id: 'miele', name: 'Miele', tier: 'premium', logo: '🏔️', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
@@ -62,6 +63,10 @@ export const APPLIANCES = [
   // Wolf Hood
   { id:'wolf-pw362210', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW362210', width:36, height:22, depth:10, panelReady:false, ss:true, msrp:2800, features:['Pro Wall Hood','600 CFM'] },
   { id:'wolf-pw482210', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW482210', width:48, height:22, depth:10, panelReady:false, ss:true, msrp:3200, features:['Pro Wall Hood','1200 CFM'] },
+
+  // ──────────── COVE DISHWASHERS (Sub-Zero/Wolf Group) ────────────
+  { id:'cove-dw2450ws', brand:'cove', type:'dishwasher', subtype:'panel-ready', model:'DW2450WS', width:24, height:34, depth:24, panelReady:true, ss:false, msrp:2599, features:['24" Panel Ready','40 dBA','TrueDry','Wi-Fi','3rd Rack','FlexFit'] },
+  { id:'cove-dw2450', brand:'cove', type:'dishwasher', subtype:'stainless', model:'DW2450', width:24, height:34, depth:24, panelReady:false, ss:true, msrp:2399, features:['24" Stainless Steel','42 dBA','TrueDry','3rd Rack'] },
 
   // ──────────── THERMADOR ────────────
   // Thermador Pro Ranges

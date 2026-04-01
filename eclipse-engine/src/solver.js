@@ -179,6 +179,38 @@ import {
   DESIGN_PRESETS,
 } from './style-morphing.js';
 
+import {
+  solveRoomExpert,
+  analyzeRoom,
+  solveWorkTriangle as solveWorkTriangleExpert,
+  DESIGN_HIERARCHY,
+  ECLIPSE_STANDARD_WIDTHS,
+} from './expert-design-workflow.js';
+
+import {
+  detectCommonLines,
+  alignUppersToBase,
+  scoreAlignment,
+  centerUpperRun,
+  exportAlignmentGrid,
+} from './vertical-alignment.js';
+
+import {
+  runProfessionalAudit,
+  AUDIT_WEIGHTS,
+} from './professional-audit.js';
+
+import {
+  snapToNeighbor,
+  snapToGrid,
+  buildCabinetIntelligence,
+  insertWithCollisionCheck,
+  resolveApplianceFirst,
+  analyzeGaps,
+  PLACEMENT_ORDER,
+  SNAP_CONSTANTS,
+} from './snap-collision.js';
+
 
 // ─── PROFESSIONAL DESIGN PATTERNS (from training data) ──────────────────────
 // Extracted from 47 real kitchen projects (Bollini, Spector, Owen, Huang, etc.)
@@ -1356,6 +1388,100 @@ export function solve(input) {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 10: EXPERT DESIGN INTELLIGENCE — Vertical Alignment, Audit, Snap Logic
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── 10a: Vertical Common-Line Alignment ──
+  // Scores how well upper cabinet seams align with base cabinet seams.
+  // Professional designs maintain a clean vertical grid.
+  let alignmentReport = null;
+  let alignmentGrid = null;
+  try {
+    for (const wl of wallLayouts) {
+      const ul = upperLayouts.find(u => u.wallId === wl.wallId);
+      if (!ul || !ul.cabinets?.length || !wl.cabinets?.length) continue;
+      const baseCabs = wl.cabinets.filter(c => c.width && typeof c.position === 'number');
+      const upperCabs = ul.cabinets.filter(c => c.width && typeof c.position === 'number');
+      if (!baseCabs.length || !upperCabs.length) continue;
+
+      const wallAlignment = scoreAlignment(baseCabs, upperCabs);
+      if (!alignmentReport) alignmentReport = { walls: [], overallScore: 0 };
+      alignmentReport.walls.push({ wallId: wl.wallId, ...wallAlignment });
+
+      if (wallAlignment.score < 50) {
+        validation.push({
+          severity: 'warning',
+          rule: 'vertical_alignment_low',
+          message: `Wall ${wl.wallId}: upper/base seam alignment score ${wallAlignment.score}/100 (${wallAlignment.alignedSeams}/${wallAlignment.totalSeams} seams aligned)`,
+        });
+      }
+    }
+    if (alignmentReport?.walls?.length) {
+      alignmentReport.overallScore = Math.round(
+        alignmentReport.walls.reduce((s, w) => s + w.score, 0) / alignmentReport.walls.length
+      );
+      // Generate visual grid for renderer
+      try {
+        const firstWall = wallLayouts[0];
+        const firstUpper = upperLayouts.find(u => u.wallId === firstWall?.wallId);
+        if (firstWall?.cabinets && firstUpper?.cabinets) {
+          alignmentGrid = exportAlignmentGrid(firstWall.cabinets, firstUpper.cabinets);
+        }
+      } catch (_) { /* alignment grid is optional */ }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'alignment_error', message: `Vertical alignment: ${e.message}` });
+  }
+
+  // ── 10b: Professional Audit (Gatekeeper) ──
+  // Comprehensive self-check: work triangle, DW placement, landing areas,
+  // symmetry, clearances, SKU validity, NKBA compliance, material consistency.
+  // Returns A-F grade and 0-100 score.
+  let auditReport = null;
+  try {
+    if (roomType === 'kitchen') {
+      auditReport = runProfessionalAudit(
+        {
+          walls: wallLayouts, uppers: upperLayouts, talls,
+          island: islandLayout, peninsula: peninsulaLayout,
+          corners, accessories, placements, coordinatedPlacements,
+        },
+        input,
+        prefs || {}
+      );
+      // Merge critical issues into validation
+      if (auditReport?.criticalIssues?.length) {
+        for (const ci of auditReport.criticalIssues) {
+          validation.push({
+            severity: 'error',
+            rule: `audit_${ci.category || 'critical'}`,
+            message: ci.message,
+            fix: ci.fix || null,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'audit_error', message: `Professional audit: ${e.message}` });
+  }
+
+  // ── 10c: Room Analysis (Expert Workflow Context) ──
+  // Analyzes center-points, traffic paths, and anchor suggestions.
+  // This data feeds future interactive "solve room" mode.
+  let roomAnalysis = null;
+  try {
+    const features = (input.features || []).concat(
+      (input.windows || []).map(w => ({ type: 'window', wall: w.wall, position: w.position, width: w.width || 36 })),
+      (input.doors || []).map(d => ({ type: 'door', wall: d.wall, position: d.position, width: d.width || 36 })),
+    );
+    if (features.length > 0 || walls.length > 0) {
+      roomAnalysis = analyzeRoom(walls, features);
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'room_analysis_error', message: `Room analysis: ${e.message}` });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return {
     layoutType,
@@ -1403,6 +1529,12 @@ export function solve(input) {
     lightRailExtrusion,        // light rail path extrusion
     finishMetrics,             // door weight, paintable area, glass, hinges
 
+    // ── Phase 10: Expert Design Intelligence ──
+    alignmentReport,           // vertical seam alignment scores per wall
+    alignmentGrid,             // SVG-ready vertical/horizontal grid lines
+    auditReport,               // professional A-F grade with category scores
+    roomAnalysis,              // center-points, traffic paths, anchor suggestions
+
     metadata: {
       totalCabinets: placements.filter(p => p.role !== "accessory").length,
       totalAccessories: accessories.length,
@@ -1439,6 +1571,11 @@ export function solve(input) {
       totalHinges: finishMetrics?.hingeCount || 0,
       crownMoldingLinearFt: moldingExtrusion?.totalLength ? moldingExtrusion.totalLength / 12 : 0,
       lightRailLinearFt: lightRailExtrusion?.totalLength ? lightRailExtrusion.totalLength / 12 : 0,
+      // Phase 10 summary
+      verticalAlignmentScore: alignmentReport?.overallScore || null,
+      auditGrade: auditReport?.grade || null,
+      auditScore: auditReport?.score || null,
+      passesMinimumAudit: auditReport?.passesMinimum ?? null,
     },
   };
 }
