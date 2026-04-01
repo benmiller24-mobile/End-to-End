@@ -284,6 +284,14 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
                 {appLabel(cab.applianceType)}
               </text>
             )}
+            {/* SKU label on cabinet face */}
+            {!isApp && sku && w >= 10 * S && (
+              <text x={x + w / 2} y={y + h - 3} fill="#5c6370"
+                fontSize={Math.min(3.2, (w / S) * 0.13)} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="400" opacity={0.75}>
+                {sku}
+              </text>
+            )}
           </g>
         );
       })}
@@ -298,6 +306,14 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
         return (
           <g key={`u${i}`}>
             <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} />
+            {/* SKU label on upper cabinet */}
+            {cab.sku && w >= 10 * S && (
+              <text x={x + w / 2} y={y + uH - 3} fill="#5c6370"
+                fontSize={Math.min(3.2, (w / S) * 0.13)} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="400" opacity={0.75}>
+                {cab.sku}
+              </text>
+            )}
           </g>
         );
       })}
@@ -322,6 +338,14 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
                 fontSize={4} fontFamily="Helvetica,Arial,sans-serif"
                 textAnchor="middle" fontWeight="600" fontStyle="italic">
                 {appLabel(cab.applianceType)}
+              </text>
+            )}
+            {/* SKU label on tall cabinet */}
+            {!isApp && cab.sku && w >= 6 * S && (
+              <text x={x + w / 2} y={y + tH / 2} fill="#5c6370"
+                fontSize={Math.min(3, (w / S) * 0.12)} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="400" opacity={0.7}>
+                {cab.sku}
               </text>
             )}
           </g>
