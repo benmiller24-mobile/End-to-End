@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Eclipse Cabinet Placement Schema",
+  "description": "Anchor-based coordinate system for deterministic cabinet layout. Every cabinet has position_start (X=0 at wall left edge). Cabinet B.position_start === Cabinet A.position_end. No overlaps, no gaps (fillers fill gaps).",
+
+  "definitions": {
+    "inches": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Measurement in inches from wall origin (X=0)"
+    },
+
+    "cabinetPlacement": {
+      "type": "object",
+      "required": ["sku", "width", "position_start", "position_end", "type", "wall_id", "tag"],
+      "additionalProperties": true,
+      "properties": {
+        "sku": {
+          "type": "string",
+          "description": "Eclipse C3 catalog SKU (e.g., B3D27, BL36-SS-PH, W2439)",
+          "minLength": 2
+        },
+        "width": {
+          "$ref": "#/definitions/inches",
+          "description": "Cabinet width in inches. Must equal position_end - position_start."
+        },
+        "position_start": {
+          "$ref": "#/definitions/inches",
+          "description": "Left edge X-coordinate from wall origin (X=0). For first cabinet after corner, this equals corner.wallConsumption."
+        },
+        "position_end": {
+          "$ref": "#/definitions/inches",
+          "description": "Right edge X-coordinate. Must === position_start + width."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["base", "upper", "tall", "corner", "filler", "appliance", "accessory"],
+          "description": "Cabinet zone type"
+        },
+        "wall_id": {
+          "type": "string",
+          "description": "Wall identifier (e.g., 'A', 'B', 'C')"
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "^KD\\d+$",
+          "description": "NKBA KD-prefix circle tag (e.g., KD1, KD2)"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "rangeFlanking", "sinkAdjacent", "fridgeAdjacent",
+            "general", "cornerFiller", "endFiller",
+            "pantry", "oven_tower", "fridge_panel",
+            "appliance", "endPanel", "decorPanel"
+          ],
+          "description": "Functional role determining SKU pattern selection"
+        },
+        "zone": {
+          "type": "string",
+          "enum": ["prep", "cook", "clean", "store", "serve"],
+          "description": "NKBA work zone classification"
+        },
+        "depth": {
+          "$ref": "#/definitions/inches",
+          "description": "Cabinet depth (24 for base, 12 for upper, varies for tall)"
+        },
+        "height": {
+          "$ref": "#/definitions/inches",
+          "description": "Cabinet height (34.5 for base, 30-42 for upper, 84-96 for tall)"
+        }
+      }
+    },
+
+    "cornerPlacement": {
+      "type": "object",
+      "required": ["sku", "type", "wall_a", "wall_b", "wall_a_consumption", "wall_b_consumption"],
+      "properties": {
+        "sku": {
+          "type": "string",
+          "enum": ["BL36-SS-PH", "BDL36-SS", "BHM36R-SS", "BHM42R-SS", "BBC42R-MC", "BBC48R-MC", "BBC42R-S", "BBC48R-S", "DSB42-2D"]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["lazySusan", "diagonalLazy", "halfMoon", "magicCorner", "quarterTurnShelves", "diagonalSink"]
+        },
+        "wall_a": { "type": "string" },
+        "wall_b": { "type": "string" },
+        "wall_a_consumption": {
+          "$ref": "#/definitions/inches",
+          "description": "Inches consumed from Wall A. All Wall A cabinets start AFTER this offset."
+        },
+        "wall_b_consumption": {
+          "$ref": "#/definitions/inches",
+          "description": "Inches consumed from Wall B. All Wall B cabinets start AFTER this offset."
+        },
+        "filler_required": { "type": "boolean" },
+        "filler_width": { "$ref": "#/definitions/inches" }
+      }
+    },
+
+    "wallLayout": {
+      "type": "object",
+      "required": ["wall_id", "wall_length", "available_after_corners", "cabinets"],
+      "properties": {
+        "wall_id": { "type": "string" },
+        "wall_length": {
+          "$ref": "#/definitions/inches",
+          "description": "Total wall length in inches"
+        },
+        "corner_left_consumption": {
+          "$ref": "#/definitions/inches",
+          "default": 0,
+          "description": "Inches consumed by left corner. First cabinet starts here."
+        },
+        "corner_right_consumption": {
+          "$ref": "#/definitions/inches",
+          "default": 0,
+          "description": "Inches consumed by right corner. Last cabinet ends at wall_length - this."
+        },
+        "available_after_corners": {
+          "$ref": "#/definitions/inches",
+          "description": "wall_length - corner_left_consumption - corner_right_consumption"
+        },
+        "cabinets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/cabinetPlacement" },
+          "description": "Ordered array. cabinets[i].position_end === cabinets[i+1].position_start for ALL i."
+        }
+      }
+    },
+
+    "fillerRule": {
+      "type": "object",
+      "description": "When wall_length - sum(cabinet.width) > 0, a filler must close the gap.",
+      "properties": {
+        "gap_inches": { "$ref": "#/definitions/inches" },
+        "action": {
+          "type": "string",
+          "enum": ["overlay_filler_3in", "strip_filler_6in", "resize_last_cabinet", "split_fillers"]
+        },
+        "sku": { "type": "string" },
+        "position_start": { "$ref": "#/definitions/inches" },
+        "position_end": { "$ref": "#/definitions/inches" }
+      }
+    }
+  },
+
+  "type": "object",
+  "required": ["layout_type", "walls", "corners", "validation"],
+  "properties": {
+    "layout_type": {
+      "type": "string",
+      "enum": ["single-wall", "l-shape", "u-shape", "g-shape", "galley", "peninsula", "island"]
+    },
+    "walls": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/wallLayout" },
+      "minItems": 1
+    },
+    "corners": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/cornerPlacement" }
+    },
+    "upper_cabinets": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/wallLayout" },
+      "description": "Upper cabinet runs, same anchor system. Skip zones above range/hood."
+    },
+    "tall_cabinets": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/cabinetPlacement" }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["chain_integrity", "boundary_check", "work_triangle"],
+      "properties": {
+        "chain_integrity": {
+          "type": "boolean",
+          "description": "True if every cab[i].position_end === cab[i+1].position_start"
+        },
+        "boundary_check": {
+          "type": "boolean",
+          "description": "True if no cabinet exceeds wall_length"
+        },
+        "work_triangle": {
+          "type": "object",
+          "properties": {
+            "compliant": { "type": "boolean" },
+            "total_legs": { "$ref": "#/definitions/inches" },
+            "sink_to_range": { "$ref": "#/definitions/inches" },
+            "range_to_fridge": { "$ref": "#/definitions/inches" },
+            "fridge_to_sink": { "$ref": "#/definitions/inches" }
+          }
+        },
+        "overlap_count": { "type": "integer", "minimum": 0 },
+        "gap_count": { "type": "integer", "minimum": 0 },
+        "filler_total_inches": { "$ref": "#/definitions/inches" },
+        "errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}
