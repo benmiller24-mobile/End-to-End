@@ -126,9 +126,9 @@ const PRO_DESIGN = {
 
   // End panels - EVERY exposed end gets a panel
   endPanels: {
-    wallFlush: (height, side) => ({ sku: `FWEP3/4 ${height}-${side}`, desc: 'Wall Flush End Panel', height }),
+    wallFlush: (height, side) => ({ sku: `FWEP3/4-L/R-${height}"`, desc: 'Wall Flush End Panel', height }),
     refEnd: (height, width, side) => ({ sku: `REP3/4 ${height}FTK-${width}${side}`, desc: 'Refrig End Panel', height, width }),
-    baseEnd: (side) => ({ sku: `BEP3/4${side}-FTK`, desc: 'Base End Panel', side }),
+    baseEnd: (side) => ({ sku: `BEP3/4-FTK-L/R`, desc: 'Base End Panel', side }),
     baseEndHalf: (side) => ({ sku: `BEP1 1/2${side}-FTK`, desc: 'Base End Panel 1.5"', side }),
   },
 
@@ -1120,7 +1120,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     // Left end panel: add if no left corner consuming that space
     if (!leftCorner && minPos > 0) {
       wl.cabinets.push({
-        sku: "BEP3/4L-FTK",
+        sku: "BEP3/4-FTK-L/R",
         width: 0.75,
         type: "end_panel",
         role: "base_end_panel",
@@ -1135,7 +1135,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
       const wallLen = wallDef?.length || 96;
       if (maxPos < wallLen) {
         wl.cabinets.push({
-          sku: "BEP3/4R-FTK",
+          sku: "BEP3/4-FTK-L/R",
           width: 0.75,
           type: "end_panel",
           role: "base_end_panel",
@@ -1167,7 +1167,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     // Left FWEP
     if (minPos > 0) {
       ul.cabinets.push({
-        sku: "FWEP3/4L",
+        sku: "FWEP3/4-L/R-27\"",
         width: 0.75,
         height: upperH,
         type: "end_panel",
@@ -1182,7 +1182,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     const wallLen = wallDef?.length || 96;
     if (maxPos < wallLen) {
       ul.cabinets.push({
-        sku: "FWEP3/4R",
+        sku: "FWEP3/4-L/R-27\"",
         width: 0.75,
         height: upperH,
         type: "end_panel",
@@ -2138,12 +2138,22 @@ function buildSku(cabType, width, golaPrefix) {
   // Handle half-widths
   const wStr = width % 1 === 0 ? `${width}` : `${Math.floor(width)} 1/2`;
 
-  // B3D, B4D, B — just append width
-  if (cabType.endsWith("B3D") || cabType.endsWith("B4D")) {
+  // B3D, B4D, B2HD, B — just append width (e.g., B3D27, B4D21, B2HD36)
+  if (cabType.endsWith("B3D") || cabType.endsWith("B4D") || cabType.endsWith("B2HD")) {
     return `${cabType}${wStr}`;
   }
   if (cabType.endsWith("B")) {
     return `${cabType}${wStr}`;
+  }
+  // Dash-suffix patterns: B-RT → B27-RT, B-FHD → B27-FHD, B-2D → B27-2D
+  // Catalog format is B{width}-{suffix}, NOT B-{suffix}{width}
+  const dashMatch = cabType.match(/^((?:FC-)?B)-(.+)$/);
+  if (dashMatch) {
+    return `${dashMatch[1]}${wStr}-${dashMatch[2]}`;
+  }
+  // BPOS → BPOS-{width}
+  if (cabType.endsWith("BPOS")) {
+    return `${cabType}-${wStr}`;
   }
   return `${cabType}${wStr}`;
 }
