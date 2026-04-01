@@ -371,25 +371,77 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
         );
       })()}
 
-      {/* ── TRIM: CROWN MOLDING ── */}
+      {/* ── TRIM: CROWN MOLDING (path-based — skips hoods/appliances) ── */}
       {trim.crown && validUppers.length > 0 && (() => {
-        const minX = Math.min(...validUppers.map(u => u.position * S));
-        const maxX = Math.max(...validUppers.map(u => (u.position + u.width) * S));
+        // Build path segments that skip hood/microwave zones
+        const allUpperCabs = [...validUppers];
+        if (hood) allUpperCabs.push({ ...hood, _isHood: true, role: 'range_hood' });
+        const sorted = allUpperCabs
+          .filter(c => typeof c.position === 'number' && c.width > 0)
+          .sort((a, b) => a.position - b.position);
+
+        // Segment builder: continuous runs that skip hoods
+        const segments = [];
+        let segStart = null, segEnd = null;
+        for (const cab of sorted) {
+          const isSkip = cab._isHood || cab.role === 'range_hood' || cab.role === 'rangeHood'
+            || cab.type === 'rangeHood' || (cab.applianceType || '') === 'microwave';
+          if (isSkip) {
+            if (segStart !== null) { segments.push({ s: segStart, e: segEnd }); segStart = null; }
+            continue;
+          }
+          const cs = cab.position;
+          const ce = cab.position + (cab.width || 0);
+          if (segStart === null) { segStart = cs; segEnd = ce; }
+          else if (cs <= segEnd + 0.5) { segEnd = Math.max(segEnd, ce); }
+          else { segments.push({ s: segStart, e: segEnd }); segStart = cs; segEnd = ce; }
+        }
+        if (segStart !== null) segments.push({ s: segStart, e: segEnd });
+
         const crH = 3 * S;
-        return (
-          <rect x={minX} y={upTopY - crH} width={maxX - minX} height={crH}
+        // Crown offset: sits ON TOP of cabinet exterior face, not inside box
+        // Z = CabinetTop, Y = CabinetDepth (front face)
+        return segments.map((seg, i) => (
+          <rect key={`cr${i}`} x={seg.s * S} y={upTopY - crH}
+            width={(seg.e - seg.s) * S} height={crH}
             fill={C.ctrFill} stroke={C.line} strokeWidth={0.4} />
-        );
+        ));
       })()}
 
-      {/* ── TRIM: LIGHT RAIL ── */}
+      {/* ── TRIM: LIGHT RAIL (path-based — skips hoods/appliances) ── */}
       {trim.lightRail && validUppers.length > 0 && (() => {
-        const minX = Math.min(...validUppers.map(u => u.position * S));
-        const maxX = Math.max(...validUppers.map(u => (u.position + u.width) * S));
-        return (
-          <rect x={minX} y={upBotY} width={maxX - minX} height={1.2 * S}
+        // Same segment logic — light rail runs under wall cabs only
+        const allUpperCabs = [...validUppers];
+        if (hood) allUpperCabs.push({ ...hood, _isHood: true, role: 'range_hood' });
+        const sorted = allUpperCabs
+          .filter(c => typeof c.position === 'number' && c.width > 0)
+          .sort((a, b) => a.position - b.position);
+
+        const segments = [];
+        let segStart = null, segEnd = null;
+        for (const cab of sorted) {
+          const isSkip = cab._isHood || cab.role === 'range_hood' || cab.role === 'rangeHood'
+            || cab.type === 'rangeHood' || (cab.applianceType || '') === 'microwave';
+          if (isSkip) {
+            if (segStart !== null) { segments.push({ s: segStart, e: segEnd }); segStart = null; }
+            continue;
+          }
+          const cs = cab.position;
+          const ce = cab.position + (cab.width || 0);
+          if (segStart === null) { segStart = cs; segEnd = ce; }
+          else if (cs <= segEnd + 0.5) { segEnd = Math.max(segEnd, ce); }
+          else { segments.push({ s: segStart, e: segEnd }); segStart = cs; segEnd = ce; }
+        }
+        if (segStart !== null) segments.push({ s: segStart, e: segEnd });
+
+        // Light rail offset: hangs BELOW cabinet bottom on exterior face
+        // Z = CabinetBottom, pushed to front face (not inside box)
+        const lrH = 1.2 * S;
+        return segments.map((seg, i) => (
+          <rect key={`lr${i}`} x={seg.s * S} y={upBotY}
+            width={(seg.e - seg.s) * S} height={lrH}
             fill="#b0a89e" stroke={C.line} strokeWidth={0.3} />
-        );
+        ));
       })()}
 
       {/* ══════════ NUMBERED DIAMOND TAGS ══════════ */}
