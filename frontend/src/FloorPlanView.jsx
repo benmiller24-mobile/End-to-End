@@ -179,10 +179,22 @@ function DoorSwing({ x, y, w, d }) {
 // ─── WALL SEGMENT RENDERER ───────────────────────────────────────────
 
 function WallSegment({ wx, wy, angle, length, placements, upperCabs, wallId }) {
-  // Filter base/tall/appliance cabs for this wall
+  // Resolve compound wall IDs (corner cabs: "wallA-wallB")
+  const matchesWall = (pWall) => {
+    if (pWall === wallId) return true;
+    if (pWall && pWall.includes('-')) {
+      const parts = pWall.split('-');
+      return parts[0] === wallId || parts[1] === wallId;
+    }
+    return false;
+  };
+
+  // Filter ALL wall-assigned cabs (bases, talls, appliances, corners, fillers, end panels)
   const bases = placements.filter(p =>
-    p.wall === wallId && typeof p.position === 'number' && p.position >= 0 && p.width > 0
-    && (p.type === 'base' || p.type === 'tall' || p.type === 'appliance')
+    matchesWall(p.wall) && typeof p.position === 'number' && p.position >= 0 && p.width > 0
+    && p.type !== 'upper' && p._elev?.zone !== 'UPPER'
+    && !(p.wall && p.wall.startsWith('island'))
+    && p.wall !== 'peninsula'
   ).sort((a, b) => a.position - b.position);
 
   // Filter upper cabs for this wall
@@ -200,13 +212,23 @@ function WallSegment({ wx, wy, angle, length, placements, upperCabs, wallId }) {
       {bases.map((cab, i) => {
         const x = cab.position;
         const w = cab.width;
-        const d = cab.depth || (cab.type === 'tall' ? 24 : BASE_D);
+        const appType = (cab.applianceType || '').toLowerCase();
+        const isFridge = appType === 'refrigerator' || appType === 'freezer' || appType === 'winecolumn';
+        const d = cab.depth || cab._elev?.depth || (cab.type === 'tall' || isFridge ? 27 : BASE_D);
         const isApp = cab.type === 'appliance' || !!cab.applianceType;
-        const isTall = cab.type === 'tall';
+        const isTall = cab.type === 'tall' || isFridge || cab._elev?.zone === 'TALL';
+        const isCorner = cab.type === 'corner';
 
         return (
           <g key={`base-${i}`}>
-            {isApp ? (
+            {isCorner ? (
+              <>
+                <rect x={x} y={WALL_T / 2} width={w} height={w}
+                  fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
+                <line x1={x} y1={WALL_T / 2 + w} x2={x + w} y2={WALL_T / 2}
+                  stroke={C.cabStroke} strokeWidth={0.3} opacity={0.4} />
+              </>
+            ) : isApp ? (
               <PlanAppliance x={x} y={WALL_T / 2} w={w} d={d} aType={cab.applianceType} />
             ) : (
               <>
@@ -219,16 +241,27 @@ function WallSegment({ wx, wy, angle, length, placements, upperCabs, wallId }) {
 
             {/* Width label inside */}
             {w >= 12 && (
-              <text x={x + w / 2} y={WALL_T / 2 + d / 2 + 1.2} fill={C.dimText}
+              <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? w : d) / 2 + 1.2} fill={C.dimText}
                 fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
                 textAnchor="middle" fontWeight="500">{w}"</text>
             )}
 
             {/* Tall marker */}
-            {isTall && (
+            {isTall && !isApp && (
               <text x={x + 1} y={WALL_T / 2 + 4} fill={C.dimText}
                 fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
                 fontStyle="italic" opacity={0.6}>TALL</text>
+            )}
+
+            {/* Appliance label in plan */}
+            {isApp && w >= 15 && (
+              <text x={x + w / 2} y={WALL_T / 2 + d / 2 - 2} fill={C.dimText}
+                fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontStyle="italic" opacity={0.7}>
+                {appType === 'range' ? 'RANGE' : appType === 'refrigerator' ? 'REF' :
+                 appType === 'dishwasher' ? 'DW' : appType === 'sink' ? 'SINK' :
+                 (appType || '').toUpperCase().substring(0, 6)}
+              </text>
             )}
           </g>
         );
@@ -360,27 +393,46 @@ export default function FloorPlanView({ solverResult, inputWalls }) {
     return `0 0 ${Math.max(maxX + 100, 300)} ${Math.max(maxY + 120, 220)}`;
   }, [wallPositions]);
 
+  // Resolve compound wall IDs
+  const resolveWallId = (pWall) => {
+    if (!pWall) return null;
+    const wp = wallPositions.find(w => w.id === pWall);
+    if (wp) return pWall;
+    if (pWall.includes('-')) {
+      const parts = pWall.split('-');
+      if (wallPositions.find(w => w.id === parts[0])) return parts[0];
+      if (wallPositions.find(w => w.id === parts[1])) return parts[1];
+    }
+    return null;
+  };
+
   // Assign numbered tags to all cabinets across walls
   const tagAssignments = useMemo(() => {
     const tags = [];
     let num = 1;
 
     wallPositions.forEach(wp => {
-      // Base/tall/appliance items on this wall
-      const wallItems = placements.filter(p =>
-        p.wall === wp.id && typeof p.position === 'number' && p.position >= 0 && p.width > 0
-        && (p.type === 'base' || p.type === 'tall' || p.type === 'appliance')
-      ).sort((a, b) => a.position - b.position);
+      // All non-upper items on this wall (bases, talls, appliances, corners, fillers)
+      const wallItems = placements.filter(p => {
+        const resolved = resolveWallId(p.wall);
+        return resolved === wp.id && typeof p.position === 'number' && p.position >= 0 && p.width > 0
+          && p.type !== 'upper' && p._elev?.zone !== 'UPPER'
+          && !(p.wall && p.wall.startsWith('island'))
+          && p.wall !== 'peninsula';
+      }).sort((a, b) => a.position - b.position);
 
       wallItems.forEach(item => {
+        const appType = (item.applianceType || '').toLowerCase();
+        const isFridge = appType === 'refrigerator' || appType === 'freezer';
         tags.push({
           wallId: wp.id,
           position: item.position,
           width: item.width,
-          depth: item.depth || BASE_D,
+          depth: item.depth || item._elev?.depth || (isFridge ? 27 : BASE_D),
           num: num++,
           sku: item.sku || item.applianceType || '',
           isAppliance: item.type === 'appliance',
+          isTall: item.type === 'tall' || isFridge || item._elev?.zone === 'TALL',
         });
       });
 
