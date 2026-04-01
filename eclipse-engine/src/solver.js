@@ -63,6 +63,12 @@ import {
   build3DModel, merge3DValidation, apply3DElevData,
 } from './engine-3d.js';
 
+import {
+  validateChain as linearValidateChain,
+  validateNKBA as linearValidateNKBA,
+  decomposeToStandardWidths,
+} from './linear-stacker.js';
+
 
 // ─── PROFESSIONAL DESIGN PATTERNS (from training data) ──────────────────────
 // Extracted from 47 real kitchen projects (Bollini, Spector, Owen, Huang, etc.)
@@ -1264,6 +1270,8 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
       width: app.width,
       model: app.model,
       position: app.position,
+      position_start: app.position,
+      position_end: app.position + (app.width || 0),
       wall: wall.id,
       _depthOverhang: app._depthOverhang || 0,
       _depth: app._depth || DIMS.baseDepth,
@@ -1286,6 +1294,89 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
   // Sort by position
   cabinets.sort((a, b) => (a.position || 0) - (b.position || 0));
 
+  // ── ANCHOR-BASED CHAIN INTEGRITY ENFORCEMENT ──
+  // Strict left→right chaining: cab[i].position_end === cab[i+1].position_start
+  // This eliminates gaps and overlaps that make the layout "not work."
+  //
+  // Step 1: Assign position_start / position_end to every cabinet
+  for (const cab of cabinets) {
+    cab.position_start = cab.position;
+    cab.position_end = cab.position + (cab.width || 0);
+  }
+
+  // Step 2: Enforce chain — snap each cabinet to end of previous
+  for (let i = 1; i < cabinets.length; i++) {
+    const prev = cabinets[i - 1];
+    const curr = cabinets[i];
+    const prevEnd = prev.position_end;
+    const delta = curr.position_start - prevEnd;
+
+    // Allow small gaps (≤ 0.5") — close them by snapping
+    if (delta > 0 && delta <= 0.5) {
+      curr.position = prevEnd;
+      curr.position_start = prevEnd;
+      curr.position_end = prevEnd + (curr.width || 0);
+    }
+    // Overlap: shift right to eliminate
+    else if (delta < 0) {
+      curr.position = prevEnd;
+      curr.position_start = prevEnd;
+      curr.position_end = prevEnd + (curr.width || 0);
+    }
+    // Gap > 0.5" but ≤ 6": this is a filler zone — don't snap, let filler handle it
+    // Gap > 6": likely a segment boundary (appliance between) — don't snap
+  }
+
+  // Step 3: Filler-as-variable — compute actual wall coverage
+  const totalPlacedWidth = cabinets.reduce((sum, c) => sum + (c.width || 0), 0);
+  const wallEndPos = leftConsumed + availableLength;
+  const lastCab = cabinets[cabinets.length - 1];
+  const actualEnd = lastCab ? lastCab.position_end : leftConsumed;
+  const terminalGap = wallEndPos - actualEnd;
+
+  // If there's a terminal gap ≤ 6", insert a filler to close the wall
+  if (terminalGap > 0.5 && terminalGap <= 6 && lastCab) {
+    cabinets.push({
+      sku: terminalGap <= 3 ? `OVF${Math.ceil(terminalGap * 2) / 2}` : `F${Math.ceil(terminalGap)}30`,
+      width: terminalGap,
+      type: "filler",
+      role: "terminal_filler",
+      position: actualEnd,
+      position_start: actualEnd,
+      position_end: actualEnd + terminalGap,
+      _chainEnforced: true,
+    });
+  }
+  // Terminal gap > 6" but last cab is base: try to widen it (width mod)
+  else if (terminalGap > 6 && lastCab && lastCab.type === "base") {
+    const newWidth = lastCab.width + terminalGap;
+    // Only widen if it doesn't exceed max standard width (48") by too much
+    if (newWidth <= 54) {
+      lastCab.width = newWidth;
+      lastCab.position_end = lastCab.position_start + newWidth;
+      lastCab.sku = buildSku(lastCab.sku.replace(/\d+/, ''), newWidth, golaPrefix);
+      lastCab.modified = { type: "MOD WIDTH N/C", gapAbsorbed: terminalGap };
+      lastCab._chainEnforced = true;
+    }
+  }
+
+  // Step 4: Validate chain integrity
+  const chainResult = linearValidateChain(cabinets.map(c => ({
+    sku: c.sku,
+    position_start: c.position_start,
+    position_end: c.position_end,
+    width: c.width,
+  })));
+
+  if (!chainResult.valid) {
+    for (const brk of chainResult.breaks) {
+      placementWarnings.push({
+        type: 'chain_break',
+        message: `Chain break on wall ${wall.id}: ${brk.prevSku} ends at ${brk.prevEnd}", ${brk.nextSku} starts at ${brk.nextStart}" (gap: ${brk.gap}")`,
+      });
+    }
+  }
+
   return {
     wallId: wall.id,
     wallLength: wall.length,
@@ -1293,6 +1384,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     cabinets,
     corners: corners.map(c => c.id),
     availableAfterCorners: availableLength,
+    chainIntegrity: chainResult.valid,
     _warnings: placementWarnings,
   };
 }
@@ -1958,6 +2050,8 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
       role: zone,
       zoneFunction,
       position: pos,
+      position_start: pos,
+      position_end: pos + w,
       modified: result.modified && w === result.modified.modified ? result.modified : null,
       patternId: patternNote,
     });
@@ -1976,6 +2070,8 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
         type: "filler",
         role: "zone_transition_filler",
         position: pos,
+        position_start: pos,
+        position_end: pos + result.filler,
         decisionNote: "Phase 2: OVF3 for ≤3\" gaps per FILLER_MOD_RULES",
       });
     } else if (result.filler <= 6) {
@@ -1986,6 +2082,8 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
         type: "filler",
         role: "filler",
         position: pos,
+        position_start: pos,
+        position_end: pos + result.filler,
         decisionNote: "Phase 2: F3 filler for 3-6\" gaps",
       });
     } else {
@@ -2026,6 +2124,8 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
           type: "filler",
           role: "terminal_filler",
           position: pos,
+          position_start: pos,
+          position_end: pos + result.filler,
           decisionNote: "Phase 2: terminal filler (no adjacent cabinet to widen)",
         });
       }
@@ -2792,7 +2892,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
       const lastDisplay = displayCabs[displayCabs.length - 1];
       // Left FWEP before first display cab
       uppers.push({
-        sku: "FWEP",
+        sku: `FWEP3/4-L/R-${firstDisplay.height || 27}"`,
         width: 0.75, // 3/4" panel
         height: firstDisplay.height,
         type: "end_panel",
@@ -2804,7 +2904,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
       });
       // Right FWEP after last display cab
       uppers.push({
-        sku: "FWEP",
+        sku: `FWEP3/4-L/R-${lastDisplay.height || 27}"`,
         width: 0.75,
         height: lastDisplay.height,
         type: "end_panel",
@@ -4320,15 +4420,15 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
         const hasLeftCorner = ul.corners?.some(c => corners.find(cr => cr.id === c && cr.wallB === ul.wallId));
         const hasRightCorner = ul.corners?.some(c => corners.find(cr => cr.id === c && cr.wallA === ul.wallId));
 
-        // FWEP3/4 for wall end panels (from patterns.js endPanels definition)
-        const wallEndPanelSku = "FWEP3/4";
+        // FWEP3/4 for wall end panels — catalog format: FWEP3/4-L/R-{height}"
+        const upperH = first.height || prefs.upperHeight || 27;
 
         if (!hasLeftCorner && first.position <= 6) {
-          accessories.push({ sku: `${wallEndPanelSku}-L`, wall: ul.wallId, role: "wall-end-panel-left" });
+          accessories.push({ sku: `FWEP3/4-L/R-${upperH}"`, wall: ul.wallId, role: "wall-end-panel-left" });
           totalEndPanels++;
         }
         if (!hasRightCorner) {
-          accessories.push({ sku: `${wallEndPanelSku}-R`, wall: ul.wallId, role: "wall-end-panel-right" });
+          accessories.push({ sku: `FWEP3/4-L/R-${upperH}"`, wall: ul.wallId, role: "wall-end-panel-right" });
           totalEndPanels++;
         }
       }
