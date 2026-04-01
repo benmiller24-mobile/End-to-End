@@ -45,6 +45,17 @@ function findSkuNormalized(sku) {
   let r = findSku(sku); if (r) return r;
   let s = sku.replace(/(\d+)\.5/g, '$1 1/2'); r = findSku(s); if (r) return r;
   s = s.replace(/-PH([LR])$/, '-PH'); r = findSku(s); if (r) return r;
+  // B-RT27 → B27-RT (solver puts width after suffix, catalog puts it before)
+  if (/^B-RT\d/.test(sku)) { const m = sku.match(/^B-RT(\d+)/); if (m) { r = findSku(`B${m[1]}-RT`); if (r) return r; r = findSku(`B${m[1]}-1DR-RT`); if (r) return r; } }
+  // BEP3/4L-FTK → BEP3/4-FTK-L/R
+  if (/^BEP3\/4[LR]-FTK/.test(sku)) { r = findSku('BEP3/4-FTK-L/R'); if (r) return r; }
+  if (/^BEP3\/4[LR]$/.test(sku)) { r = findSku('BEP3/4-L/R'); if (r) return r; }
+  // FWEP3/4L or FWEP3/4R → FWEP3/4-L/R-27" (try common heights)
+  if (/^FWEP3\/4[LR]$/.test(sku)) { for (const h of [27,30,33,36,39,42]) { r = findSku(`FWEP3/4-L/R-${h}"`); if (r) return r; } }
+  // SCRIBE-8' → search for scribe
+  if (/^SCRIBE/i.test(sku)) { const results = searchSkus('SCRIBE'); if (results.length) return results[0]; r = findSku('3SRM3F-10\''); if (r) return r; }
+  // DWP-24 → search for DWP
+  if (/^DWP/.test(sku)) { const results = searchSkus('DWP'); if (results.length) return results[0]; }
   if (/^S?WSC\d+/.test(sku)) { const b = sku.match(/^(S?WSC\d{2})/)?.[1]; if (b) { r = findSku(b + '-PH'); if (r) return r; } }
   if (/^W\d/.test(sku)) { const m = sku.match(/^W(\d+(?:\.\d+)?)(\d{2,3})$/); if (m) { const w = m[1].replace('.5', ''); r = findSku('W' + w + m[2]); if (r) return r; r = findSku('W' + w + '36'); if (r) return r; } }
   if (/^(OVF3|F3)\d{2}/.test(sku)) { const results = searchSkus(sku.startsWith('OVF3') ? 'OVF3' : 'F3'); if (results.length) return results[0]; }
