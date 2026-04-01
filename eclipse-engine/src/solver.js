@@ -69,6 +69,12 @@ import {
   decomposeToStandardWidths,
 } from './linear-stacker.js';
 
+import {
+  validateSpatialLayout,
+  computeCornerAnchors,
+  buildMoldingPathSegments,
+} from './spatial-validator.js';
+
 
 // ─── PROFESSIONAL DESIGN PATTERNS (from training data) ──────────────────────
 // Extracted from 47 real kitchen projects (Bollini, Spector, Owen, Huang, etc.)
@@ -701,6 +707,23 @@ export function solve(input) {
   // Phase 7b: Aesthetic scoring (Phase 3 — symmetry, consistency, proportionality)
   const aesthetics = scoreAesthetics(wallLayouts, upperLayouts, corners, pf);
 
+  // ── Phase 7c: Spatial Validation (corner anchors, chain, trim collisions) ──
+  const spatialReport = validateSpatialLayout({ walls: wallLayouts, uppers: upperLayouts, corners, accessories, talls });
+  for (const err of spatialReport.errors) {
+    validation.push({ severity: 'error', rule: err.rule, message: err.message, fix: err.fix });
+  }
+  for (const warn of spatialReport.warnings) {
+    validation.push({ severity: 'warning', rule: warn.rule, message: warn.message, fix: warn.fix });
+  }
+
+  // ── Build path-based molding segments for renderer ──
+  // Crown and light rail must follow cabinet contours, skipping hood zones.
+  // These segments replace the old min-to-max rectangle approach.
+  const moldingPaths = {
+    crown: spatialReport.crownPaths || [],
+    lightRail: spatialReport.lightRailPaths || [],
+  };
+
   // Phase 8: Optionally assign 3D coordinates (when requested via prefs.coordinates)
   let coordinatedPlacements = null;
   if (pf.coordinates) {
@@ -850,6 +873,8 @@ export function solve(input) {
     placements,
     coordinatedPlacements,
     validation,
+    moldingPaths,           // path-based molding segments for renderer
+    spatialValidation: spatialReport, // full spatial validation report
     metadata: {
       totalCabinets: placements.filter(p => p.role !== "accessory").length,
       totalAccessories: accessories.length,
@@ -1294,50 +1319,101 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
   // Sort by position
   cabinets.sort((a, b) => (a.position || 0) - (b.position || 0));
 
-  // ── ANCHOR-BASED CHAIN INTEGRITY ENFORCEMENT ──
-  // Strict left→right chaining: cab[i].position_end === cab[i+1].position_start
-  // This eliminates gaps and overlaps that make the layout "not work."
+  // ══════════════════════════════════════════════════════════════
+  // CORNER-FIRST ANCHOR-BASED CHAIN INTEGRITY ENFORCEMENT
+  // ══════════════════════════════════════════════════════════════
   //
+  // Design rule: Corners are ANCHORS. All cabinet runs chain from
+  // corner edges. The corner occupies a fixed footprint; adjacent
+  // cabinets must snap to that footprint's boundary.
+  //
+  // Coordinate system:
+  //   leftConsumed = corner B consumption (left anchor)
+  //   wallEndPos   = wall.length - rightConsumed (right anchor)
+  //   cab[0].position_start MUST equal leftConsumed (or 0 if no left corner)
+  //   cab[last].position_end MUST equal wallEndPos (or wall.length if no right corner)
+  //   cab[i].position_end === cab[i+1].position_start (zero gap between)
+
+  const wallStartAnchor = leftConsumed;      // left corner edge (or 0)
+  const wallEndAnchor = wall.length - rightConsumed; // right corner edge (or wall.length)
+
   // Step 1: Assign position_start / position_end to every cabinet
   for (const cab of cabinets) {
-    cab.position_start = cab.position;
-    cab.position_end = cab.position + (cab.width || 0);
+    cab.position_start = cab.position ?? 0;
+    cab.position_end = (cab.position ?? 0) + (cab.width || 0);
   }
 
-  // Step 2: Enforce chain — snap each cabinet to end of previous
+  // Step 2: Corner-first anchor snap
+  // Ensure first non-filler cabinet starts at the left anchor
+  const realCabs = cabinets.filter(c => c.type !== 'end_panel' && c.role !== 'corner-filler');
+  if (realCabs.length > 0) {
+    const firstCab = realCabs[0];
+    const drift = firstCab.position_start - wallStartAnchor;
+    if (Math.abs(drift) > 0 && Math.abs(drift) <= 6) {
+      // Snap first cabinet to left anchor
+      firstCab.position = wallStartAnchor;
+      firstCab.position_start = wallStartAnchor;
+      firstCab.position_end = wallStartAnchor + (firstCab.width || 0);
+    }
+  }
+
+  // Step 3: Enforce strict chain — snap each cabinet to end of previous
+  // This treats the wall as a 1D coordinate line: no gaps, no overlaps.
   for (let i = 1; i < cabinets.length; i++) {
     const prev = cabinets[i - 1];
     const curr = cabinets[i];
+    if (curr.type === 'end_panel' || curr.role === 'corner-filler') continue;
+    if (prev.type === 'end_panel' || prev.role === 'corner-filler') continue;
+
     const prevEnd = prev.position_end;
     const delta = curr.position_start - prevEnd;
 
-    // Allow small gaps (≤ 0.5") — close them by snapping
-    if (delta > 0 && delta <= 0.5) {
+    // Close micro-gaps (≤ 1") by snapping
+    if (delta > 0 && delta <= 1) {
       curr.position = prevEnd;
       curr.position_start = prevEnd;
       curr.position_end = prevEnd + (curr.width || 0);
     }
-    // Overlap: shift right to eliminate
-    else if (delta < 0) {
+    // Fix overlaps: shift right
+    else if (delta < -0.1) {
       curr.position = prevEnd;
       curr.position_start = prevEnd;
       curr.position_end = prevEnd + (curr.width || 0);
     }
-    // Gap > 0.5" but ≤ 6": this is a filler zone — don't snap, let filler handle it
-    // Gap > 6": likely a segment boundary (appliance between) — don't snap
+    // Gap 1-6": insert a filler to close
+    else if (delta > 1 && delta <= 6) {
+      const fillerSku = delta <= 3
+        ? `OVF${Math.ceil(delta * 2) / 2}`
+        : `F${Math.ceil(delta)}30`;
+      cabinets.splice(i, 0, {
+        sku: fillerSku,
+        width: delta,
+        type: "filler",
+        role: "chain_filler",
+        position: prevEnd,
+        position_start: prevEnd,
+        position_end: prevEnd + delta,
+        _chainEnforced: true,
+      });
+      i++; // skip inserted filler
+    }
+    // Gap > 6": this is an appliance segment boundary — leave it but log
   }
 
-  // Step 3: Filler-as-variable — compute actual wall coverage
-  const totalPlacedWidth = cabinets.reduce((sum, c) => sum + (c.width || 0), 0);
-  const wallEndPos = leftConsumed + availableLength;
-  const lastCab = cabinets[cabinets.length - 1];
-  const actualEnd = lastCab ? lastCab.position_end : leftConsumed;
-  const terminalGap = wallEndPos - actualEnd;
+  // Step 4: Terminal gap — close to right anchor (corner edge or wall end)
+  const sortedFinal = cabinets
+    .filter(c => c.type !== 'end_panel' && c.role !== 'corner-filler')
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+  const lastCab = sortedFinal[sortedFinal.length - 1];
+  const actualEnd = lastCab ? lastCab.position_end : wallStartAnchor;
+  const terminalGap = wallEndAnchor - actualEnd;
 
-  // If there's a terminal gap ≤ 6", insert a filler to close the wall
   if (terminalGap > 0.5 && terminalGap <= 6 && lastCab) {
+    const fillerSku = terminalGap <= 3
+      ? `OVF${Math.ceil(terminalGap * 2) / 2}`
+      : `F${Math.ceil(terminalGap)}30`;
     cabinets.push({
-      sku: terminalGap <= 3 ? `OVF${Math.ceil(terminalGap * 2) / 2}` : `F${Math.ceil(terminalGap)}30`,
+      sku: fillerSku,
       width: terminalGap,
       type: "filler",
       role: "terminal_filler",
@@ -1346,11 +1422,9 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
       position_end: actualEnd + terminalGap,
       _chainEnforced: true,
     });
-  }
-  // Terminal gap > 6" but last cab is base: try to widen it (width mod)
-  else if (terminalGap > 6 && lastCab && lastCab.type === "base") {
+  } else if (terminalGap > 6 && lastCab && lastCab.type === "base") {
+    // Try width mod to absorb gap (professional approach)
     const newWidth = lastCab.width + terminalGap;
-    // Only widen if it doesn't exceed max standard width (48") by too much
     if (newWidth <= 54) {
       lastCab.width = newWidth;
       lastCab.position_end = lastCab.position_start + newWidth;
@@ -1360,9 +1434,37 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     }
   }
 
-  // Step 4: Validate chain integrity
-  const chainResult = linearValidateChain(cabinets.map(c => ({
-    sku: c.sku,
+  // Step 5: Starting gap — close to left anchor
+  const firstReal = cabinets
+    .filter(c => c.type !== 'end_panel' && c.role !== 'corner-filler')
+    .sort((a, b) => (a.position || 0) - (b.position || 0))[0];
+  if (firstReal) {
+    const startGap = firstReal.position_start - wallStartAnchor;
+    if (startGap > 0.5 && startGap <= 6) {
+      const fillerSku = startGap <= 3
+        ? `OVF${Math.ceil(startGap * 2) / 2}`
+        : `F${Math.ceil(startGap)}30`;
+      cabinets.push({
+        sku: fillerSku,
+        width: startGap,
+        type: "filler",
+        role: "start_filler",
+        position: wallStartAnchor,
+        position_start: wallStartAnchor,
+        position_end: wallStartAnchor + startGap,
+        _chainEnforced: true,
+      });
+      cabinets.sort((a, b) => (a.position || 0) - (b.position || 0));
+    }
+  }
+
+  // Step 6: Validate chain integrity
+  const chainCabs = cabinets
+    .filter(c => c.type !== 'end_panel' && c.role !== 'corner-filler')
+    .sort((a, b) => (a.position || 0) - (b.position || 0));
+
+  const chainResult = linearValidateChain(chainCabs.map(c => ({
+    sku: c.sku || c.applianceType,
     position_start: c.position_start,
     position_end: c.position_end,
     width: c.width,
@@ -1377,6 +1479,24 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     }
   }
 
+  // Step 7: Anchor verification — log if first/last don't hit anchor exactly
+  if (chainCabs.length > 0) {
+    const fStart = chainCabs[0].position_start;
+    const lEnd = chainCabs[chainCabs.length - 1].position_end;
+    if (Math.abs(fStart - wallStartAnchor) > 1) {
+      placementWarnings.push({
+        type: 'anchor_drift_left',
+        message: `Wall ${wall.id}: first cabinet starts at ${fStart}" but left anchor is ${wallStartAnchor}" (drift: ${(fStart - wallStartAnchor).toFixed(1)}")`,
+      });
+    }
+    if (Math.abs(lEnd - wallEndAnchor) > 1) {
+      placementWarnings.push({
+        type: 'anchor_drift_right',
+        message: `Wall ${wall.id}: last cabinet ends at ${lEnd}" but right anchor is ${wallEndAnchor}" (drift: ${(wallEndAnchor - lEnd).toFixed(1)}")`,
+      });
+    }
+  }
+
   return {
     wallId: wall.id,
     wallLength: wall.length,
@@ -1385,6 +1505,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     corners: corners.map(c => c.id),
     availableAfterCorners: availableLength,
     chainIntegrity: chainResult.valid,
+    cornerAnchors: { left: wallStartAnchor, right: wallEndAnchor },
     _warnings: placementWarnings,
   };
 }
