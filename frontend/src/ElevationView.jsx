@@ -536,8 +536,13 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
 export default function ElevationView({ solverResult, trim = {} }) {
   if (!solverResult) return null;
 
-  const placements = solverResult.placements || [];
-  const upperData = solverResult.uppers || [];
+  // Use SOURCE arrays (walls, uppers, talls, corners) — NOT placements.
+  // Source arrays have correct _elev data from assignElevToSourceObjects.
+  // The flat placements array has _elev from assignSpatialData which misclassifies some types.
+  const wallLayouts = solverResult.walls || [];
+  const upperLayouts = solverResult.uppers || [];
+  const tallCabs = solverResult.talls || [];
+  const corners = solverResult.corners || [];
   const inputWalls = solverResult._inputWalls || [];
 
   const wallData = useMemo(() => {
@@ -550,58 +555,68 @@ export default function ElevationView({ solverResult, trim = {} }) {
       };
     });
 
-    // Resolve wall ID — handles compound corner IDs like "wall_A-wall_B"
-    const resolveWall = (wid) => {
-      if (!wid) return null;
-      if (data[wid]) return wid;
-      // Compound wall ID (corner cabs)
-      if (wid.includes('-')) {
-        const parts = wid.split('-');
-        if (data[parts[0]]) return parts[0];
-        if (data[parts[1]]) return parts[1];
-      }
-      return null;
-    };
+    // 1. Base cabinets + appliances from wallLayouts (source of truth)
+    wallLayouts.forEach(wl => {
+      const wid = wl.wallId;
+      if (!wid || !data[wid]) return;
+      (wl.cabinets || []).forEach(cab => {
+        if (typeof cab.position !== 'number' || isNaN(cab.position)) return;
+        if (!cab.width || cab.width <= 0) return;
 
-    // Classify and route all placements
-    placements.forEach(p => {
-      const wid = resolveWall(p.wall);
-      if (!wid) return;
-      if (typeof p.position !== 'number' || p.position < 0) return;
+        const appType = (cab.applianceType || '').toLowerCase();
+        const isTall = cab._elev?.zone === 'TALL' || appType === 'refrigerator' ||
+          appType === 'freezer' || appType === 'winecolumn';
 
-      const elevZone = p._elev?.zone;
-      const appType = (p.applianceType || '').toLowerCase();
-      const isTallZone = appType === 'refrigerator' || appType === 'freezer' ||
-        appType === 'winecolumn' || p.type === 'tall' || elevZone === 'TALL';
-
-      // Skip uppers in placements — they come from upperData
-      if (p.type === 'upper' || elevZone === 'UPPER') return;
-      // Skip island/peninsula items
-      if (p.wall && p.wall.startsWith('island')) return;
-      if (p.wall === 'peninsula') return;
-
-      if (isTallZone) {
-        data[wid].talls.push(p);
-      } else if (p.width > 0) {
-        data[wid].bases.push(p);
-      }
+        if (isTall) {
+          data[wid].talls.push(cab);
+        } else {
+          data[wid].bases.push(cab);
+        }
+      });
     });
 
-    // Uppers + hood from upperData (source of truth for uppers)
-    upperData.forEach(uw => {
-      const wid = uw.wallId;
+    // 2. Corner cabinets → assign to wallA at their position
+    corners.forEach(corner => {
+      const wid = corner.wallA;
       if (!wid || !data[wid]) return;
-      (uw.cabinets || []).forEach(c => {
-        if (c.type === 'rangeHood' || c.role === 'rangeHood' || (c.applianceType || '').toLowerCase() === 'hood') {
-          data[wid].hood = c;
+      // Corner sits at the end of wallA
+      const wl = wallLayouts.find(w => w.wallId === wid);
+      const pos = wl ? wl.wallLength - corner.size : 0;
+      data[wid].bases.push({
+        sku: corner.sku,
+        type: 'corner',
+        width: corner.size,
+        position: pos,
+        _elev: corner._elev || { zone: 'BASE', yMount: 4.5, height: 30 },
+      });
+    });
+
+    // 3. Tall cabinets (oven towers, pantry towers, fridge panels)
+    tallCabs.forEach(tall => {
+      const wid = tall.wall;
+      if (!wid || !data[wid]) return;
+      if (typeof tall.position !== 'number' || isNaN(tall.position)) return;
+      data[wid].talls.push(tall);
+    });
+
+    // 4. Upper cabinets + hood from upperLayouts (source of truth)
+    upperLayouts.forEach(ul => {
+      const wid = ul.wallId;
+      if (!wid || !data[wid]) return;
+      (ul.cabinets || []).forEach(cab => {
+        if (typeof cab.position !== 'number' || isNaN(cab.position)) return;
+        if (!cab.width || cab.width <= 0) return;
+        if (cab.type === 'rangeHood' || cab.role === 'range_hood' ||
+            (cab.applianceType || '').toLowerCase() === 'hood') {
+          data[wid].hood = cab;
         } else {
-          data[wid].uppers.push(c);
+          data[wid].uppers.push(cab);
         }
       });
     });
 
     return Object.values(data);
-  }, [placements, upperData, inputWalls]);
+  }, [wallLayouts, upperLayouts, tallCabs, corners, inputWalls]);
 
   // Assign sequential tag numbers across all walls
   let globalTag = 1;
