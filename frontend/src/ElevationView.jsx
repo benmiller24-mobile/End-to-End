@@ -232,7 +232,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
       <rect x={0} y={tkY} width={wW} height={TOEKICK * S}
         fill={C.toekick} stroke={C.floor} strokeWidth={0.3} />
 
-      {/* ── COUNTERTOP ── */}
+      {/* ── COUNTERTOP (spans base cabs only, not fridge/talls) ── */}
       {validBases.length > 0 && (() => {
         const minX = Math.min(...validBases.map(b => b.position * S));
         const maxX = Math.max(...validBases.map(b => (b.position + b.width) * S));
@@ -255,8 +255,19 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
         const drMatch = sku.match(/B(\d?)D/);
         const drawers = drMatch ? parseInt(drMatch[1] || '1') : 0;
         const doors = cab.width > 24 ? 2 : 1;
-        const h = baseBoxH;
-        const y = floorY - TOEKICK * S - h;
+
+        // Use _elev data for vertical positioning when available
+        const elev = cab._elev || {};
+        let h, y;
+        if (elev.yMount === 0 && elev.height) {
+          // Items starting from floor (range/cooktop sits on floor)
+          h = elev.height * S;
+          y = floorY - h;
+        } else {
+          // Standard base cabs sit on toekick
+          h = baseBoxH;
+          y = floorY - TOEKICK * S - h;
+        }
 
         return (
           <g key={`b${i}`}>
@@ -291,15 +302,28 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
         );
       })}
 
-      {/* ── TALL CABINETS ── */}
+      {/* ── TALL CABINETS & TALL APPLIANCES (fridge, wine column) ── */}
       {sortedTalls.map((cab, i) => {
         const x = (cab.position || 0) * S;
         const w = (cab.width || 18) * S;
-        const tH = (cab.height || TALL_H) * S;
+        const tH = (cab._elev?.height || cab.height || TALL_H) * S;
         const y = floorY - tH;
+        const isApp = cab.type === 'appliance' || !!cab.applianceType;
+        const doors = cab.width > 24 ? 2 : 1;
         return (
           <g key={`t${i}`}>
-            <CabFront x={x} y={y} w={w} h={tH} doors={1} drawers={0} />
+            {isApp ? (
+              <ApplianceSym x={x} y={y} w={w} h={tH} aType={cab.applianceType || 'unknown'} />
+            ) : (
+              <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} />
+            )}
+            {isApp && (
+              <text x={x + w / 2} y={y - 4} fill={C.dimText}
+                fontSize={4} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="600" fontStyle="italic">
+                {appLabel(cab.applianceType)}
+              </text>
+            )}
           </g>
         );
       })}
@@ -356,43 +380,46 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
 
       {/* ══════════ BOTTOM DIMENSION STRINGS ══════════ */}
       <g>
-        {/* Extension lines from every cabinet edge */}
-        {sortedBases.map((cab, i) => {
-          const lx = cab.position * S;
-          const rx = (cab.position + cab.width) * S;
-          return (
-            <g key={`ext${i}`}>
-              <line x1={lx} y1={floorY + 1} x2={lx} y2={floorY + 18}
-                stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
-              <line x1={rx} y1={floorY + 1} x2={rx} y2={floorY + 18}
-                stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
-            </g>
-          );
-        })}
+        {/* Combine all wall items (bases + talls) for dimension strings */}
+        {(() => {
+          const allCabs = [...sortedBases, ...sortedTalls]
+            .filter(c => typeof c.position === 'number' && c.width > 0)
+            .sort((a, b) => a.position - b.position);
+          if (allCabs.length === 0) return null;
 
-        {/* Individual width dimension line */}
-        {sortedBases.length > 0 && (() => {
-          const first = sortedBases[0].position * S;
-          const last = sortedBases[sortedBases.length - 1];
-          const end = (last.position + last.width) * S;
-          const dimY = floorY + 16;
           const els = [];
-          // Continuous line
-          els.push(<line key="dl" x1={first} y1={dimY} x2={end} y2={dimY}
-            stroke={C.dimLine} strokeWidth={0.4} />);
-          // Tick + label per cabinet
-          sortedBases.forEach((cab, i) => {
+          // Extension lines from every cabinet edge
+          allCabs.forEach((cab, i) => {
             const lx = cab.position * S;
             const rx = (cab.position + cab.width) * S;
-            // Left tick
+            els.push(
+              <line key={`extL${i}`} x1={lx} y1={floorY + 1} x2={lx} y2={floorY + 18}
+                stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
+            );
+            els.push(
+              <line key={`extR${i}`} x1={rx} y1={floorY + 1} x2={rx} y2={floorY + 18}
+                stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
+            );
+          });
+
+          // Continuous dimension line
+          const first = allCabs[0].position * S;
+          const lastCab = allCabs[allCabs.length - 1];
+          const end = (lastCab.position + lastCab.width) * S;
+          const dimY = floorY + 16;
+          els.push(<line key="dl" x1={first} y1={dimY} x2={end} y2={dimY}
+            stroke={C.dimLine} strokeWidth={0.4} />);
+
+          // Tick + width label per cabinet
+          allCabs.forEach((cab, i) => {
+            const lx = cab.position * S;
+            const rx = (cab.position + cab.width) * S;
             els.push(<line key={`t${i}l`} x1={lx} y1={dimY - 2.5} x2={lx} y2={dimY + 2.5}
               stroke={C.dimLine} strokeWidth={0.4} />);
-            // Right tick (last one)
-            if (i === sortedBases.length - 1) {
+            if (i === allCabs.length - 1) {
               els.push(<line key={`t${i}r`} x1={rx} y1={dimY - 2.5} x2={rx} y2={dimY + 2.5}
                 stroke={C.dimLine} strokeWidth={0.4} />);
             }
-            // Width label
             els.push(
               <text key={`w${i}`} x={(lx + rx) / 2} y={dimY - 3.5} fill={C.dimText}
                 fontSize={4.2} fontFamily="Helvetica,Arial,sans-serif"
@@ -523,23 +550,53 @@ export default function ElevationView({ solverResult, trim = {} }) {
       };
     });
 
-    // Base placements
+    // Resolve wall ID — handles compound corner IDs like "wall_A-wall_B"
+    const resolveWall = (wid) => {
+      if (!wid) return null;
+      if (data[wid]) return wid;
+      // Compound wall ID (corner cabs)
+      if (wid.includes('-')) {
+        const parts = wid.split('-');
+        if (data[parts[0]]) return parts[0];
+        if (data[parts[1]]) return parts[1];
+      }
+      return null;
+    };
+
+    // Classify and route all placements
     placements.forEach(p => {
-      const wid = p.wall;
-      if (!wid || !data[wid]) return;
-      if (p.type === 'tall') data[wid].talls.push(p);
-      else if (p.type === 'appliance' || p.type === 'base') {
-        if (typeof p.position === 'number') data[wid].bases.push(p);
+      const wid = resolveWall(p.wall);
+      if (!wid) return;
+      if (typeof p.position !== 'number' || p.position < 0) return;
+
+      const elevZone = p._elev?.zone;
+      const appType = (p.applianceType || '').toLowerCase();
+      const isTallZone = appType === 'refrigerator' || appType === 'freezer' ||
+        appType === 'winecolumn' || p.type === 'tall' || elevZone === 'TALL';
+
+      // Skip uppers in placements — they come from upperData
+      if (p.type === 'upper' || elevZone === 'UPPER') return;
+      // Skip island/peninsula items
+      if (p.wall && p.wall.startsWith('island')) return;
+      if (p.wall === 'peninsula') return;
+
+      if (isTallZone) {
+        data[wid].talls.push(p);
+      } else if (p.width > 0) {
+        data[wid].bases.push(p);
       }
     });
 
-    // Uppers + hood
+    // Uppers + hood from upperData (source of truth for uppers)
     upperData.forEach(uw => {
       const wid = uw.wallId;
       if (!wid || !data[wid]) return;
       (uw.cabinets || []).forEach(c => {
-        if (c.type === 'rangeHood') data[wid].hood = c;
-        else data[wid].uppers.push(c);
+        if (c.type === 'rangeHood' || c.role === 'rangeHood' || (c.applianceType || '').toLowerCase() === 'hood') {
+          data[wid].hood = c;
+        } else {
+          data[wid].uppers.push(c);
+        }
       });
     });
 
