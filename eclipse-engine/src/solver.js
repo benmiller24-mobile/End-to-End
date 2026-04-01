@@ -441,7 +441,7 @@ export function solve(input) {
       const fridge = positionedFridge;
       if (fridge) {
         if (tall.role === "fridge_panel" && tall.side === "left") {
-          tall.position = fridge.position - tall.width;
+          tall.position = Math.max(0, fridge.position - tall.width);
         } else if (tall.role === "fridge_panel" && tall.side === "right") {
           tall.position = fridge.position + (fridge.width || 36);
         } else if (tall.role === "fridge_wall_cab") {
@@ -1044,13 +1044,26 @@ function selectCornerTreatment(wallA, wallB, prefs) {
       };
     }
 
-    // Standard sophistication + adequate walls: quarter-turn shelves (Bissegger BBC42R-S)
+    // Standard sophistication + LONG walls: quarter-turn shelves (Bissegger BBC42R-S)
     // Training: BBC42R-S used in Bissegger Great Room
-    if (prefs.cornerTreatment === "auto" && cornerSoph === "standard" && aLen >= 42 && bLen >= 42) {
+    // BBC42R-S consumes 42" on wallA and 49" on wallB — only use when the shorter
+    // wall still has ≥84" remaining after consumption (enough for range + flanking cabs).
+    // For 120" walls: 120-49=71" remaining — NOT enough. Use BL36 instead.
+    if (prefs.cornerTreatment === "auto" && cornerSoph === "standard" && aLen >= 42 && bLen >= 42 && (Math.min(aLen, bLen) - 49) >= 84) {
       return {
         type: "quarterTurnShelves", sku: `BBC42R-S`, size: 42,
         wallAConsumption: 42, wallBConsumption: 49,
         fillerRequired: true, fillerWidth: 3, patternId: "quarter_turn_auto",
+      };
+    }
+
+    // Standard sophistication: fall through to BL36-SS-PH lazy susan (compact, fits all wall sizes)
+    if (prefs.cornerTreatment === "auto" && cornerSoph === "standard" && aLen >= 36 && bLen >= 36) {
+      return {
+        type: "lazySusan", sku: "BL36-SS-PH", size: 36,
+        wallAConsumption: 36, wallBConsumption: 36,
+        fillerRequired: false, patternId: "lazy_susan_auto_standard",
+        trainingFrequency: 7,
       };
     }
 
@@ -1199,7 +1212,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     if (corner.wallB === wall.id) {
       leftConsumed = corner.wallBConsumption;
       if (corner.fillerRequired) {
-        cabinets.push({ sku: `F3${Math.round(DIMS.baseHeight)}0`, width: corner.fillerWidth, role: "corner-filler", position: "left", wall: wall.id });
+        cabinets.push({ sku: `F3${Math.round(DIMS.baseHeight)}0`, width: corner.fillerWidth, role: "corner-filler", position: leftConsumed - corner.fillerWidth, wall: wall.id });
       }
     }
   }
