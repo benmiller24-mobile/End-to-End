@@ -86,6 +86,64 @@ import {
   getDoorGeometry,
 } from './eclipse-door-styles.js';
 
+import {
+  generateToeKickRuns,
+  validateToeKick,
+  TOE_KICK_CONSTANTS,
+} from './toe-kick-logic.js';
+
+import {
+  generateServiceZones,
+  validateServiceAccess,
+} from './service-zones.js';
+
+import {
+  calculateSwingArcs,
+  validateAllSwings,
+  SWING_ARC_SPECS,
+} from './collision-detection.js';
+
+import {
+  generateMountingRails,
+  RAIL_CONSTANTS,
+} from './mounting-rail.js';
+
+import {
+  generateLightingPlan,
+  calculateLEDRequirements,
+  LIGHTING_CONSTANTS,
+} from './lighting-automation.js';
+
+import {
+  applyScribeTolerance,
+  SCRIBE_CONSTANTS,
+} from './scribe-tolerance.js';
+
+import {
+  solveIslandPlacement,
+  calculateNoFlyZone,
+  calculateIslandClearances,
+  ISLAND_CONSTANTS,
+} from './island-solver.js';
+
+import {
+  calculateSeatingLayout,
+  SEATING_CONSTANTS,
+} from './seating-overhang.js';
+
+import {
+  validateNKBA,
+  generateOutletPlan,
+  validateWorkTriangle,
+  NKBA_STANDARDS,
+} from './nkba-validation.js';
+
+import {
+  generatePartIds,
+  generateBOM,
+  PART_ID_CONSTANTS,
+} from './part-id-generator.js';
+
 
 // ─── PROFESSIONAL DESIGN PATTERNS (from training data) ──────────────────────
 // Extracted from 47 real kitchen projects (Bollini, Spector, Owen, Huang, etc.)
@@ -892,6 +950,225 @@ export function solve(input) {
     validation.push({ severity: 'info', rule: '3d_engine_unavailable', message: `3D engine: ${e.message}` });
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 8: SYSTEM DEPENDENCIES — Installation-Level Automation
+  // ═══════════════════════════════════════════════════════════════════════════
+  // These sub-systems run AFTER all cabinets are placed. They generate the
+  // hidden infrastructure that separates a "box placer" from a professional
+  // installation engine.
+
+  const _ceilH = wallLayouts[0]?.ceilingHeight || DIMS.standardCeiling || 96;
+  const _tkGolaPrefix = prefs?.doorStyle === 'Gola' || prefs?.golaProfile ? 'C' : 'N';
+
+  // ── 8a: Continuous Toe-Kick Runs ──
+  // Traces the front line of base cabinets and generates one continuous sweep
+  // per wall run (no per-cabinet notches). Handles corners with 45° miters.
+  let toeKickResult = null;
+  try {
+    toeKickResult = generateToeKickRuns(wallLayouts, corners, islandLayout, peninsulaLayout, {
+      golaPrefix: _tkGolaPrefix,
+      materialMatch: prefs?.toeKickMaterial || 'match',
+    });
+    if (toeKickResult?.warnings?.length) {
+      for (const w of toeKickResult.warnings) {
+        validation.push({ severity: 'info', rule: 'toe_kick', message: w });
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'toe_kick_error', message: `Toe kick generation: ${e.message}` });
+  }
+
+  // ── 8b: Scribe Tolerance (Out-of-Square Wall Compensation) ──
+  // Any cabinet terminating at a wall gets 0.5" scribe margin.
+  // Adjusts cabinet widths and inserts SCRIBE-3 fillers.
+  let scribeResult = null;
+  try {
+    const wallDeviations = input.wallDeviations || {};
+    scribeResult = applyScribeTolerance(wallLayouts, upperLayouts, corners, wallDeviations);
+    if (scribeResult?.validation?.length) {
+      for (const v of scribeResult.validation) {
+        validation.push({ severity: v.severity || 'info', rule: 'scribe_tolerance', message: v.message || v });
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'scribe_error', message: `Scribe tolerance: ${e.message}` });
+  }
+
+  // ── 8c: Service Cavities & Plumbing Voids ──
+  // Generates knockout specs for sink P-traps, DW hose routes, gas lines,
+  // fridge water lines. Validates corner sink reach-back.
+  let serviceZones = null;
+  try {
+    const applianceList = placements.filter(p => p.type === 'appliance' || p.applianceType);
+    serviceZones = generateServiceZones(wallLayouts, islandLayout, applianceList);
+    if (serviceZones?.warnings?.length) {
+      for (const w of serviceZones.warnings) {
+        validation.push({
+          severity: w.severity || 'warning',
+          rule: `service_zone_${w.type || 'general'}`,
+          message: w.message || w,
+        });
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'service_zones_error', message: `Service zones: ${e.message}` });
+  }
+
+  // ── 8d: Appliance Door-Swing Collision Detection ──
+  // Checks that fridge doors, oven doors, DW doors can fully open without
+  // hitting walls, islands, or other appliance arcs.
+  let swingArcResult = null;
+  try {
+    swingArcResult = calculateSwingArcs(placements, wallLayouts, islandLayout);
+    if (swingArcResult?.collisions?.length) {
+      for (const c of swingArcResult.collisions) {
+        validation.push({
+          severity: c.severity || 'warning',
+          rule: 'door_swing_collision',
+          message: c.message || `Door swing collision: ${c.applianceA} vs ${c.obstruction || c.applianceB}`,
+          fix: c.suggestedFix || c.fix || null,
+        });
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'swing_arc_error', message: `Swing arc check: ${e.message}` });
+  }
+
+  // ── 8e: Mounting Rail Coordinate Generator ──
+  // Calculates Z-bracket/French cleat positions for all upper cabinets.
+  // Generates rail cut list with stud-aligned screw locations.
+  let mountingRails = null;
+  try {
+    const wallDefs = walls.map(w => ({ id: w.id, length: w.length, ceilingHeight: w.ceilingHeight || _ceilH }));
+    mountingRails = generateMountingRails(upperLayouts, wallDefs, {
+      lightingEnabled: prefs?.underCabinetLighting || false,
+      studSpacing: 16,
+    });
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'mounting_rail_error', message: `Mounting rails: ${e.message}` });
+  }
+
+  // ── 8f: Light Rail & LED Channel Automation ──
+  // Generates continuous light rail molding runs under uppers (skips hoods),
+  // calculates LED tape footage, drivers, and puck light positions.
+  let lightingPlan = null;
+  try {
+    lightingPlan = generateLightingPlan(upperLayouts, prefs, {
+      profile: prefs?.lightRailProfile || 'SQ',
+      ledIntensity: prefs?.ledIntensity || 'standard',
+      puckLights: prefs?.puckLights || false,
+      interiorLighting: prefs?.interiorLighting || false,
+    });
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'lighting_error', message: `Lighting plan: ${e.message}` });
+  }
+
+  // ── 8g: Island Clearance Envelope & No-Fly Zone ──
+  // For island layouts: validates 42" walkways on all sides, generates DFBPs
+  // and DEPs, checks work triangle intersection.
+  let islandClearances = null;
+  let islandNoFlyZone = null;
+  try {
+    if (islandLayout || layoutType?.includes('island')) {
+      const roomDims = { width: input.roomWidth || 144, length: input.roomLength || 168 };
+      islandNoFlyZone = calculateNoFlyZone(wallLayouts, roomDims);
+      if (islandLayout) {
+        islandClearances = calculateIslandClearances(
+          {
+            x: islandLayout.x || islandNoFlyZone?.buildableArea?.centerX || roomDims.width / 2,
+            y: islandLayout.y || islandNoFlyZone?.buildableArea?.centerY || roomDims.length / 2,
+            width: islandLayout.totalWidth || 72,
+            depth: islandLayout.depth || 24,
+          },
+          wallLayouts,
+          roomDims
+        );
+        if (islandClearances?.violations?.length) {
+          for (const v of islandClearances.violations) {
+            validation.push({
+              severity: 'error',
+              rule: 'island_clearance_violation',
+              message: v.message || `Island clearance violation: ${v.side} = ${v.actual}" (min ${v.required}")`,
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'island_clearance_error', message: `Island clearance: ${e.message}` });
+  }
+
+  // ── 8h: Seating & Overhang Calculator ──
+  // If island/peninsula has seating, calculates overhang depth, max seats,
+  // and auto-places support brackets/corbels.
+  let seatingLayout = null;
+  try {
+    if ((islandLayout && prefs?.islandSeating) || (peninsulaLayout && prefs?.peninsulaSeating)) {
+      const targetLayout = islandLayout || peninsulaLayout;
+      seatingLayout = calculateSeatingLayout(targetLayout, {
+        seating: true,
+        overhangDepth: prefs?.seatingOverhang || 12,
+        seatSpacing: prefs?.seatSpacing || 'standard',
+        counterHeight: prefs?.barHeight ? 42 : 36,
+        bracketStyle: prefs?.bracketStyle || (prefs?.designStyle === 'modern' ? 'hidden' : 'corbel'),
+        waterfallEnd: prefs?.waterfallEnd || false,
+      });
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'seating_error', message: `Seating layout: ${e.message}` });
+  }
+
+  // ── 8i: NKBA Safety Validation (Electrical, Work Triangle, Clearances) ──
+  // Comprehensive code-compliance check: outlet placement every 48",
+  // work triangle 13'-26', landing areas, ventilation, walkway widths.
+  let nkbaReport = null;
+  try {
+    if (roomType === 'kitchen') {
+      const roomGeometry = {
+        width: input.roomWidth || 144,
+        length: input.roomLength || 168,
+        walls: walls.map(w => ({ id: w.id, length: w.length })),
+      };
+      nkbaReport = validateNKBA(
+        { walls: wallLayouts, uppers: upperLayouts, island: islandLayout, peninsula: peninsulaLayout, placements, corners },
+        roomGeometry,
+        { adaMode: prefs?.adaCompliant || false, twoCook: prefs?.twoCookKitchen || false }
+      );
+      if (nkbaReport?.issues?.length) {
+        for (const issue of nkbaReport.issues) {
+          validation.push({
+            severity: issue.severity || 'warning',
+            rule: `nkba_${issue.rule || issue.code || 'general'}`,
+            message: issue.message,
+            fix: issue.fix || null,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'nkba_validation_error', message: `NKBA validation: ${e.message}` });
+  }
+
+  // ── 8j: Part ID Generator & BOM ──
+  // Assigns unique installation-ready part IDs to every component:
+  // {ROOM}-{WALL}-{SEQ}-{SKU}-{MODS}. Generates full Bill of Materials.
+  let partIds = null;
+  let bom = null;
+  try {
+    const layoutResult = {
+      walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout,
+      peninsula: peninsulaLayout, accessories, corners,
+    };
+    partIds = generatePartIds(layoutResult, roomType);
+    if (partIds?.parts?.length) {
+      bom = generateBOM(partIds.parts, null); // pricing data applied downstream
+    }
+  } catch (e) {
+    validation.push({ severity: 'info', rule: 'part_id_error', message: `Part ID generation: ${e.message}` });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+
   return {
     layoutType,
     roomType,
@@ -912,6 +1189,21 @@ export function solve(input) {
     moldingPaths,           // path-based molding segments for renderer
     spatialValidation: spatialReport, // full spatial validation report
     countertopPolyline,     // automated countertop path (Z=34.5, 1.5" thick)
+
+    // ── Phase 8: System Dependencies ──
+    toeKick: toeKickResult,
+    serviceZones,
+    swingArcs: swingArcResult,
+    mountingRails,
+    lightingPlan,
+    scribes: scribeResult,
+    islandClearances,
+    islandNoFlyZone,
+    seatingLayout,
+    nkbaReport,
+    partIds,
+    bom,
+
     metadata: {
       totalCabinets: placements.filter(p => p.role !== "accessory").length,
       totalAccessories: accessories.length,
@@ -928,6 +1220,15 @@ export function solve(input) {
       cornerTypes,
       aesthetics,
       lighting: accessories._lighting,
+      // Phase 8 summary
+      toeKickLinearFt: toeKickResult?.totalLinearFt || 0,
+      mountingRailCount: mountingRails?.rails?.length || 0,
+      serviceZoneCount: serviceZones?.zones?.length || 0,
+      swingCollisions: swingArcResult?.collisions?.length || 0,
+      scribeCount: scribeResult?.scribes?.length || 0,
+      nkbaScore: nkbaReport?.score || null,
+      totalParts: partIds?.parts?.length || 0,
+      seatingCapacity: seatingLayout?.seats || seatingLayout?.maxSeats || 0,
     },
   };
 }
