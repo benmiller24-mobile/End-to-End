@@ -122,15 +122,32 @@ function appLabel(aType) {
  *  Returns null if height can't be parsed (caller uses default). */
 function parseSkuHeight(sku) {
   if (!sku) return null;
-  const upper = sku.toUpperCase();
-  // Wall cabinet: W{2-3 digit width}{2 digit height}
-  const wMatch = upper.match(/^S?W(\d{2,3})(\d{2})(?:-|$)/);
+  const upper = sku.toUpperCase().replace(/^FC-/, '');
+  // Wall cabinet: W{2-3 digit width}{2 digit height}[L|R]
+  const wMatch = upper.match(/^S?W(\d{2,3})(\d{2})(?:[LR]|-|$)/);
   if (wMatch) {
     const h = parseInt(wMatch[2]);
+    if (h >= 12 && h <= 63) return h;
+  }
+  // WBC: WBC{w}{h}
+  const wbcMatch = upper.match(/^WBC(\d{2})(\d{2})$/);
+  if (wbcMatch) {
+    const h = parseInt(wbcMatch[2]);
     if (h >= 12 && h <= 48) return h;
   }
-  // Tall/utility: UT or OT
-  const tMatch = upper.match(/^[UO]T(\d{2,3})(\d{2})(?:-|$)/);
+  // Tall/utility: U or O followed by digits (U36102, O30102)
+  if (/^[UO]\d/.test(upper)) {
+    const afterPrefix = upper.replace(/^[UO]/, '');
+    const digits = afterPrefix.match(/^(\d+)/);
+    if (digits) {
+      const allDigits = digits[1];
+      if (allDigits.length === 5) return parseInt(allDigits.slice(2)); // 36102 → 102
+      if (allDigits.length === 4) return parseInt(allDigits.slice(2)); // 3696 → 96
+      if (allDigits.length === 3) return parseInt(allDigits.slice(1)); // 384 → 84
+    }
+  }
+  // Legacy UT/OT format
+  const tMatch = upper.match(/^[UO]T(\d{2,3})(\d{2,3})(?:-|$)/);
   if (tMatch) {
     const h = parseInt(tMatch[2]);
     if (h >= 72 && h <= 108) return h;
@@ -140,20 +157,34 @@ function parseSkuHeight(sku) {
 
 /** Parse door/drawer count from SKU pattern */
 function parseDoorDrawer(sku, width) {
-  if (!sku) return { doors: width > 24 ? 2 : 1, drawers: 0 };
-  const upper = sku.toUpperCase();
-  // Drawer-only bases: BxDB (x drawers)
-  const dbMatch = upper.match(/B(\d?)DB/);
-  if (dbMatch) return { doors: 0, drawers: parseInt(dbMatch[1] || '3') };
-  // Door+drawer combos: BxD (x drawers + door below)
-  const dMatch = upper.match(/B(\d?)D(?!B)/);
-  if (dMatch) return { doors: width > 24 ? 2 : 1, drawers: parseInt(dMatch[1] || '1') };
-  // Sink base or blind: no drawers
-  if (upper.includes('BSB') || upper.includes('BBC')) return { doors: 2, drawers: 0 };
+  if (!sku) return { doors: width > 24 ? 2 : 1, drawers: 1 };
+  const s = sku.toUpperCase().replace(/^FC-/, '');
+  // All-drawer bases
+  if (/^B3D/.test(s)) return { doors: 0, drawers: 3 };
+  if (/^B4D/.test(s)) return { doors: 0, drawers: 4 };
+  // Sink bases: false front (no functional drawer), doors below
+  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 0 };
+  // Full-height door: tall single panel, no drawer
+  if (/-FHD/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 0 };
+  // Roll-out tray, pull-out shelf: door only
+  if (/-RT/.test(s) || /^BPOS/.test(s)) return { doors: 1, drawers: 0 };
+  // Range top base: open frame
+  if (/^RTB/.test(s)) return { doors: 0, drawers: 0 };
+  // Blind base corner: 1 door, 1 drawer on exposed face
+  if (/^BBC/.test(s)) return { doors: 1, drawers: 1 };
+  // Lazy Susan: 2 bi-fold doors, no drawer
+  if (/^BL\d/.test(s)) return { doors: 2, drawers: 0 };
   // Tray base
-  if (upper.includes('BTR')) return { doors: width > 24 ? 2 : 1, drawers: 1 };
-  // Default: 1 drawer + doors
-  return { doors: width > 24 ? 2 : 1, drawers: 1 };
+  if (/^BTR/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 1 };
+  // Legacy drawer base format
+  const dbMatch = s.match(/B(\d?)DB/);
+  if (dbMatch) return { doors: 0, drawers: parseInt(dbMatch[1] || '3') };
+  // Fillers, panels — no doors or drawers
+  if (/^F\d|^OVF|^BEP|^WEP|^REP|^DP$/.test(s)) return { doors: 0, drawers: 0 };
+  // Standard base cabinets
+  if (width >= 39) return { doors: 2, drawers: 2 };
+  if (width > 24) return { doors: 2, drawers: 1 };
+  return { doors: 1, drawers: 1 };
 }
 
 
@@ -742,6 +773,23 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
         );
       })}
 
+      {/* ══════════ CENTERLINE MARKERS (CL at sinks/ranges) ══════════ */}
+      {sortedBases.filter(cab => {
+        const at = (cab.applianceType || '').toLowerCase();
+        return at === 'sink' || at === 'range' || at === 'cooktop';
+      }).map((cab, i) => {
+        const clX = (cab.position + cab.width / 2) * S;
+        return (
+          <g key={`cl${i}`}>
+            <line x1={clX} y1={ctrTopY} x2={clX} y2={floorY + 8}
+              stroke="#666666" strokeWidth={0.3} strokeDasharray="3,2" />
+            <text x={clX} y={floorY + 14} textAnchor="middle"
+              fontSize={4} fill="#666666" fontFamily="Helvetica,Arial,sans-serif"
+              fontWeight="600">CL</text>
+          </g>
+        );
+      })}
+
       {/* ══════════ UPPER CABINETS ══════════ */}
       {sortedUppers.map((cab, i) => {
         const x = cab.position * S;
@@ -783,9 +831,51 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
               <REPPanel x={x} y={y} w={w} h={tH} />
             ) : isApp ? (
               <ApplianceSym x={x} y={y} w={w} h={tH} aType={cab.applianceType || 'unknown'} />
-            ) : (
-              <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} />
-            )}
+            ) : (() => {
+              const upperSku = (cab.sku || '').toUpperCase();
+              const isOven = /^O\d/.test(upperSku);
+              const isFHD = upperSku.includes('FHD');
+              if (isOven) {
+                // Oven cabinet: door below, oven cutout above
+                const ovenH = tH * 0.4;
+                const doorH = tH * 0.45;
+                const gapH = tH * 0.15;
+                return (
+                  <g>
+                    <rect x={x} y={y} width={w} height={tH} fill={C.fill} stroke={C.line} strokeWidth={0.7} />
+                    {/* Oven cutout */}
+                    <rect x={x + 3 * S} y={y + gapH * 0.3} width={w - 6 * S} height={ovenH}
+                      fill="#e8e8e8" stroke={C.line} strokeWidth={0.4} rx={0.5} />
+                    {/* Oven glass window */}
+                    <rect x={x + 5 * S} y={y + gapH * 0.3 + 2 * S} width={w - 10 * S} height={ovenH * 0.45}
+                      fill="#d8d8d8" stroke={C.line} strokeWidth={0.3} rx={0.3} />
+                    {/* Oven handle */}
+                    <line x1={x + 5 * S} y1={y + gapH * 0.3 + ovenH - 2 * S}
+                      x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
+                      stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
+                    {/* Door panel below */}
+                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} />
+                  </g>
+                );
+              }
+              if (isFHD) {
+                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} />;
+              }
+              // Standard utility: show shelf lines
+              const shelfCount = Math.floor(tH / (20 * S));
+              return (
+                <g>
+                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} />
+                  {Array.from({ length: Math.min(shelfCount, 4) }, (_, si) => {
+                    const sy = y + (si + 1) * tH / (Math.min(shelfCount, 4) + 1);
+                    return (
+                      <line key={`shelf${si}`} x1={x + 2} y1={sy} x2={x + w - 2} y2={sy}
+                        stroke={C.thinLine} strokeWidth={0.2} opacity={0.3} strokeDasharray="2,1.5" />
+                    );
+                  })}
+                </g>
+              );
+            })()}
             {/* Appliance label */}
             {isApp && (
               <text x={x + w / 2} y={y - 5} fill={C.dimText}
@@ -920,14 +1010,14 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
               <line key={`eR${i}`} x1={rx} y1={floorY + 2} x2={rx} y2={dimY1 + 3}
                 stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
             );
-            // Tick marks
+            // Tick marks (diagonal slashes)
             els.push(
-              <line key={`tL${i}`} x1={lx} y1={dimY1 - 3} x2={lx} y2={dimY1 + 3}
+              <line key={`tL${i}`} x1={lx - 1.5} y1={dimY1 + 1.5} x2={lx + 1.5} y2={dimY1 - 1.5}
                 stroke={C.dimLine} strokeWidth={0.5} />
             );
             if (i === allCabs.length - 1) {
               els.push(
-                <line key={`tR${i}`} x1={rx} y1={dimY1 - 3} x2={rx} y2={dimY1 + 3}
+                <line key={`tR${i}`} x1={rx - 1.5} y1={dimY1 + 1.5} x2={rx + 1.5} y2={dimY1 - 1.5}
                   stroke={C.dimLine} strokeWidth={0.5} />
               );
             }
@@ -958,11 +1048,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
               stroke={C.dimLine} strokeWidth={0.55} />
           );
           els.push(
-            <line key="owTL" x1={0} y1={dimY2 - 3} x2={0} y2={dimY2 + 3}
+            <line key="owTL" x1={-1.5} y1={dimY2 + 1.5} x2={1.5} y2={dimY2 - 1.5}
               stroke={C.dimLine} strokeWidth={0.5} />
           );
           els.push(
-            <line key="owTR" x1={wW} y1={dimY2 - 3} x2={wW} y2={dimY2 + 3}
+            <line key="owTR" x1={wW - 1.5} y1={dimY2 + 1.5} x2={wW + 1.5} y2={dimY2 - 1.5}
               stroke={C.dimLine} strokeWidth={0.5} />
           );
           els.push(
@@ -992,7 +1082,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
                 stroke={C.dimLine} strokeWidth={0.2} strokeDasharray="1.5,1" />
             );
             els.push(
-              <line key={`utL${i}`} x1={lx} y1={dimY - 2} x2={lx} y2={dimY + 2}
+              <line key={`utL${i}`} x1={lx - 1} y1={dimY + 1} x2={lx + 1} y2={dimY - 1}
                 stroke={C.dimLine} strokeWidth={0.4} />
             );
             els.push(
@@ -1001,7 +1091,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
             );
             if (i === sortedUppers.length - 1) {
               els.push(
-                <line key={`utR${i}`} x1={rx} y1={dimY - 2} x2={rx} y2={dimY + 2}
+                <line key={`utR${i}`} x1={rx - 1} y1={dimY + 1} x2={rx + 1} y2={dimY - 1}
                   stroke={C.dimLine} strokeWidth={0.4} />
               );
             }
@@ -1097,6 +1187,52 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
           stroke={C.dimLine} strokeWidth={0.45} />
         <text x={wW + 56} y={(floorY + ceilY) / 2 + 1.5} fill={C.dimText}
           fontSize={4.2} fontFamily="Helvetica,Arial,sans-serif" fontWeight="700">{fmt(ceilH)}</text>
+      </g>
+
+      {/* ══════════ LEFT-SIDE VERTICAL DIMENSIONS ══════════ */}
+      <g>
+        {/* Toekick */}
+        <line x1={-14} y1={floorY} x2={-14} y2={tkTopY} stroke={C.dimLine} strokeWidth={0.4} />
+        <line x1={-16} y1={floorY} x2={-12} y2={floorY} stroke={C.dimLine} strokeWidth={0.4} />
+        <line x1={-16} y1={tkTopY} x2={-12} y2={tkTopY} stroke={C.dimLine} strokeWidth={0.4} />
+        <text x={-20} y={(floorY + tkTopY) / 2 + 1.5} fill={C.dimText}
+          fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(TOEKICK)}</text>
+
+        {/* Base box */}
+        <line x1={-14} y1={tkTopY} x2={-14} y2={baseTopY} stroke={C.dimLine} strokeWidth={0.4} />
+        <line x1={-16} y1={baseTopY} x2={-12} y2={baseTopY} stroke={C.dimLine} strokeWidth={0.4} />
+        <text x={-20} y={(tkTopY + baseTopY) / 2 + 1.5} fill={C.dimText}
+          fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(BASE_BOX)}</text>
+
+        {/* Countertop */}
+        <line x1={-14} y1={baseTopY} x2={-14} y2={ctrTopY} stroke={C.dimLine} strokeWidth={0.4} />
+        <line x1={-16} y1={ctrTopY} x2={-12} y2={ctrTopY} stroke={C.dimLine} strokeWidth={0.4} />
+        <text x={-20} y={(baseTopY + ctrTopY) / 2 + 1.5} fill={C.dimText}
+          fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(CTR_THICK)}</text>
+
+        {/* Backsplash */}
+        {validUppers.length > 0 && (
+          <>
+            <line x1={-14} y1={ctrTopY} x2={-14} y2={upBotY} stroke={C.dimLine} strokeWidth={0.4} />
+            <line x1={-16} y1={upBotY} x2={-12} y2={upBotY} stroke={C.dimLine} strokeWidth={0.4} />
+            <text x={-20} y={(ctrTopY + upBotY) / 2 + 1.5} fill={C.dimText}
+              fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(SPLASH_GAP)}</text>
+
+            {/* Upper height */}
+            <line x1={-14} y1={upBotY} x2={-14} y2={upTopY} stroke={C.dimLine} strokeWidth={0.4} />
+            <line x1={-16} y1={upTopY} x2={-12} y2={upTopY} stroke={C.dimLine} strokeWidth={0.4} />
+            <text x={-20} y={(upBotY + upTopY) / 2 + 1.5} fill={C.dimText}
+              fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(validUppers[0]?.height || UPPER_H_DEF)}</text>
+
+            {/* Upper to ceiling */}
+            <line x1={-14} y1={upTopY} x2={-14} y2={ceilY} stroke={C.dimLine} strokeWidth={0.4} />
+            <line x1={-16} y1={ceilY} x2={-12} y2={ceilY} stroke={C.dimLine} strokeWidth={0.4} />
+            <text x={-20} y={(upTopY + ceilY) / 2 + 1.5} fill={C.dimText}
+              fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">
+              {fmt(ceilH - (TOEKICK + BASE_BOX + CTR_THICK + SPLASH_GAP + (validUppers[0]?.height || UPPER_H_DEF)))}
+            </text>
+          </>
+        )}
       </g>
 
       {/* ══════════ DEBUG OVERLAY ══════════ */}
