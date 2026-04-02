@@ -166,12 +166,89 @@ function PlanAppliance({ x, y, w, d, aType }) {
   return <rect {...props} />;
 }
 
-/** Door swing arc (quarter circle from hinge point) */
-function DoorSwing({ x, y, w, d }) {
-  if (w < 12) return null;
-  // Arc from bottom-left corner outward
+/** Door swing arc — hinge-aware, with special symbols for drawers and sinks */
+function DoorSwing({ x, y, w, d, hingeSide, sku }) {
+  if (w < 9) return null;
+  const s = (sku || '').toUpperCase().replace(/^FC-/, '');
+
+  // Drawer bases: draw parallel horizontal lines
+  if (/^B[34]D/.test(s)) {
+    const numDrawers = parseInt(s[1]) || 3;
+    const lines = [];
+    for (let i = 1; i <= numDrawers; i++) {
+      const ly = y + (d * i / (numDrawers + 1));
+      lines.push(
+        <line key={`drawer-${i}`} x1={x + 1} y1={ly} x2={x + w - 1} y2={ly}
+          stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+      );
+    }
+    return <g>{lines}</g>;
+  }
+
+  // Sink bases: draw oval basin(s)
+  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) {
+    if (w > 30) {
+      return (
+        <g>
+          <ellipse cx={x + w * 0.3} cy={y + d * 0.5} rx={w * 0.18} ry={d * 0.25}
+            fill="none" stroke={C.appStroke} strokeWidth={0.35} opacity={0.5} />
+          <ellipse cx={x + w * 0.7} cy={y + d * 0.5} rx={w * 0.18} ry={d * 0.25}
+            fill="none" stroke={C.appStroke} strokeWidth={0.35} opacity={0.5} />
+        </g>
+      );
+    }
+    return (
+      <ellipse cx={x + w / 2} cy={y + d / 2} rx={w * 0.32} ry={d * 0.28}
+        fill="none" stroke={C.appStroke} strokeWidth={0.35} opacity={0.5} />
+    );
+  }
+
+  // Range top base: draw burner circles
+  if (/^RTB/.test(s)) {
+    const r = Math.min(w, d) * 0.1;
+    return (
+      <g>
+        <circle cx={x + w * 0.3} cy={y + d * 0.3} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.3} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.3} cy={y + d * 0.7} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.7} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+      </g>
+    );
+  }
+
+  // Lazy Susan: inscribed circle
+  if (/^BL\d/.test(s) && s.includes('SS')) {
+    return (
+      <circle cx={x + w / 2} cy={y + d / 2} r={Math.min(w, d) * 0.4}
+        fill="none" stroke={C.cabStroke} strokeWidth={0.3} strokeDasharray="2,1" opacity={0.4} />
+    );
+  }
+
+  // Double-door cabinets: two arcs meeting in the middle
+  if (w > 24 || hingeSide === 'B') {
+    const half = w / 2;
+    const r = Math.min(half - 0.5, d);
+    return (
+      <g>
+        <path d={`M ${x + 0.5} ${y + d} A ${r} ${r} 0 0 0 ${x + half} ${y + d - r}`}
+          fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+        <path d={`M ${x + w - 0.5} ${y + d} A ${r} ${r} 0 0 1 ${x + half} ${y + d - r}`}
+          fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+      </g>
+    );
+  }
+
+  // Single-door: arc from hinge side
+  const r = Math.min(w - 1, d);
+  if (hingeSide === 'L') {
+    return (
+      <path d={`M ${x + 0.5} ${y + d} A ${r} ${r} 0 0 0 ${x + 0.5 + r} ${y + d}`}
+        fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+    );
+  }
+  // Hinge on right (default)
   return (
-    <path d={`M ${x + 0.5} ${y + d} A ${w - 1} ${w - 1} 0 0 0 ${x + w - 0.5} ${y + d}`}
+    <path d={`M ${x + w - 0.5} ${y + d} A ${r} ${r} 0 0 1 ${x + w - 0.5 - r} ${y + d}`}
       fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
   );
 }
@@ -209,22 +286,80 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, wallId }) {
         return (
           <g key={`base-${i}`}>
             {isCorner ? (
-              <>
-                <rect x={x} y={WALL_T / 2} width={w} height={w}
-                  fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
-                <line x1={x} y1={WALL_T / 2 + w} x2={x + w} y2={WALL_T / 2}
-                  stroke={C.cabStroke} strokeWidth={0.3} opacity={0.4} />
-              </>
+              (() => {
+                const cornerSku = (cab.sku || '').toUpperCase();
+                const isLazySusan = cornerSku.includes('BL') && cornerSku.includes('SS');
+                const isBBC = cornerSku.includes('BBC');
+
+                if (isLazySusan) {
+                  // Lazy Susan: square with inscribed dashed circle
+                  return (
+                    <>
+                      <rect x={x} y={WALL_T / 2} width={w} height={w}
+                        fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
+                      <circle cx={x + w / 2} cy={WALL_T / 2 + w / 2} r={w * 0.4}
+                        fill="none" stroke={C.cabStroke} strokeWidth={0.3}
+                        strokeDasharray="2,1" opacity={0.5} />
+                    </>
+                  );
+                }
+
+                if (isBBC) {
+                  // Blind Base Corner: L-shape with blind portion hatched
+                  const accessW = Math.min(24, w * 0.55);
+                  const blindW = w - accessW;
+                  return (
+                    <>
+                      <rect x={x} y={WALL_T / 2} width={accessW} height={w}
+                        fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
+                      <rect x={x + accessW} y={WALL_T / 2} width={blindW} height={w}
+                        fill="#f0ede8" stroke={C.cabStroke} strokeWidth={0.4} />
+                      {/* Diagonal hatching for blind portion */}
+                      {Array.from({ length: Math.ceil(blindW / 4) }, (_, hi) => {
+                        const hx = x + accessW + hi * 4;
+                        return (
+                          <line key={`bh${hi}`} x1={hx} y1={WALL_T / 2}
+                            x2={Math.min(hx + w, x + w)} y2={WALL_T / 2 + Math.min(w, (x + w - hx))}
+                            stroke={C.cabStroke} strokeWidth={0.15} opacity={0.3} />
+                        );
+                      })}
+                    </>
+                  );
+                }
+
+                // Default corner: square with diagonal
+                return (
+                  <>
+                    <rect x={x} y={WALL_T / 2} width={w} height={w}
+                      fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
+                    <line x1={x} y1={WALL_T / 2 + w} x2={x + w} y2={WALL_T / 2}
+                      stroke={C.cabStroke} strokeWidth={0.3} opacity={0.4} />
+                  </>
+                );
+              })()
             ) : isApp ? (
               <PlanAppliance x={x} y={WALL_T / 2} w={w} d={d} aType={cab.applianceType} />
-            ) : (
-              <>
-                <rect x={x} y={WALL_T / 2} width={w} height={d}
-                  fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.5} />
-                {/* Door swing arc for regular base cabs */}
-                {!isTall && <DoorSwing x={x} y={WALL_T / 2} w={w} d={d} />}
-              </>
-            )}
+            ) : (() => {
+              // Check if this cabinet should show appliance symbols
+              const cabSku = (cab.sku || '').toUpperCase().replace(/^FC-/, '');
+              const isSinkBase = /^SB|^BSB|^IWS|^IBS|^DSB/.test(cabSku);
+              const isRangeBase = /^RTB/.test(cabSku);
+
+              if (isSinkBase) {
+                return <PlanAppliance x={x} y={WALL_T / 2} w={w} d={d} aType="sink" />;
+              }
+              if (isRangeBase) {
+                return <PlanAppliance x={x} y={WALL_T / 2} w={w} d={d} aType="cooktop" />;
+              }
+
+              return (
+                <>
+                  <rect x={x} y={WALL_T / 2} width={w} height={d}
+                    fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.5} />
+                  {!isTall && <DoorSwing x={x} y={WALL_T / 2} w={w} d={d} hingeSide={cab.hingeSide} sku={cab.sku} />}
+                </>
+              );
+            })()}
 
             {/* Width label inside */}
             {w >= 12 && (
@@ -480,11 +615,11 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
 
       {/* Title */}
       <text x="14" y="18" fill={C.dimText} fontSize={11} fontWeight="700"
-        fontFamily="Helvetica,Arial,sans-serif">
-        Kitchen Floor Plan - {layoutType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+        fontFamily="Helvetica,Arial,sans-serif" letterSpacing="1">
+        KITCHEN FLOOR PLAN
       </text>
-      <text x="14" y="30" fill="#666" fontSize={5.5} fontFamily="Helvetica,Arial,sans-serif">
-        NKBA Standards | Scale: 1" = 1 unit | Dashed = upper cabinets
+      <text x="14" y="28" fill="#666" fontSize={5} fontFamily="Helvetica,Arial,sans-serif">
+        {layoutType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Layout | Scale: ¼" = 1'-0" | NKBA Standards
       </text>
 
       {/* ── WALLS + CABINETS ── */}

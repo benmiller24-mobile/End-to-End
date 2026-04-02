@@ -680,6 +680,9 @@ export function solve(input) {
   // Phase 5: Generate accessories (room-type-aware)
   const accessories = generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, walls, appliances, pf, talls);
 
+  // Phase 5b: Assign hinge sides to single-door cabinets
+  assignHingeSides(wallLayouts, upperLayouts);
+
   // Phase 6: Compile placements
   let placements = compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, accessories, talls, upperCorners);
 
@@ -2117,7 +2120,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     // Gap 1-6": insert a filler to close
     else if (delta > 1 && delta <= 6) {
       const fillerSku = delta <= 3
-        ? `OVF${Math.ceil(delta * 2) / 2}`
+        ? 'OVF3'
         : `F${Math.ceil(delta)}30`;
       cabinets.splice(i, 0, {
         sku: fillerSku,
@@ -2144,7 +2147,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
 
   if (terminalGap > 0.5 && terminalGap <= 6 && lastCab) {
     const fillerSku = terminalGap <= 3
-      ? `OVF${Math.ceil(terminalGap * 2) / 2}`
+      ? 'OVF3'
       : `F${Math.ceil(terminalGap)}30`;
     cabinets.push({
       sku: fillerSku,
@@ -2176,7 +2179,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     const startGap = firstReal.position_start - wallStartAnchor;
     if (startGap > 0.5 && startGap <= 6) {
       const fillerSku = startGap <= 3
-        ? `OVF${Math.ceil(startGap * 2) / 2}`
+        ? 'OVF3'
         : `F${Math.ceil(startGap)}30`;
       cabinets.push({
         sku: fillerSku,
@@ -2920,7 +2923,7 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
     if (result.filler <= 3) {
       // Small gap (≤3"): use OVF3 overlay filler (7× in training — zone transitions)
       cabinets.push({
-        sku: "OVF330 1/2",
+        sku: "OVF3",
         width: result.filler,
         type: "filler",
         role: "zone_transition_filler",
@@ -6571,6 +6574,72 @@ function determineZone(placement) {
 
   // Base zone (default for regular cabinets, corners, etc.)
   return "base";
+}
+
+/**
+ * Assign hinge sides to single-door cabinets based on nearest appliance.
+ * Door opens TOWARD the nearest appliance (sink, range, dishwasher).
+ * At corners: opens AWAY. At wall ends: opens toward center.
+ * Called after all cabinets are placed on each wall.
+ */
+function assignHingeSides(wallLayouts, upperLayouts) {
+  for (const wl of wallLayouts) {
+    const cabs = wl.cabinets || [];
+    const appliances = cabs.filter(c =>
+      c.type === 'appliance' || c.role === 'sink' || c.role === 'range' ||
+      c.role === 'dishwasher' || c.role === 'refrigerator'
+    );
+
+    for (const cab of cabs) {
+      if (cab.type === 'appliance' || cab.type === 'filler' || cab.type === 'end_panel') continue;
+      if ((cab.width || 0) > 24) continue; // double-door, no hinge
+      const s = (cab.sku || '').toUpperCase();
+      if (/^B[34]D|^RTB|^BPOS|^BBC|^BL|^DSB/.test(s)) continue; // no hinge needed
+      if (cab.hingeSide) continue; // already set
+
+      const cabCenter = (cab.position || 0) + (cab.width || 0) / 2;
+
+      if (appliances.length > 0) {
+        let nearest = appliances[0], nearestDist = Infinity;
+        for (const app of appliances) {
+          const appCenter = (app.position || 0) + (app.width || 0) / 2;
+          const dist = Math.abs(cabCenter - appCenter);
+          if (dist < nearestDist) { nearestDist = dist; nearest = app; }
+        }
+        const appCenter = (nearest.position || 0) + (nearest.width || 0) / 2;
+        cab.hingeSide = cabCenter < appCenter ? 'R' : 'L';
+      } else {
+        const wallCenter = Math.max(...cabs.map(c => (c.position || 0) + (c.width || 0))) / 2;
+        cab.hingeSide = cabCenter < wallCenter ? 'R' : 'L';
+      }
+
+      // Append hinge to SKU if not already present
+      if (cab.sku && !cab.sku.match(/[LR]$/) && cab.type !== 'filler') {
+        cab.sku = cab.sku + cab.hingeSide;
+      }
+    }
+  }
+
+  // Also assign hinge sides to upper cabinets
+  for (const ul of upperLayouts) {
+    const cabs = ul.cabinets || [];
+    for (const cab of cabs) {
+      if ((cab.width || 0) > 24) continue;
+      if (cab.type === 'rangeHood' || cab.role === 'range_hood') continue;
+      if (cab.hingeSide) continue;
+      const s = (cab.sku || '').toUpperCase();
+      if (/^WBC|^WSC|^RW/.test(s)) continue;
+
+      // Simple center-of-wall logic for uppers
+      const wallCenter = Math.max(...cabs.map(c => (c.position || 0) + (c.width || 0)), 0) / 2;
+      const cabCenter = (cab.position || 0) + (cab.width || 0) / 2;
+      cab.hingeSide = cabCenter < wallCenter ? 'R' : 'L';
+
+      if (cab.sku && !cab.sku.match(/[LR]$/)) {
+        cab.sku = cab.sku + cab.hingeSide;
+      }
+    }
+  }
 }
 
 function compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, accessories, talls = [], upperCorners = []) {

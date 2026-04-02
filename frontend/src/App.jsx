@@ -868,31 +868,109 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         const skuDesc = (sku, type, appType) => {
           if (type === 'appliance') return appType ? appType.replace(/([A-Z])/g, ' $1').trim() : 'Appliance';
           if (!sku) return type || 'Cabinet';
-          const u = sku.toUpperCase().replace(/^FC-/, '');
-          if (u.startsWith('B3D') || u.startsWith('B4D')) return `${u.match(/\d/)?.[0] || 3}-Drawer Base`;
-          if (u.startsWith('BSB') || u.startsWith('SB')) return 'Sink Base';
-          if (u.startsWith('B') && u.includes('FHD')) return 'Full-Height Door Base';
-          if (u.startsWith('B') && u.includes('RT')) return 'Roll-Out Tray Base';
-          if (u.startsWith('BTR')) return 'Tray Base';
-          if (u.startsWith('BL') && u.includes('SS')) return 'Lazy Susan Corner';
-          if (u.startsWith('BBC') && u.includes('MC')) return 'Magic Corner';
-          if (u.startsWith('BBC')) return 'Blind Base Corner';
-          if (u.startsWith('DSB')) return 'Diagonal Sink Base';
-          if (u.startsWith('SW')) return 'Stacked Wall Cabinet';
-          if (u.startsWith('W')) return 'Wall Cabinet';
-          if (u.startsWith('UT') || u.startsWith('OT')) return 'Tall Utility';
-          if (u.startsWith('REP')) return 'Ref. End Panel';
-          if (u.startsWith('BEP')) return 'Base End Panel';
-          if (u.startsWith('F') && u.match(/^F\d/)) return 'Filler Strip';
-          if (u.startsWith('B') && u.match(/^B\d/)) return 'Base Cabinet';
+          const O = sku.toUpperCase().replace(/^FC-/, '');
+          // Exact matches first
+          if (O === 'OVF3') return 'Overlay Filler';
+          if (O === 'DP') return 'Dishwasher Panel';
+          if (O === 'BCF') return 'Beverage Center Front';
+          if (O.startsWith('TK')) return 'Toe Kick';
+          if (O.match(/UCA/)) return 'Light Rail / Under Cabinet';
+          // Tall cabinets (before base to avoid B-prefix collision)
+          if (O.startsWith('O') && O.match(/^O\d/)) return 'Oven Cabinet';
+          if (O.startsWith('U') && O.match(/^U\d/) && O.includes('FHD')) return 'Utility Full Height Door';
+          if (O.startsWith('U') && O.match(/^U\d/)) return 'Utility Cabinet';
+          // Wall cabinets
+          if (O.startsWith('RW')) return 'Refrigerator Wall Cabinet';
+          if (O.startsWith('SW')) return 'Stacked Wall Cabinet';
+          if (O.startsWith('WBC')) return 'Wall Blind Corner';
+          if (O.startsWith('WEP')) return 'Wall End Panel';
+          if (O.startsWith('W') && O.match(/^W\d/)) return 'Wall Cabinet';
+          // Special base cabinets
+          if (O.startsWith('BWDMW')) return 'Base Waste Door Mount';
+          if (O.startsWith('BPOS')) return 'Base Pull-Out Shelf';
+          if (O.startsWith('B3D') || O.startsWith('B4D')) {
+            const n = O.match(/^B(\d)D/);
+            return `${n ? n[1] : 3}-Drawer Base`;
+          }
+          if (O.startsWith('BSB') || O.startsWith('SB')) {
+            return O.includes('FHD') ? 'Sink Base Full Height Door' : 'Sink Base';
+          }
+          if (O.startsWith('BBC')) return O.includes('MC') ? 'Magic Corner Base' : 'Blind Base Corner';
+          if (O.startsWith('BL') && O.includes('SS')) {
+            return O.includes('WSS') ? 'Lazy Susan Wire Super Susan' : 'Lazy Susan Super Susan';
+          }
+          if (O.startsWith('BO') && O.match(/^BO\d/)) return 'Base Oven';
+          if (O.startsWith('BTR')) return 'Tray Base';
+          if (O.startsWith('BEP')) return 'Base End Panel';
+          if (O.startsWith('DSB')) return 'Diagonal Sink Base';
+          if (O.startsWith('RTB')) return 'Range Top Base';
+          if (O.startsWith('REP')) return 'Refrigerator End Panel';
+          if (O.startsWith('ROT')) return O.includes('FM') ? 'Rollout Tray Floor Mount' : 'Rollout Tray';
+          if (O.startsWith('DMW')) return 'Drawer Microwave';
+          if (O.startsWith('IBS')) return 'Island Bar Sink';
+          if (O.startsWith('IWS')) return 'Island Work Sink';
+          // Generic base with modifiers
+          if (O.startsWith('B') && O.includes('FHD')) return 'Full-Height Door Base';
+          if (O.startsWith('B') && O.includes('RT')) return 'Roll-Out Tray Base';
+          if (O.startsWith('B') && O.match(/^B\d/)) return 'Base Cabinet';
+          // Fillers
+          if (O.startsWith('F') && O.match(/^F\d/)) return 'Filler Strip';
+          if (O.startsWith('OVF')) return 'Overlay Filler';
           return type || 'Cabinet';
         };
 
         // Parse height from SKU for uppers/talls
         const skuH = (sku, def) => {
           if (!sku) return def;
-          const m = sku.toUpperCase().match(/[A-Z]+\d{2,3}(\d{2})(?:-|$)/);
-          return m ? parseInt(m[1]) : def;
+          const s = sku.toUpperCase().replace(/^FC-/, '');
+          // Wall cabinet: W{width}{height}[L|R]
+          const wm = s.match(/^W(\d{2,3})(\d{2})[LR]?$/);
+          if (wm) return parseInt(wm[2]);
+          // Stacked wall: SW{width}{height}
+          const swm = s.match(/^SW(\d{2,3})(\d{2})$/);
+          if (swm) return parseInt(swm[2]);
+          // RW: RW{w}{h}-{d}
+          const rwm = s.match(/^RW(\d{2})(\d{2})-/);
+          if (rwm) return parseInt(rwm[2]);
+          // WBC
+          const wbcm = s.match(/^WBC(\d{2})(\d{2})$/);
+          if (wbcm) return parseInt(wbcm[2]);
+          // Utility/Oven tall: U or O followed by digits
+          if (/^[UO]\d/.test(s)) {
+            const afterPrefix = s.replace(/^[UO]/, '');
+            const digits = afterPrefix.match(/^(\d+)/);
+            if (digits) {
+              const allDigits = digits[1];
+              if (allDigits.length === 5) return parseInt(allDigits.slice(2)); // U36102 → 102
+              if (allDigits.length === 4) return parseInt(allDigits.slice(2)); // U3696 → 96
+              if (allDigits.length === 3) return parseInt(allDigits.slice(1)); // U384 → 84
+            }
+          }
+          return def;
+        };
+
+        // Determine hinge side based on nearest appliance
+        const determineHinge = (cab, width, wallCabs) => {
+          if (width > 24) return '-';
+          const s = (cab.sku || '').toUpperCase().replace(/^FC-/, '');
+          if (/^B[34]D/.test(s) || /^RTB/.test(s) || /^BPOS/.test(s)) return '-';
+          const appliances = (wallCabs || []).filter(c =>
+            c.type === 'appliance' || c.role === 'sink' || c.role === 'range' ||
+            c.role === 'dishwasher' || c.role === 'refrigerator'
+          );
+          const cabCenter = (cab.position || 0) + (width / 2);
+          if (appliances.length === 0) {
+            const wallEnd = wallCabs.reduce((max, c) => Math.max(max, (c.position || 0) + (c.width || 0)), 0);
+            return cabCenter < wallEnd / 2 ? 'R' : 'L';
+          }
+          let nearest = appliances[0], nearestDist = Infinity;
+          for (const app of appliances) {
+            const appCenter = (app.position || 0) + ((app.width || 0) / 2);
+            const dist = Math.abs(cabCenter - appCenter);
+            if (dist < nearestDist) { nearestDist = dist; nearest = app; }
+          }
+          const appCenter = (nearest.position || 0) + ((nearest.width || 0) / 2);
+          return cabCenter < appCenter ? 'R' : 'L';
         };
 
         for (const wall of wallKeys) {
@@ -902,7 +980,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             const pricedItem = quote?.items?.find(qi => qi.sku === p.sku);
             const w = p.width || 0;
             const h = p.type === 'upper' ? skuH(p.sku, 36) : (p.type === 'tall' ? skuH(p.sku, 96) : 34.5);
-            const d = p.type === 'upper' ? 13 : (p.type === 'tall' ? 24 : 24);
+            const d = p.type === 'upper' ? 13 : (p.type === 'tall' ? (() => { const dm = (p.sku || '').match(/-(\d{2})$/); return dm ? parseInt(dm[1]) : 24; })() : 24);
             scheduleRows.push({
               tag: `KD${String(tagNum++).padStart(2, '0')}`,
               wall,
@@ -912,12 +990,23 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               height: h,
               depth: d,
               mods: p._modWidth ? p._modWidthNote : (p.hingeSide ? `Hinge ${p.hingeSide}` : ''),
-              hingeSide: p.hingeSide || (w > 24 ? '-' : (p.position < 60 ? 'L' : 'R')),
+              hingeSide: p.hingeSide || determineHinge(p, w, items),
               unitPrice: pricedItem?.unitPrice || 0,
               extPrice: pricedItem?.totalPrice || pricedItem?.unitPrice || 0,
               isApp,
               isAccessory: p.role === 'filler' || p.role === 'end_panel' || p.type === 'end_panel',
             });
+
+            // Add modification sub-row if cabinet was width-modified
+            if (p._modWidth) {
+              scheduleRows.push({
+                tag: '', wall: '', sku: 'MOD WIDTH N/C',
+                desc: `Modified to ${p._modWidth}"`, width: p._modWidth,
+                height: '', depth: '', mods: '', hingeSide: '',
+                unitPrice: 0, extPrice: 0, isApp: false, isAccessory: false,
+                isModification: true,
+              });
+            }
           });
         }
 
@@ -925,7 +1014,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         const accessoryRows = scheduleRows.filter(r => r.isAccessory);
 
         const thStyle = { padding: '6px 8px', textAlign: 'left', color: C.dim, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: `2px solid ${C.border}` };
-        const tdStyle = { padding: '5px 8px', fontSize: 11, borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle' };
+        const tdStyle = { padding: '5px 8px', fontSize: 11, borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle', color: '#1e293b' };
         const tdR = { ...tdStyle, textAlign: 'right' };
 
         return (
@@ -933,6 +1022,9 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.primary }}>
               Cabinet Schedule — Eclipse C3 Frameless
             </h3>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+              Material: {materials?.species || 'Maple'} | Door Style: {materials?.door || 'MET-V'} | Construction: Frameless | Date: {new Date().toLocaleDateString()}
+            </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
@@ -1004,6 +1096,27 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                 </table>
               </div>
             )}
+
+            {/* Non-Plan Items (Toe Kick, Touch-Up Kit, Light Rail) */}
+            <div style={{ marginTop: 16 }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#64748b' }}>Non-Plan Items</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <tbody>
+                  {[
+                    { sku: 'TK-N/C', desc: 'Toe Kick (included)', qty: Math.max(1, Math.ceil((cabinetRows.reduce((s, r) => s + (r.width || 0), 0)) / 96)) },
+                    { sku: 'TUK-STAIN', desc: 'Touch-Up Kit', qty: 1 },
+                    ...(trimSelections?.lightRail ? [{ sku: '1 3/4 UCA', desc: 'Light Rail', qty: Math.max(1, Math.ceil((cabinetRows.filter(r => r.desc === 'Wall Cabinet').reduce((s, r) => s + (r.width || 0), 0)) / 96)) }] : []),
+                  ].map((item, i) => (
+                    <tr key={`np-${i}`} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff' }}>
+                      <td style={{ ...tdStyle, color: '#1e293b' }}>*</td>
+                      <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 10, color: '#1e293b' }}>{item.sku}</td>
+                      <td style={{ ...tdStyle, color: '#1e293b' }}>{item.desc}</td>
+                      <td style={{ ...tdR, color: '#1e293b' }}>Qty: {item.qty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Grand Total */}
             <div style={{ marginTop: 16, padding: '12px 16px', background: C.primary, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
