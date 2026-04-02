@@ -916,8 +916,43 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           // Fillers
           if (O.startsWith('F') && O.match(/^F\d/)) return 'Filler Strip';
           if (O.startsWith('OVF')) return 'Overlay Filler';
+          if (O.startsWith('FWEP')) return 'Flush Wall End Panel';
+          if (O.startsWith('LB-')) return 'Light Bridge';
+          if (O.startsWith('SWBC')) return 'Stacked Wall Blind Corner';
+          if (O.startsWith('CRN')) return 'Crown Molding';
+          if (O.startsWith('LR-')) return 'Light Rail';
+          if (O.startsWith('SCRIBE')) return 'Scribe Molding';
+          if (O.startsWith('DWP')) return 'Dishwasher Panel';
           return type || 'Cabinet';
         };
+
+        // ── SKU-based height/depth parsers (type-independent) ──
+        function parseHeightFromSku(sku, fallback) {
+          const s = (sku || '').toUpperCase().replace(/^FC-/, '');
+          let m;
+          m = s.match(/^W(\d{2,3})(\d{2})[LR]?$/); if (m) return parseInt(m[2]);
+          m = s.match(/^SW(\d{2,3})(\d{2})/); if (m) return parseInt(m[2]);
+          m = s.match(/^RW(\d{2})(\d{2})/); if (m) return parseInt(m[2]);
+          m = s.match(/^WBC(\d{2})(\d{2})/); if (m) return parseInt(m[2]);
+          m = s.match(/^SWBC(\d{2})(\d{2})/); if (m) return parseInt(m[2]);
+          m = s.match(/^[UO](\d{2,3})(\d{2,3})/);
+          if (m) { const d = m[1] + m[2]; if (d.length >= 4) return parseInt(d.slice(2)); }
+          m = s.match(/REP.*?(\d{2,3})FTK/); if (m) return parseInt(m[1]);
+          m = s.match(/^F(\d)(\d{2,3})$/); if (m) return parseInt(m[2]);
+          if (/^B\d|^SB|^BBC|^BL|^RTB|^BO|^BPOS|^BWDMW|^BTR|^DSB/.test(s)) return 34.5;
+          return fallback;
+        }
+
+        function parseDepthFromSku(sku, fallback) {
+          const s = (sku || '').toUpperCase().replace(/^FC-/, '');
+          let m;
+          m = s.match(/-(\d{2})$/); if (m && /^[UO]|^RW/.test(s)) return parseInt(m[1]);
+          m = s.match(/FTK-(\d{2})/); if (m) return parseInt(m[1]);
+          if (/^W\d|^SW\d|^WBC|^SWBC/.test(s)) return 13;
+          if (/^RW/.test(s)) return 27;
+          if (/^B\d|^SB|^BBC|^BL|^RTB|^BO|^BPOS|^BWDMW|^BTR|^DSB/.test(s)) return 24;
+          return fallback;
+        }
 
         // Parse height from SKU for uppers/talls
         const skuH = (sku, def) => {
@@ -949,11 +984,24 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           return def;
         };
 
+        // Helper: map appliance types to SKU format
+        function applianceSku(appType, width) {
+          const t = (appType || '').toLowerCase().replace(/_/g, '');
+          if (t === 'refrigerator' || t === 'freezer') return `REF${width || 36}`;
+          if (t === 'dishwasher') return `DW${width || 24}`;
+          if (t === 'range') return `RNG${width || 36}`;
+          if (t === 'cooktop') return `CT${width || 36}`;
+          if (t === 'walloven' || t === 'wall_oven') return `WO${width || 30}`;
+          if (t === 'microwave') return `MW${width || 30}`;
+          if (t === 'hood' || t === 'venthood') return `VH${width || 36}`;
+          return appType || '-';
+        }
+
         // Determine hinge side based on nearest appliance
         const determineHinge = (cab, width, wallCabs) => {
           if (width > 24) return '-';
           const s = (cab.sku || '').toUpperCase().replace(/^FC-/, '');
-          if (/^B[34]D/.test(s) || /^RTB/.test(s) || /^BPOS/.test(s)) return '-';
+          if (/^B[34]D/.test(s) || /^RTB/.test(s) || /^BPOS/.test(s) || /^F\d|^OVF|^REP|^WEP|^BEP|^TK|^CRN|^LR|^SCRIBE|^LB-/.test(s)) return '-';
           const appliances = (wallCabs || []).filter(c =>
             c.type === 'appliance' || c.role === 'sink' || c.role === 'range' ||
             c.role === 'dishwasher' || c.role === 'refrigerator'
@@ -979,12 +1027,12 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             const isApp = p.type === 'appliance';
             const pricedItem = quote?.items?.find(qi => qi.sku === p.sku);
             const w = p.width || 0;
-            const h = p.type === 'upper' ? skuH(p.sku, 36) : (p.type === 'tall' ? skuH(p.sku, 96) : 34.5);
-            const d = p.type === 'upper' ? 13 : (p.type === 'tall' ? (() => { const dm = (p.sku || '').match(/-(\d{2})$/); return dm ? parseInt(dm[1]) : 24; })() : 24);
+            const h = parseHeightFromSku(p.sku, p.type === 'upper' ? 36 : p.type === 'tall' ? 96 : 34.5);
+            const d = parseDepthFromSku(p.sku, p.type === 'upper' ? 13 : p.type === 'tall' ? 24 : 24);
             scheduleRows.push({
               tag: `KD${String(tagNum++).padStart(2, '0')}`,
               wall,
-              sku: (p.sku || p.applianceType || '-').replace(/^FC-/, ''),
+              sku: p.type === 'appliance' && !p.sku ? applianceSku(p.applianceType, p.width) : (p.sku || p.applianceType || '-').replace(/^FC-/, ''),
               desc: skuDesc(p.sku, p.type, p.applianceType),
               width: w,
               height: h,

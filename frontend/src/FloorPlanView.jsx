@@ -123,10 +123,10 @@ function PlanAppliance({ x, y, w, d, aType }) {
     return (
       <g>
         <rect {...props} />
-        <circle cx={x + w * 0.3} cy={y + d * 0.3} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
-        <circle cx={x + w * 0.7} cy={y + d * 0.3} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
-        <circle cx={x + w * 0.3} cy={y + d * 0.7} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
-        <circle cx={x + w * 0.7} cy={y + d * 0.7} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.3} cy={y + d * 0.3} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.3} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
+        <circle cx={x + w * 0.3} cy={y + d * 0.7} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.7} r={Math.min(w, d) * 0.1} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
       </g>
     );
   }
@@ -135,7 +135,7 @@ function PlanAppliance({ x, y, w, d, aType }) {
       <g>
         <rect {...props} />
         <path d={`M ${x + w} ${y + 2} A ${w - 2} ${w - 2} 0 0 1 ${x + w} ${y + d - 2}`}
-          fill="none" stroke={C.appStroke} strokeWidth={0.3} opacity={0.5} />
+          fill="none" stroke={C.appStroke} strokeWidth={0.5} opacity={0.8} />
       </g>
     );
   }
@@ -145,11 +145,11 @@ function PlanAppliance({ x, y, w, d, aType }) {
         <rect {...props} />
         {w > d + 4 ? (
           <>
-            <ellipse cx={x + w / 3} cy={y + d / 2} rx={w / 7} ry={d / 3} fill="none" stroke={C.appStroke} strokeWidth={0.4} />
-            <ellipse cx={x + 2 * w / 3} cy={y + d / 2} rx={w / 7} ry={d / 3} fill="none" stroke={C.appStroke} strokeWidth={0.4} />
+            <ellipse cx={x + w / 3} cy={y + d / 2} rx={w / 7} ry={d / 3} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
+            <ellipse cx={x + 2 * w / 3} cy={y + d / 2} rx={w / 7} ry={d / 3} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
           </>
         ) : (
-          <ellipse cx={x + w / 2} cy={y + d / 2} rx={w / 3} ry={d / 2.8} fill="none" stroke={C.appStroke} strokeWidth={0.4} />
+          <ellipse cx={x + w / 2} cy={y + d / 2} rx={w / 3} ry={d / 2.8} fill="none" stroke={C.appStroke} strokeWidth={0.5} opacity={0.8} />
         )}
       </g>
     );
@@ -159,7 +159,7 @@ function PlanAppliance({ x, y, w, d, aType }) {
       <g>
         <rect {...props} />
         <line x1={x + 1} y1={y + d / 2} x2={x + w - 1} y2={y + d / 2}
-          stroke={C.appStroke} strokeWidth={0.3} opacity={0.5} />
+          stroke={C.appStroke} strokeWidth={0.5} opacity={0.8} />
       </g>
     );
   }
@@ -179,7 +179,7 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
       const ly = y + (d * i / (numDrawers + 1));
       lines.push(
         <line key={`drawer-${i}`} x1={x + 1} y1={ly} x2={x + w - 1} y2={ly}
-          stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+          stroke={C.cabStroke} strokeWidth={0.5} opacity={0.8} />
       );
     }
     return <g>{lines}</g>;
@@ -191,15 +191,15 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
       return (
         <g>
           <ellipse cx={x + w * 0.3} cy={y + d * 0.5} rx={w * 0.18} ry={d * 0.25}
-            fill="none" stroke={C.appStroke} strokeWidth={0.35} opacity={0.5} />
+            fill="none" stroke={C.appStroke} strokeWidth={0.5} opacity={0.8} />
           <ellipse cx={x + w * 0.7} cy={y + d * 0.5} rx={w * 0.18} ry={d * 0.25}
-            fill="none" stroke={C.appStroke} strokeWidth={0.35} opacity={0.5} />
+            fill="none" stroke={C.appStroke} strokeWidth={0.5} opacity={0.8} />
         </g>
       );
     }
     return (
       <ellipse cx={x + w / 2} cy={y + d / 2} rx={w * 0.32} ry={d * 0.28}
-        fill="none" stroke={C.appStroke} strokeWidth={0.35} opacity={0.5} />
+        fill="none" stroke={C.appStroke} strokeWidth={0.5} opacity={0.8} />
     );
   }
 
@@ -208,10 +208,10 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
     const r = Math.min(w, d) * 0.1;
     return (
       <g>
-        <circle cx={x + w * 0.3} cy={y + d * 0.3} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
-        <circle cx={x + w * 0.7} cy={y + d * 0.3} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
-        <circle cx={x + w * 0.3} cy={y + d * 0.7} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
-        <circle cx={x + w * 0.7} cy={y + d * 0.7} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.35} />
+        <circle cx={x + w * 0.3} cy={y + d * 0.3} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.3} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
+        <circle cx={x + w * 0.3} cy={y + d * 0.7} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
+        <circle cx={x + w * 0.7} cy={y + d * 0.7} r={r} fill="none" stroke={C.appStroke} strokeWidth={0.5} />
       </g>
     );
   }
@@ -220,7 +220,7 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
   if (/^BL\d/.test(s) && s.includes('SS')) {
     return (
       <circle cx={x + w / 2} cy={y + d / 2} r={Math.min(w, d) * 0.4}
-        fill="none" stroke={C.cabStroke} strokeWidth={0.3} strokeDasharray="2,1" opacity={0.4} />
+        fill="none" stroke={C.cabStroke} strokeWidth={0.5} strokeDasharray="2,1" opacity={0.8} />
     );
   }
 
@@ -231,9 +231,9 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
     return (
       <g>
         <path d={`M ${x + 0.5} ${y + d} A ${r} ${r} 0 0 0 ${x + half} ${y + d - r}`}
-          fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+          fill="none" stroke={C.cabStroke} strokeWidth={0.5} opacity={0.8} />
         <path d={`M ${x + w - 0.5} ${y + d} A ${r} ${r} 0 0 1 ${x + half} ${y + d - r}`}
-          fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+          fill="none" stroke={C.cabStroke} strokeWidth={0.5} opacity={0.8} />
       </g>
     );
   }
@@ -243,13 +243,13 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
   if (hingeSide === 'L') {
     return (
       <path d={`M ${x + 0.5} ${y + d} A ${r} ${r} 0 0 0 ${x + 0.5 + r} ${y + d}`}
-        fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+        fill="none" stroke={C.cabStroke} strokeWidth={0.5} opacity={0.8} />
     );
   }
   // Hinge on right (default)
   return (
     <path d={`M ${x + w - 0.5} ${y + d} A ${r} ${r} 0 0 1 ${x + w - 0.5 - r} ${y + d}`}
-      fill="none" stroke={C.cabStroke} strokeWidth={0.2} opacity={0.4} />
+      fill="none" stroke={C.cabStroke} strokeWidth={0.5} opacity={0.8} />
   );
 }
 
@@ -310,17 +310,17 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, wallId }) {
                   const blindW = w - accessW;
                   return (
                     <>
-                      <rect x={x} y={WALL_T / 2} width={accessW} height={w}
+                      <rect x={x} y={WALL_T / 2} width={accessW} height={24}
                         fill={C.cabFill} stroke={C.cabStroke} strokeWidth={0.6} />
-                      <rect x={x + accessW} y={WALL_T / 2} width={blindW} height={w}
+                      <rect x={x + accessW} y={WALL_T / 2} width={blindW} height={24}
                         fill="#f0ede8" stroke={C.cabStroke} strokeWidth={0.4} />
                       {/* Diagonal hatching for blind portion */}
                       {Array.from({ length: Math.ceil(blindW / 4) }, (_, hi) => {
                         const hx = x + accessW + hi * 4;
                         return (
                           <line key={`bh${hi}`} x1={hx} y1={WALL_T / 2}
-                            x2={Math.min(hx + w, x + w)} y2={WALL_T / 2 + Math.min(w, (x + w - hx))}
-                            stroke={C.cabStroke} strokeWidth={0.15} opacity={0.3} />
+                            x2={Math.min(hx + w, x + w)} y2={WALL_T / 2 + Math.min(24, (x + w - hx))}
+                            stroke={C.cabStroke} strokeWidth={0.3} opacity={0.5} />
                         );
                       })}
                     </>
@@ -789,13 +789,13 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
         const midPt = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
         return (
-          <g opacity={0.7}>
+          <g opacity={0.85}>
             <line x1={sink.x} y1={sink.y} x2={range.x} y2={range.y}
-              stroke={color} strokeWidth={0.8} strokeDasharray="4,3" />
+              stroke="#c0392b" strokeWidth={1.2} strokeDasharray="4,3" />
             <line x1={range.x} y1={range.y} x2={fridge.x} y2={fridge.y}
-              stroke={color} strokeWidth={0.8} strokeDasharray="4,3" />
+              stroke="#c0392b" strokeWidth={1.2} strokeDasharray="4,3" />
             <line x1={fridge.x} y1={fridge.y} x2={sink.x} y2={sink.y}
-              stroke={color} strokeWidth={0.8} strokeDasharray="4,3" />
+              stroke="#c0392b" strokeWidth={1.2} strokeDasharray="4,3" />
             {/* Leg labels */}
             <text x={midPt(sink, range).x} y={midPt(sink, range).y - 3}
               fill={color} fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"

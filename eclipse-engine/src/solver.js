@@ -1980,7 +1980,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     if (corner.wallB === wall.id) {
       leftConsumed = corner.wallBConsumption;
       if (corner.fillerRequired) {
-        cabinets.push({ sku: `F3${Math.round(DIMS.baseHeight)}0`, width: corner.fillerWidth, role: "corner-filler", position: leftConsumed - corner.fillerWidth, wall: wall.id });
+        cabinets.push({ sku: 'F330', width: corner.fillerWidth, role: "corner-filler", position: leftConsumed - corner.fillerWidth, wall: wall.id });
       }
     }
   }
@@ -2977,7 +2977,7 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
       } else {
         // No cabinet to absorb into — use tall filler at terminal
         cabinets.push({
-          sku: `F3${Math.round(DIMS.baseHeight)}`,
+          sku: 'F330',
           width: result.filler,
           type: "filler",
           role: "terminal_filler",
@@ -5767,7 +5767,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
   const lightBridgeRequested = prefs.lightBridge === true;
   const lightBridgeExcluded = prefs.lightBridge === false;
   const sophVeryHighForLightBridge = prefs.sophistication === "very_high";
-  const shouldAddLightBridge = (sophVeryHighForLightBridge || lightBridgeRequested) && !lightBridgeExcluded;
+  const shouldAddLightBridge = lightBridgeRequested && !lightBridgeExcluded;
 
   if (shouldAddLightBridge && upperLayouts.length > 0) {
     for (const ul of upperLayouts) {
@@ -6592,6 +6592,7 @@ function assignHingeSides(wallLayouts, upperLayouts) {
 
     for (const cab of cabs) {
       if (cab.type === 'appliance' || cab.type === 'filler' || cab.type === 'end_panel') continue;
+      if (/^F\d|^OVF/.test((cab.sku || '').toUpperCase())) continue;
       if ((cab.width || 0) > 24) continue; // double-door, no hinge
       const s = (cab.sku || '').toUpperCase();
       if (/^B[34]D|^RTB|^BPOS|^BBC|^BL|^DSB/.test(s)) continue; // no hinge needed
@@ -6614,7 +6615,7 @@ function assignHingeSides(wallLayouts, upperLayouts) {
       }
 
       // Append hinge to SKU if not already present
-      if (cab.sku && !cab.sku.match(/[LR]$/) && cab.type !== 'filler') {
+      if (cab.sku && !cab.sku.match(/[LR]$/) && cab.type !== 'filler' && !/^F\d|^OVF/i.test(cab.sku)) {
         cab.sku = cab.sku + cab.hingeSide;
       }
     }
