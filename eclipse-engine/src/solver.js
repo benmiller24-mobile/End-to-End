@@ -372,6 +372,8 @@ export function solve(input) {
     golaChannel: !!prefs.golaChannel,
     islandBackStyle: prefs.islandBackStyle || "fhd_seating",
     sophistication: prefs.sophistication || "high",
+    designStyle: prefs.designStyle || null,        // "euro" → BookKitchen-EN-2025 behaviors (servant wall, tall consolidation)
+    tallConsolidation: !!prefs.tallConsolidation,  // consolidated_appliance_wall opt-in
     sinkStyle: prefs.sinkStyle || null,
     seatingStyle: prefs.seatingStyle || "bar",
     bracketStyle: prefs.bracketStyle || "SS",
@@ -4528,6 +4530,38 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     }
   }
 
+  // ── consolidated_appliance_wall (BookKitchen-EN-2025) ──
+  // Opt-in via prefs.designStyle === "euro" or prefs.tallConsolidation === true.
+  // Groups all tall units (oven tower, pantry, fridge surround) onto a single
+  // "tall bank" wall so the rest of the kitchen stays at counter height.
+  // Bank wall priority: dedicated tall wall → oven tower wall → fridge wall.
+  const wantsConsolidation = prefs.designStyle === "euro" || prefs.tallConsolidation === true;
+  if (wantsConsolidation && talls.length >= 2) {
+    const consolidationFridge = appliances.find(a => a.type === "refrigerator" || a.type === "freezer");
+    const bankWall = walls.find(w => w.role === "tall")?.id
+      || talls.find(t => t.role === "oven_tower")?.wall
+      || consolidationFridge?.wall
+      || talls[0].wall;
+    if (bankWall) {
+      // Never relocate talls onto walls anchored by range or sink
+      const wetHotWalls = new Set(appliances
+        .filter(a => ["range", "cooktop", "sink"].includes(a.type))
+        .map(a => a.wall)
+        .filter(Boolean));
+      if (!wetHotWalls.has(bankWall)) {
+        for (const t of talls) {
+          // Fridge surround pieces must stay with the fridge — only move freestanding talls
+          const movable = t.role === "pantry_tower" || t.role === "oven_tower";
+          if (movable && t.wall !== bankWall) {
+            t.consolidatedFrom = t.wall;
+            t.wall = bankWall;
+            t.consolidationPattern = "consolidated_appliance_wall";
+          }
+        }
+      }
+    }
+  }
+
   return talls;
 }
 
@@ -4676,11 +4710,23 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
   const hasSink = appliances.some(a => a.type === "sink");
 
   // Select island pattern
+  // servant_wall_island (BookKitchen-EN-2025): island carries both wet + hot
+  // zones (or euro style requested) while talls consolidate on the back wall.
+  const euroStyle = prefs.designStyle === "euro" || prefs.tallConsolidation === true;
   let pattern;
-  if (hasRange) pattern = "range_island";
+  if (hasRange && hasSink) pattern = "servant_wall_island";
+  else if (euroStyle && (hasRange || hasSink)) pattern = "servant_wall_island";
+  else if (hasRange) pattern = "range_island";
   else if (hasSink) pattern = "sink_island_with_seating_back";
   else if (length <= 60) pattern = "small_prep_island";
   else pattern = "drawer_island_with_seating";
+
+  // island_dining_extension tag (BookKitchen-EN-2025): long island with a
+  // seating back doubles as the dining surface
+  const patternTags = [];
+  if (prefs.islandBackStyle === "fhd_seating" && length >= 90) {
+    patternTags.push("island_dining_extension");
+  }
 
   // Work side
   const workCabs = [];
@@ -4691,7 +4737,30 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
 
   let workRemaining = length;
 
-  if (rangeApp) {
+  if (rangeApp && sinkApp) {
+    // ── servant_wall_island work side (BookKitchen-EN-2025) ──
+    // Both hot + wet zones on the island: flank | RANGE | prep | DW | SB
+    // Previously the sink was silently dropped when both shared the island.
+    // Prep counter between cooktop and sink targets EURO_GUIDE
+    // cooktopToSinkIdealMin (24" / 60cm) for safe handling of hot pots.
+    const rw = rangeApp.width || 30;
+    const sinkW = sinkApp.width || 36;
+    const dwW = dwApp ? (dwApp.width || 24) : 0;
+    const rem = length - rw - sinkW - dwW;
+    if (rem < 24) {
+      _warnings.push({ type: "island_combo_tight", message:
+        `Range (${rw}") + sink (${sinkW}")${dwW ? ` + DW (${dwW}")` : ""} leave only ${rem}" of counter on ${length}" island — EuroGuide suggests ≥24" (60cm) of prep between cooktop and sink` });
+    }
+    const leftFlank = Math.max(12, Math.min(30, Math.floor(Math.max(rem, 24) * 0.35)));
+    const midPrep = rem - leftFlank;
+    workCabs.push({ sku: `${golaPrefix}B3D${leftFlank}`, width: leftFlank, role: "rangeFlanking" });
+    workCabs.push({ type: "appliance", applianceType: "range", width: rw });
+    if (midPrep >= 12) {
+      workCabs.push({ sku: `${golaPrefix}B3D${midPrep}`, width: midPrep, role: "prepBetweenZones" });
+    }
+    if (dwApp) workCabs.push({ type: "appliance", applianceType: "dishwasher", width: dwW });
+    workCabs.push({ sku: `${golaPrefix}SB${sinkW}`, width: sinkW, role: "sink-base" });
+  } else if (rangeApp) {
     const rw = rangeApp.width || 30;
     // Validate range fits in island with flanking cabinets
     if (rw > length - 24) {
@@ -4802,6 +4871,8 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
 
   return {
     pattern,
+    patternTags,
+    patternSource: pattern === "servant_wall_island" ? "BookKitchen-EN-2025" : undefined,
     length,
     depth,
     workSide: workCabs,

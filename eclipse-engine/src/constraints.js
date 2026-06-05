@@ -363,6 +363,57 @@ export const TRIANGLE = {
 };
 
 
+// ─── EUROPEAN DESIGN GUIDE REFINEMENTS (ADVISORY LAYER) ─────────────────────
+// Source: "BookKitchen EN" European kitchen design guide (2025), Ch1/Ch3/Ch7.
+// Full extraction + metric→inch conversions: docs/euro-design-guide-bookkitchen.md
+//
+// IMPORTANT: These values are ADVISORY refinements layered on top of NKBA and
+// Eclipse rules. They NEVER override Eclipse product data (catalog, SKUs,
+// standard widths/depths) or NKBA hard rules. All values were converted from
+// metric (cm) and snapped to Eclipse-standard inch increments. Where the guide
+// conflicts with NKBA/Eclipse, NKBA/Eclipse wins; the guide value is exposed
+// here only as a "preferred" tier used for info/warning-level feedback.
+
+export const EURO_GUIDE = {
+  source: "BookKitchen-EN-2025",
+
+  // Zone separation (Ch1) — countertop between work zones
+  cooktopToSinkIdealMin: 24,        // ≥60cm ideal clearance between cooktop and sink
+  cooktopToDishwasherMin: 24,       // ≥60cm between cooktop and DW (DW belongs beside sink)
+  landingAtRunEnd: 15,              // 40cm min countertop at end of a run / beside cooktop at unit end
+  ovenToCooktopLanding: 15,         // 40cm landing between oven housing and cooktop (hot dishes)
+  fridgeToSinkLanding: 15,          // 40cm min countertop between fridge housing and sink
+
+  // Front-of-appliance clearances (Ch1 diagrams) — open-door + user standing space
+  frontClearance: {
+    sink: 28,                       // 70cm
+    refrigerator: 34,               // 85cm
+    dishwasher: 36,                 // 90cm
+    underCounterOven: 40,           // 100cm
+  },
+
+  // Aisles (Ch1) — stricter than NKBA minimums; used as a "preferred" tier only
+  unitToFacingWall: 39,             // 100cm between a run and a facing wall
+  unitToFacingWallSliding: 28,      // 70cm if doors are sliding
+  facingRunsPreferred: 47,          // 120cm between two facing base runs (35" if sliding doors)
+  twoCookAislePreferred: 55,        // 140cm for two cooks working side by side
+
+  // Ergonomic work-surface height personalization (Ch1).
+  // Eclipse standard remains DIMS.counterHeight — this range is for user-height
+  // driven recommendations only, never for cabinet SKU changes.
+  workSurfaceHeightMin: 33.5,       // ~85cm (shorter users)
+  workSurfaceHeightMax: 37.5,       // ~95cm (taller users)
+
+  // Euro backsplash preference (Ch1): ~70cm counter-to-upper for an open feel.
+  // CLEARANCE.counterToUpperMin (18") remains the hard minimum.
+  backsplashOpenFeel: 27.5,
+
+  // Housing ventilation construction rules (Ch1)
+  ovenHousingNeedsTopVent: true,    // oven tall unit must vent at top — never tight to wall/ceiling
+  fridgeHousingNeedsVent: true,     // fridge housing: bottom air intake + top exhaust gap
+};
+
+
 // ─── APPLIANCE PLACEMENT PRIORITY ("BIG FOUR" RULE) ───────────────────────
 // "Position the Big Four first: cooktop, oven, dishwasher, fridge-freezer, and sink."
 // These anchor the kitchen layout — everything else fills around them.
@@ -1820,6 +1871,33 @@ export function validateLayout(layout) {
           severity: "warning",
           message: `Walkway clearance ${layout.walkwayClearance}" > ${CLEARANCE.walkwayMax}" — overly wide walkways feel disconnected; consider narrowing or adding an island/peninsula`
         });
+      }
+
+      // ── European design guide advisory checks (EURO_GUIDE, BookKitchen-EN-2025) ──
+      // Info-level only: never fails a layout, never overrides NKBA/Eclipse rules.
+      if (numCooks >= 2 && layout.walkwayClearance < EURO_GUIDE.twoCookAislePreferred) {
+        issues.push({
+          rule: "EuroGuide-TwoCook-Aisle",
+          severity: "info",
+          message: `Walkway ${layout.walkwayClearance}" < ${EURO_GUIDE.twoCookAislePreferred}" (140cm) preferred by European ergonomic guidelines for two cooks working side by side`
+        });
+      }
+    }
+
+    // ── European design guide: cooktop↔sink separation (advisory) ──
+    if (layout.appliances) {
+      const euroSink = findAppliance(layout.appliances, 'sink');
+      const euroCook = findAppliance(layout.appliances, 'range') || findAppliance(layout.appliances, 'cooktop');
+      if (euroSink && euroCook && typeof euroSink.width === 'number' && typeof euroCook.width === 'number') {
+        const centerDist = calculateDistance(euroSink, euroCook);
+        const edgeGap = centerDist - (euroSink.width + euroCook.width) / 2;
+        if (edgeGap >= 0 && edgeGap < EURO_GUIDE.cooktopToSinkIdealMin) {
+          issues.push({
+            rule: "EuroGuide-Cooktop-Sink-Separation",
+            severity: "info",
+            message: `~${Math.round(edgeGap)}" of counter between cooktop and sink — European guidelines suggest ≥${EURO_GUIDE.cooktopToSinkIdealMin}" (60cm) for safe handling of hot pots and liquids`
+          });
+        }
       }
     }
 

@@ -320,6 +320,33 @@ export const ISLAND_PATTERNS = [
     occurrences: ["Firebird (B3D30 ×2 with BDEP-F LT/RT + RCK LT/RT, B18R/L with same)"],
     note: "Premium furniture-style island with decorative end panels and rack details on each base.",
   },
+
+  // ── Patterns imported from European design guide (BookKitchen-EN-2025) ──
+  // Compositional patterns only — cabinet construction always maps to Eclipse
+  // SKUs/types. See docs/euro-design-guide-bookkitchen.md for full provenance.
+  {
+    id: "servant_wall_island",
+    source: "BookKitchen-EN-2025",
+    description: "European pairing: single tall 'servant wall' (ovens + integrated fridge + pantry) with an island carrying hob and/or sink as the social heart",
+    trigger: "open_plan && wall_length >= 120 && island_length >= 72",
+    wallSide: "All tall units consolidated on one wall: UT{w}{h} + O{w}{h}/OM{w}{h} + fridge column + REP panels",
+    islandSide: "SB{w} and/or cooktop base with B3D{w} prep flanks",
+    layoutNote: "Place sink and cooktop facing each other (island vs. wall run) to shorten the work triangle (BookKitchen Ch3)",
+    occurrences: ["BookKitchen Ch5 — 9 of 10 designs pair a tall servant wall with a working island (#1, #3, #6, #7, #8 most explicit)"],
+    sophistication: "very_high",
+    note: "Guide favors in-hob/downdraft extraction to declutter the ceiling; Eclipse default is island-mount hood — confirm hood strategy per project.",
+  },
+  {
+    id: "island_dining_extension",
+    source: "BookKitchen-EN-2025",
+    description: "Island doubles as dining: bar-stool face, lowered table extension, or table continuation off one end",
+    trigger: "open_plan && island_length >= 90",
+    workSide: "SB{w}/cooktop base + B3D{w}",
+    seatingSide: "B{w}-FHD at 13\" depth with overhang (existing Eclipse construction), or table extension at ~30\" height off island end",
+    occurrences: ["BookKitchen Ch5 #5 (lowered round table off island), #6 (4-stool bar face), #8 (island volume extends into table)"],
+    sophistication: "high",
+    note: "Bar-face variant maps directly to existing FHD-back seating patterns; lowered-table variant requires custom countertop spec.",
+  },
 ];
 
 
@@ -402,6 +429,18 @@ export const TALL_PATTERNS = [
     layout: "O{w}{h}-{d} + WTD × N",
     occurrences: ["Bollini (O3096-27 with 2× WTD + SUB DRW FRONT + FDS)"],
     note: "WTD dividers convert oven tower drawers into organized tray/sheet storage.",
+  },
+
+  // ── Pattern imported from European design guide (BookKitchen-EN-2025) ──
+  {
+    id: "consolidated_appliance_wall",
+    source: "BookKitchen-EN-2025",
+    description: "All tall elements (oven tower, integrated fridge column, pantry) grouped into one floor-to-ceiling bank; the rest of the kitchen stays at counter height",
+    layout: "REP + O{w}{h}/OM{w}{h} or FIO{w}{h} + fridge column + UT{w}{h} + REP",
+    trigger: "open_plan && tall_count >= 2",
+    occurrences: ["BookKitchen Ch5 #1, #3, #6, #7, #8, #9 — tall consolidation in 6 of 10 designs"],
+    sophistication: "very_high",
+    note: "Keeps sightlines low in open plans. Construction: oven housing needs top ventilation; fridge housing needs bottom intake + top exhaust gap (see EURO_GUIDE in constraints.js).",
   },
 ];
 
