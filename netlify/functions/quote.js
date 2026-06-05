@@ -13,7 +13,7 @@ export default async (req) => {
       materials: materials || {},
     });
 
-    const summary = generateProjectSummary(result);
+    const summary = generateProjectSummary({ ...result, quote: result.pricing });
 
     return new Response(JSON.stringify({ ...result, summary }), {
       status: 200,
