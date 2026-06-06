@@ -1263,6 +1263,7 @@ export function solve(input) {
         _allUpperCabs.some(_isHood) ||
         (talls || []).some(t => /^RH\d/i.test(t.sku || '') || t.applianceType === 'hood') ||
         _islandCabs.some(_isHood) ||
+        !!(islandLayout && islandLayout.hood) ||
         (appliances || []).some(a => a.type === 'hood' || a.downdraft || a.ventedHob || a.integratedExtraction);
       const hasCookingSurface = (appliances || []).some(a => a.type === 'range' || a.type === 'cooktop');
       nkbaReport = validateNKBA(
@@ -5024,6 +5025,16 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
     hasRange,
     hasSink,
     overhang,
+    // Island-mounted hood when the island carries a cooking surface (NKBA G19:
+    // every cooking surface needs ventilation). Width = cooktop + 3"/side.
+    hood: rangeApp ? {
+      sku: `RH50 ${Math.round((rangeApp.width || 30) + 6)}4224`,
+      type: "hood",
+      mount: "island",
+      width: Math.round((rangeApp.width || 30) + 6),
+      overCooktopWidth: rangeApp.width || 30,
+      role: "island_hood",
+    } : null,
     _warnings,
   };
 }
