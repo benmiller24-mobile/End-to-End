@@ -215,7 +215,7 @@ function CabTag({ cx, cy, num, prefix = 'KD' }) {
 // COMPONENT: CabFront — Shaker 5-piece door with raised inner panel
 // ═══════════════════════════════════════════════════════════════════════
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -300,9 +300,11 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide }) {
         );
       }
 
-      // Knob (small circle) — positioned at upper corner of door, hinge-side opposite
+      // Knob (small circle), hinge-side opposite. Base doors carry the knob near
+      // the TOP; wall (upper) cabinet doors carry it near the BOTTOM for reach —
+      // drawing it at the top made uppers look upside-down.
       const knobX = i === 0 ? dx + dw - 2.5 * S : dx + 2.5 * S;
-      const knobY = doorY + 3 * S;
+      const knobY = isUpper ? doorY + doorH - 3 * S : doorY + 3 * S;
       els.push(
         <circle key={`k${i}`} cx={knobX} cy={knobY} r={0.8}
           fill={C.hwColor} stroke="none" />
@@ -385,23 +387,54 @@ function ApplianceSym({ x, y, w, h, aType }) {
 
   const m = 3 * S;
 
-  if (aType === 'range' || aType === 'cooktop') {
-    // 4 burner circles (2×2 grid)
-    const bw = (w - 2 * m) / 2;
-    const bh = (h - 2 * m) / 2;
-    const r = Math.min(bw, bh) * 0.35;
-    for (let row = 0; row < 2; row++)
-      for (let col = 0; col < 2; col++)
-        els.push(
-          <circle key={`b${row}${col}`}
-            cx={x + m + col * bw + bw / 2} cy={y + m + row * bh + bh / 2} r={r}
-            fill="none" stroke={C.line} strokeWidth={0.4} />
-        );
-    // Handle bar at top
+  if (aType === 'range') {
+    // FRONT elevation of a slide-in/freestanding range: a control rail at the
+    // top, then a large oven door with a handle and glass window.
+    const ctrlH = 3.5 * S;
     els.push(
-      <line key="hdl" x1={x + m} y1={y + 2 * S} x2={x + w - m} y2={y + 2 * S}
-        stroke={C.line} strokeWidth={0.5} />
+      <rect key="ctrl" x={x + 1 * S} y={y + 1 * S} width={w - 2 * S} height={ctrlH}
+        fill="none" stroke={C.line} strokeWidth={0.4} />
     );
+    const nk = Math.max(2, Math.min(5, Math.round(w / (6 * S))));
+    for (let i = 0; i < nk; i++) {
+      els.push(
+        <circle key={`kn${i}`} cx={x + (i + 0.5) * (w / nk)} cy={y + 1 * S + ctrlH / 2} r={0.9}
+          fill="none" stroke={C.line} strokeWidth={0.35} />
+      );
+    }
+    const doorY = y + 1 * S + ctrlH + 1 * S;
+    const doorH = (y + h - 1.5 * S) - doorY;
+    els.push(
+      <rect key="door" x={x + 1.5 * S} y={doorY} width={w - 3 * S} height={doorH}
+        fill="none" stroke={C.line} strokeWidth={0.5} rx={0.4} />
+    );
+    els.push(
+      <line key="hdl" x1={x + 2.5 * S} y1={doorY + 1.6 * S} x2={x + w - 2.5 * S} y2={doorY + 1.6 * S}
+        stroke={C.line} strokeWidth={0.7} strokeLinecap="round" />
+    );
+    els.push(
+      <rect key="win" x={x + 3.5 * S} y={doorY + 3.5 * S}
+        width={w - 7 * S} height={Math.max(0, doorH - 6 * S)}
+        fill="#e8e8e8" stroke={C.line} strokeWidth={0.3} rx={0.4} />
+    );
+  } else if (aType === 'cooktop') {
+    // A cooktop drops into the counter, so the FRONT shows the base cabinet
+    // (drawers) below it — not burners viewed from above.
+    const rows = 2;
+    const dh = (h - 2 * S) / rows;
+    for (let r2 = 0; r2 < rows; r2++) {
+      const dy = y + 1 * S + r2 * dh;
+      els.push(
+        <rect key={`dr${r2}`} x={x + 1.5 * S} y={dy + 0.4} width={w - 3 * S} height={dh - 0.8}
+          fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />
+      );
+      const pullW = Math.min((w - 3 * S) * 0.25, 5 * S);
+      els.push(
+        <line key={`p${r2}`} x1={x + w / 2 - pullW / 2} y1={dy + dh / 2}
+          x2={x + w / 2 + pullW / 2} y2={dy + dh / 2}
+          stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />
+      );
+    }
   } else if (aType === 'refrigerator' || aType === 'freezer') {
     // French door split
     els.push(
@@ -473,30 +506,40 @@ function ApplianceSym({ x, y, w, h, aType }) {
         stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
     );
   } else if (aType === 'sink') {
-    // Double basin sink
-    const bw = (w - 4 * S) / 2;
-    const bh = h * 0.45;
-    const by = y + h * 0.35;
-    // Left basin
+    // FRONT elevation of a sink BASE cabinet: a tilt-out false drawer front at
+    // the top (no real drawer — the bowl is behind it) over two doors below.
+    // The bowl/faucet are NOT visible in a front elevation (they're on top).
+    const falseH = 4.5 * S;                      // tilt-out false-front band
     els.push(
-      <rect key="bl" x={x + 1.5 * S} y={by} width={bw} height={bh}
-        fill="none" stroke={C.line} strokeWidth={0.35} rx={1.5} />
+      <rect key="ff" x={x + 1.5 * S} y={y + 1 * S} width={w - 3 * S} height={falseH}
+        fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />
     );
-    // Right basin
-    els.push(
-      <rect key="br" x={x + 2.5 * S + bw} y={by} width={bw} height={bh}
-        fill="none" stroke={C.line} strokeWidth={0.35} rx={1.5} />
-    );
-    // Faucet
-    els.push(
-      <line key="faucet" x1={x + w / 2} y1={by - 1 * S}
-        x2={x + w / 2} y2={y + 2 * S}
-        stroke={C.line} strokeWidth={0.5} />
-    );
-    els.push(
-      <circle key="knob" cx={x + w / 2} cy={y + 1.5 * S} r={1}
-        fill="none" stroke={C.line} strokeWidth={0.35} />
-    );
+    // Two doors below
+    const doorY = y + 1 * S + falseH + 1 * S;
+    const doorH = (y + h - 1.5 * S) - doorY;
+    if (doorH > 2 * S) {
+      const gap = 0.8;
+      const dw = (w - 3 * S - gap) / 2;
+      for (let i = 0; i < 2; i++) {
+        const dx = x + 1.5 * S + i * (dw + gap);
+        els.push(
+          <rect key={`d${i}`} x={dx} y={doorY} width={dw} height={doorH}
+            fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />
+        );
+        const ip = 2 * S;
+        if (dw > 2 * ip + 2 && doorH > 2 * ip + 2) {
+          els.push(
+            <rect key={`di${i}`} x={dx + ip} y={doorY + ip} width={dw - 2 * ip} height={doorH - 2 * ip}
+              fill="none" stroke={C.thinLine} strokeWidth={0.25} opacity={0.4} rx={0.2} />
+          );
+        }
+        // Knob near the TOP inner corner (base doors)
+        const knobX = i === 0 ? dx + dw - 2.5 * S : dx + 2.5 * S;
+        els.push(
+          <circle key={`k${i}`} cx={knobX} cy={doorY + 2.5 * S} r={0.8} fill={C.hwColor} stroke="none" />
+        );
+      }
+    }
   } else if (aType === 'warmingDrawer') {
     els.push(
       <rect key="face" x={x + 2 * S} y={y + 2 * S}
@@ -809,7 +852,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} />
+              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper />
             )}
           </g>
         );
@@ -900,38 +943,39 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
       {hood && typeof hood.position === 'number' && (() => {
         const x = hood.position * S;
         const w = (hood.width || 36) * S;
-        const hH = (hood.height || 24) * S;
-        const mountAFF = hood._hoodMountAFF || 66;
-        const y = floorY - mountAFF * S;
-        const taper = Math.min(5 * S, w * 0.1);
+        // The hood BOTTOM hangs ~30" above the cooking surface. Cooktop sits at
+        // the counter (36" AFF), so the hood bottom is ~66" AFF — clamp to a sane
+        // 60–72" range regardless of any stale mount value from the solver.
+        const COUNTER_AFF = TOEKICK + BASE_BOX + CTR_THICK;   // 36"
+        const rawBottom = hood._hoodMountAFF || (COUNTER_AFF + 30);
+        const bottomAFF = Math.max(COUNTER_AFF + 24, Math.min(72, rawBottom));
+        const canopyH = Math.max(10, Math.min(18, hood.height || 14)); // canopy body height
+        const yBottom = floorY - bottomAFF * S;               // wide bottom edge
+        const yTop = yBottom - canopyH * S;                   // narrow top edge
+        const taper = Math.min(6 * S, w * 0.18);
+        const flueTopY = ceilY;                               // flue runs up to ceiling
+        const flueW = Math.min(w * 0.4, 10 * S);
         return (
           <g>
-            {/* Hood body (trapezoid) */}
+            {/* Flue / chimney from the canopy top up to the ceiling */}
+            <rect x={x + w / 2 - flueW / 2} y={flueTopY} width={flueW} height={yTop - flueTopY}
+              fill={C.hoodFill} stroke={C.line} strokeWidth={0.5} />
+            {/* Canopy body (wide at the bottom over the cooktop, tapering up) */}
             <polygon
-              points={`${x},${y + hH} ${x + taper},${y} ${x + w - taper},${y} ${x + w},${y + hH}`}
-              fill={C.hoodFill} stroke={C.line} strokeWidth={0.6} />
-            {/* Grille lines inside hood */}
-            {[0.3, 0.5, 0.7].map((f, i) => (
-              <line key={`gl${i}`} x1={x + taper * (1 - f) + w * f * 0.08} y1={y + hH * f}
-                x2={x + w - taper * (1 - f) - w * f * 0.08} y2={y + hH * f}
-                stroke={C.thinLine} strokeWidth={0.2} opacity={0.4} />
-            ))}
+              points={`${x},${yBottom} ${x + taper},${yTop} ${x + w - taper},${yTop} ${x + w},${yBottom}`}
+              fill={C.hoodFill} stroke={C.line} strokeWidth={0.7} />
+            {/* Capture-rail line along the bottom edge */}
+            <line x1={x} y1={yBottom} x2={x + w} y2={yBottom} stroke={C.line} strokeWidth={0.8} />
             {/* VENT HOOD label */}
-            <text x={x + w / 2} y={y + hH * 0.55} fill={C.dimText}
-              fontSize={4} fontFamily="Helvetica,Arial,sans-serif"
-              textAnchor="middle" fontWeight="700">VENT HOOD</text>
-            {/* FIXED PANEL annotation if panels extend to ceiling */}
-            {mountAFF + (hood.height || 24) < ceilH - 3 && (
-              <g>
-                <rect x={x + 2} y={y - (ceilH - mountAFF - (hood.height || 24)) * S + 1}
-                  width={w - 4} height={(ceilH - mountAFF - (hood.height || 24)) * S - 2}
-                  fill={C.repFill} stroke={C.line} strokeWidth={0.4} />
-                <text x={x + w / 2} y={ceilY + (y - ceilY) / 2 + 2}
-                  fill={C.annotColor} fontSize={3.2}
-                  fontFamily="Helvetica,Arial,sans-serif"
-                  textAnchor="middle" fontWeight="600">FIXED PANEL</text>
-              </g>
-            )}
+            <text x={x + w / 2} y={(yTop + yBottom) / 2 + 1.5} fill={C.dimText}
+              fontSize={3.6} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" fontWeight="700">HOOD</text>
+            {/* Clearance dimension note (hood bottom above counter) */}
+            <text x={x + w + 2} y={yBottom - (canopyH * S) / 2}
+              fill={C.annotColor} fontSize={3}
+              fontFamily="Helvetica,Arial,sans-serif" textAnchor="start">
+              {fmt(bottomAFF - COUNTER_AFF)} over counter
+            </text>
           </g>
         );
       })()}
