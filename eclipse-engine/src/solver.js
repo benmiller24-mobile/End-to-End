@@ -616,42 +616,62 @@ export function solve(input) {
       const leftConsumed = cornerAtLeft ? cornerAtLeft.wallBConsumption : 0;
       const rightConsumed = cornerAtRight ? cornerAtRight.wallAConsumption : 0;
 
-      // Find the last base cabinet position on this wall
-      const baseCabs = wl.cabinets.filter(c => typeof c.position === "number");
-      const maxCabEnd = baseCabs.reduce((m, c) => Math.max(m, (c.position || 0) + (c.width || 0)), leftConsumed);
+      // Build the set of occupied spans on this wall. CRITICAL: include
+      // appliances (the fridge especially), not just base cabinets — appliances
+      // may not yet be merged into wl.cabinets at this phase, and ignoring them
+      // caused pantries to be dropped at x=0 on top of the fridge.
+      const wallApps = assignedAppliances.filter(
+        a => a.wall === tall.wall && typeof a.position === "number"
+      );
+      const occupied = [
+        ...wl.cabinets.filter(c => typeof c.position === "number"),
+        ...wallApps,
+      ];
+      const occFirstStart = occupied.length
+        ? Math.min(...occupied.map(c => c.position))
+        : wallLen - rightConsumed;
+      const occLastEnd = occupied.reduce(
+        (m, c) => Math.max(m, (c.position || 0) + (c.width || 0)), leftConsumed
+      );
 
-      // Try to place at the left end (before first base cab) if corner is on the right
+      const leftRoom = occFirstStart - leftConsumed;
+      const rightRoom = wallLen - rightConsumed - occLastEnd;
+
+      // Place at whichever terminal genuinely has room (prefer the larger gap).
       let placed = false;
-      if (cornerAtRight && !cornerAtLeft) {
-        // Left end is free — check if there's room before the first base cab
-        const firstCabStart = baseCabs.length ? Math.min(...baseCabs.map(c => c.position || 0)) : leftConsumed;
-        if (firstCabStart >= tall.width) {
-          tall.position = 0;
-          placed = true;
-        }
+      if (rightRoom >= tall.width && rightRoom >= leftRoom) {
+        tall.position = wallLen - rightConsumed - tall.width;
+        placed = true;
+      } else if (leftRoom >= tall.width) {
+        tall.position = leftConsumed;
+        placed = true;
       }
 
-      // Try to place at the right end (after last base cab) if corner is on the left
-      if (!placed && cornerAtLeft && !cornerAtRight) {
-        if (wallLen - maxCabEnd >= tall.width) {
-          tall.position = wallLen - tall.width;
-          placed = true;
-        }
-      }
-
-      // Fallback: try whichever end has more room
+      // No room on the assigned wall — try to relocate to any other wall that
+      // has a free terminal big enough, before giving up.
       if (!placed) {
-        const leftRoom = baseCabs.length
-          ? Math.min(...baseCabs.map(c => c.position || Infinity)) - leftConsumed
-          : wallLen - leftConsumed - rightConsumed;
-        const rightRoom = wallLen - rightConsumed - maxCabEnd;
-
-        if (rightRoom >= tall.width && rightRoom >= leftRoom) {
-          tall.position = wallLen - rightConsumed - tall.width;
-          placed = true;
-        } else if (leftRoom >= tall.width) {
-          tall.position = leftConsumed;
-          placed = true;
+        for (const altWall of walls) {
+          if (altWall.id === tall.wall) continue;
+          const altWl = wallLayouts.find(w => w.wallId === altWall.id);
+          if (!altWl) continue;
+          const altLen = altWall.length || altWl.wallLength;
+          const altCornerR = corners.find(c => c.wallA === altWall.id);
+          const altCornerL = corners.find(c => c.wallB === altWall.id);
+          const altLC = altCornerL ? altCornerL.wallBConsumption : 0;
+          const altRC = altCornerR ? altCornerR.wallAConsumption : 0;
+          const altOcc = [
+            ...altWl.cabinets.filter(c => typeof c.position === "number"),
+            ...assignedAppliances.filter(a => a.wall === altWall.id && typeof a.position === "number"),
+          ];
+          const altLastEnd = altOcc.reduce((m, c) => Math.max(m, (c.position || 0) + (c.width || 0)), altLC);
+          const altRightRoom = altLen - altRC - altLastEnd;
+          if (altRightRoom >= tall.width) {
+            tall.wall = altWall.id;
+            tall.position = altLen - altRC - tall.width;
+            tall.relocatedFrom = wl.wallId;
+            placed = true;
+            break;
+          }
         }
       }
 
