@@ -371,11 +371,12 @@ export function renderFloorPlan(layout, opts = {}) {
       rectB = null;
     }
 
-    // Draw both legs with a darker stroke to show the L shape
-    elements.push(svgRect(rectA, FILL_CORNER));
+    // Draw both legs with a subtle fill so the corner reads as a cabinet (not
+    // an empty gap) and a clear outline to show the L shape.
+    elements.push(svgRect(rectA, FILL_APPLIANCE));
     rects.push(rectA);
     if (rectB) {
-      elements.push(svgRect(rectB, FILL_CORNER));
+      elements.push(svgRect(rectB, FILL_APPLIANCE));
       rects.push(rectB);
     }
 
@@ -388,10 +389,9 @@ export function renderFloorPlan(layout, opts = {}) {
       elements.push(`<line x1="${s(cx - depth * 0.8)}" y1="${s(cy - depth * 0.1)}" x2="${s(cx - depth * 0.1)}" y2="${s(cy + depth * 0.8)}" stroke="${STROKE_CAB}" stroke-width="0.5" stroke-dasharray="3,2" />`);
     }
 
-    if (showSkus && corner.sku) {
-      // Label at the junction point (center of the L-shape overlap area)
-      const labelRect = rectA;
-      elements.push(svgLabel(labelRect, corner.sku));
+    if (showSkus) {
+      // Numbered chip (consistent with all other cabinets) at the corner.
+      elements.push(faceLabel(rectA.x, rectA.y, rectA.w, rectA.h, corner));
     }
   }
 
@@ -2127,7 +2127,7 @@ function assignItemNumbers(layout) {
   let next = 1;
   const consider = (cab) => {
     if (!cab) return;
-    const w = cab.width || 0;
+    const w = cab.width || cab.size || 0;  // corners carry `size`, not `width`
     if (w <= 0) return;
     if (isTrim(cab)) return; // trim isn't numbered
     const key = cab.sku || cab.applianceType || cab.type;
@@ -2144,6 +2144,7 @@ function assignItemNumbers(layout) {
   for (const wall of (layout.walls || [])) for (const c of (wall.cabinets || [])) consider(c);
   for (const up of (layout.uppers || [])) for (const c of (up.cabinets || [])) consider(c);
   for (const t of (layout.talls || [])) consider(t);
+  for (const cr of (layout.corners || [])) consider(cr); // corner cabinets get an item number too
   if (layout.island) {
     for (const c of (layout.island.workSide || [])) consider(c);
     for (const c of (layout.island.backSide || [])) consider(c);
