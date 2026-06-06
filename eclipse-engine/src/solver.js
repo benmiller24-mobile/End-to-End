@@ -4965,21 +4965,33 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
       _warnings.push({ type: "island_range_tight", message:
         `Range (${rw}") leaves only ${length - rw}" for flanking cabinets on ${length}" island — layout will be tight` });
     }
-    // Range island: B3D + RANGE + BPOS-12 + B-RT
-    const leftWidth = Math.max(12, Math.min(36, Math.floor((length - rw) * 0.4)));
-    const rightWidth = length - rw - leftWidth - 12;
-    if (leftWidth >= 12) {
-      workCabs.push({ sku: `${golaPrefix}B3D${leftWidth}`, width: leftWidth, role: "rangeFlanking" });
-    }
-    workCabs.push({ type: "appliance", applianceType: "range", width: rw });
-    if (rightWidth >= 12) {
-      workCabs.push({ sku: `${golaPrefix}BPOS-12`, width: 12, role: "rangeFlanking" });
-      workCabs.push({ sku: `${golaPrefix}B${rightWidth}-RT`, width: Math.max(12, rightWidth), role: "rangeFlanking" });
-    } else if (length - rw - leftWidth > 0) {
-      // Remaining space too small for BPOS + cab — use a single filler/small cab
-      const rem = length - rw - leftWidth;
-      if (rem >= 9) {
-        workCabs.push({ sku: `${golaPrefix}B${rem}`, width: rem, role: "rangeFlanking" });
+    // Range island flanking. Pro convention (KF element lists): the hob is
+    // flanked by two EQUAL-width drawer bases. Apply symmetric flanking when each
+    // side can be ≥15" (so it also satisfies the NKBA island landing rule);
+    // otherwise fall back to the asymmetric B3D + BPOS + B-RT composition.
+    const flankTotal = length - rw;
+    const flankW = flankTotal / 2;
+    if (flankW >= 15) {
+      const fwRound = Math.round(flankW);
+      const isMod = Math.abs(fwRound - flankW) > 0.01;
+      workCabs.push({ sku: `${golaPrefix}B3D${fwRound}`, width: flankW, role: "rangeFlanking", _modWidth: isMod || undefined });
+      workCabs.push({ type: "appliance", applianceType: "range", width: rw });
+      workCabs.push({ sku: `${golaPrefix}B3D${fwRound}`, width: flankW, role: "rangeFlanking", _modWidth: isMod || undefined });
+    } else {
+      const leftWidth = Math.max(12, Math.min(36, Math.floor((length - rw) * 0.4)));
+      const rightWidth = length - rw - leftWidth - 12;
+      if (leftWidth >= 12) {
+        workCabs.push({ sku: `${golaPrefix}B3D${leftWidth}`, width: leftWidth, role: "rangeFlanking" });
+      }
+      workCabs.push({ type: "appliance", applianceType: "range", width: rw });
+      if (rightWidth >= 12) {
+        workCabs.push({ sku: `${golaPrefix}BPOS-12`, width: 12, role: "rangeFlanking" });
+        workCabs.push({ sku: `${golaPrefix}B${rightWidth}-RT`, width: Math.max(12, rightWidth), role: "rangeFlanking" });
+      } else if (length - rw - leftWidth > 0) {
+        const rem = length - rw - leftWidth;
+        if (rem >= 9) {
+          workCabs.push({ sku: `${golaPrefix}B${rem}`, width: rem, role: "rangeFlanking" });
+        }
       }
     }
   } else if (sinkApp) {
