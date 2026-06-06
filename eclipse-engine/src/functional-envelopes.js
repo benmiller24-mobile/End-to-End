@@ -415,6 +415,12 @@ export function generateEnvelopes(placements, wallLayouts, islandLayout, options
  *   report.collisions.forEach(c => console.log(c.description));
  * }
  */
+// A box is usable for collision testing only if it has real numeric x/y/size.
+function hasFiniteXY(box) {
+  return box && Number.isFinite(box.x) && Number.isFinite(box.y) &&
+    Number.isFinite(box.width) && Number.isFinite(box.depth);
+}
+
 export function runCollisionCheck(envelopes, options = {}) {
   const {
     includeInfoLevel = false,
@@ -428,6 +434,14 @@ export function runCollisionCheck(envelopes, options = {}) {
     for (let j = i + 1; j < envelopes.length; j++) {
       const envA = envelopes[i];
       const envB = envelopes[j];
+
+      // Skip pairs whose physical boxes lack real coordinates. Inside solve(),
+      // placements carry wall-relative `position` but not yet room x/y (assigned
+      // later in the coordinate pass); without this guard EVERY envelope sits at
+      // the origin and the check reports hundreds of bogus collisions.
+      if (!hasFiniteXY(envA.physicalBox) || !hasFiniteXY(envB.physicalBox)) {
+        continue;
+      }
 
       // Skip if same wall-mounted objects might be on different walls (no collision)
       if (envA.wallId && envB.wallId && envA.wallId !== envB.wallId) {

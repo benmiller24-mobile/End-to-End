@@ -5391,24 +5391,38 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
         }
         const leftGap = first.position;
         if (leftGap < 3) {
-          // Gap is too small or zero — must insert/expand to 3" minimum
+          // Gap is too small or zero — must insert/expand to 3" minimum.
           const fillerW = 3;
-          // Shift all cabinets right by (3 - leftGap) to make room
-          const shiftNeeded = fillerW - leftGap;
+          let shiftNeeded = fillerW - leftGap;
+          // CORNER-SAFE: never shift cabinets into a right-side corner zone.
+          // If the run already ends at (or near) the reserved corner, cap the
+          // shift to the available room so the last cabinet can't overrun it.
+          if (hasRightCorner) {
+            const rc = corners.find(cr => cr.wallA === wl.wallId);
+            const rightReserve = rc ? (rc.wallAConsumption || rc.size || 0) : 0;
+            const rightBoundary = wl.wallLength - rightReserve;
+            const lastCabEnd = last.position + (last.width || 0);
+            shiftNeeded = Math.max(0, Math.min(shiftNeeded, rightBoundary - lastCabEnd));
+          }
           if (shiftNeeded > 0) {
             for (const cab of allCabs) {
               cab.position = (cab.position || 0) + shiftNeeded;
             }
           }
-          accessories.push({
-            sku: 'F30',
-            width: fillerW,
-            wall: wl.wallId,
-            role: "base-filler-wall-junction-left",
-            position: 0,
-            cynclyRule: "Frameless golden rule: 3\" min filler at wall junction (left)",
-          });
-          totalFillers++;
+          // Only record a left filler equal to the gap actually created. If there
+          // was no room to shift (run is tight corner-to-corner), add none.
+          const actualFiller = leftGap + shiftNeeded;
+          if (actualFiller >= 1) {
+            accessories.push({
+              sku: actualFiller >= 2.5 ? 'F30' : `F${Math.round(actualFiller)}0`,
+              width: Math.round(actualFiller * 10) / 10,
+              wall: wl.wallId,
+              role: "base-filler-wall-junction-left",
+              position: 0,
+              cynclyRule: "Frameless golden rule: min filler at wall junction (left), corner-capped",
+            });
+            totalFillers++;
+          }
         } else if (leftGap >= 3 && leftGap <= 6 && leftGap < MAX_GAP_FOR_FILLER) {
           // Gap is 3-6": use as filler width directly
           const fillerW = Math.round(leftGap);
