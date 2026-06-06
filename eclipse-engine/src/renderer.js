@@ -996,44 +996,41 @@ export function renderElevation(layout, wallId, opts = {}) {
       elements.push(`<line x1="${s(dimRunX)}" y1="${s(ceil)}" x2="${s(dimRunX)}" y2="${s(botDimY + DIM_TICK / SCALE)}" stroke="${DIM_COLOR}" stroke-width="0.3" stroke-dasharray="2,2" />`);
     }
 
-    // Left side height dimension
-    const dimX = -DIM_OFFSET;
-    elements.push(dimLineVert(dimX, 0, dimX, ceil, formatDim(ceil)));
-
-    // RIGHT SIDE: Vertical dimension chains with 3D zone labels
-    const rightDimX = wallLength + DIM_OFFSET;
-    const rightLabelX = wallLength + DIM_OFFSET + 10;
-    const counterH = DIMS.counterHeight || 36;
-    const baseZoneH = VERTICAL_ZONES.BASE.yMax - VERTICAL_ZONES.BASE.yMin;  // 30"
-    const toeKickH = VERTICAL_ZONES.TOE_KICK.yMax;  // 4.5"
-    const backsplashZoneH = VERTICAL_ZONES.BACKSPLASH.yMax - VERTICAL_ZONES.BACKSPLASH.yMin;  // 18"
-    const upperH = (uppers && uppers.cabinets && uppers.cabinets[0]) ? (uppers.cabinets[0]._elev?.height || uppers.cabinets[0].height || 36) : 36;
-    const ceilingClearanceH = ceil - VERTICAL_ZONES.UPPER.yMin - upperH;
-
-    // Floor to counter (includes toe kick + base zone + counter)
-    elements.push(dimLineVert(rightDimX, ceil - counterH, rightDimX, ceil, formatDim(counterH)));
-    // Zone label: BASE (right of dim chain)
-    const baseMidY = ceil - counterH / 2;
-    elements.push(`<text x="${s(rightLabelX)}" y="${s(baseMidY)}" style="font-size:6px;fill:#888;font-style:italic;" dominant-baseline="middle">BASE 24"d</text>`);
-
-    // Counter to upper bottom (backsplash zone)
-    const backsplashY = ceil - VERTICAL_ZONES.UPPER.yMin;
-    elements.push(dimLineVert(rightDimX, backsplashY, rightDimX, ceil - counterH, formatDim(backsplashZoneH)));
-    // Zone label: BACKSPLASH
-    const bsMidY = (backsplashY + ceil - counterH) / 2;
-    elements.push(`<text x="${s(rightLabelX)}" y="${s(bsMidY)}" style="font-size:6px;fill:#c88;font-style:italic;" dominant-baseline="middle">CLEAR</text>`);
-
-    // Upper cabinet height
-    const upperTopY = ceil - VERTICAL_ZONES.UPPER.yMin - upperH;
-    elements.push(dimLineVert(rightDimX, upperTopY, rightDimX, backsplashY, formatDim(upperH)));
-    // Zone label: UPPER
-    const upperMidY = (upperTopY + backsplashY) / 2;
-    elements.push(`<text x="${s(rightLabelX)}" y="${s(upperMidY)}" style="font-size:6px;fill:#888;font-style:italic;" dominant-baseline="middle">UPPER 13"d</text>`);
-
-    // Ceiling clearance (if any)
-    if (ceilingClearanceH > 0) {
-      elements.push(dimLineVert(rightDimX, 0, rightDimX, upperTopY, formatDim(ceilingClearanceH)));
+    // ── Vertical dimension chains on BOTH sides (PRONORM breakdown) ──
+    // Segment boundaries in inches AFF: toe, base box, counter slab, backsplash,
+    // upper, top gap. Mirrors KF elevations which dimension both left and right.
+    const toeAFF = DIMS.toeKickHeight;            // 4.5
+    const baseTopAFF = DIMS.toeKickHeight + DIMS.baseHeight; // ~39 (drawn base top)
+    const counterTopAFF = baseTopAFF + COUNTER_THICK;        // + slab
+    // Use a representative STANDARD wall cabinet (mounted near 54"), not the
+    // above-fridge cabinet (~84"), so the backsplash/upper segments are meaningful.
+    const stdUppers = ((uppers && uppers.cabinets) || []).filter(c => (c._elev?.yMount ?? DIMS.upperBottom) <= 60);
+    const repUpper = stdUppers[0] || ((uppers && uppers.cabinets) || [])[0];
+    const hasUp = !!repUpper;
+    const upperH = hasUp ? (repUpper._elev?.height || repUpper.height || 36) : 0;
+    const upperBottomAFF = hasUp ? (repUpper._elev?.yMount ?? DIMS.upperBottom) : null;
+    // Build the segment list (skip zero-height segments, clamp to ceiling).
+    const bounds = [0, toeAFF, baseTopAFF, counterTopAFF];
+    if (hasUp && upperBottomAFF != null) {
+      bounds.push(upperBottomAFF, Math.min(upperBottomAFF + upperH, ceil));
     }
+    bounds.push(ceil);
+    const segs = [];
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const a = bounds[i], b = bounds[i + 1];
+      if (b - a > 0.5) segs.push([a, b]);
+    }
+    const drawVChain = (xpos) => {
+      for (const [a, b] of segs) {
+        elements.push(dimLineVert(xpos, ceil - b, xpos, ceil - a, formatDim(b - a)));
+      }
+    };
+    const dimX = -DIM_OFFSET;
+    const rightDimX = wallLength + DIM_OFFSET;
+    drawVChain(dimX);
+    drawVChain(rightDimX);
+    // Overall height marker outside the right chain
+    elements.push(dimLineVert(rightDimX + 14, 0, rightDimX + 14, ceil, formatDim(ceil)));
 
     // Scale notation in footer (Rec #1)
     const scaleTextX = wallLength / 2;
@@ -1041,15 +1038,18 @@ export function renderElevation(layout, wallId, opts = {}) {
     elements.push(`<text x="${s(scaleTextX)}" y="${s(scaleTextY)}" text-anchor="middle" style="font-size:7px;fill:#666;font-style:italic;">Scale: ½" = 1'-0" (NKBA)</text>`);
   }
 
-  // Compute SVG size (extra space for dims on all sides)
-  const svgW = s(wallLength) + margin * 2 + (showDimensions ? 60 : 0);
-  const svgH = s(ceil) + margin * 2 + (showDimensions ? 70 : 0);
+  // Compute SVG size — reserve enough on each side for the full dimension chains
+  // so left/right vertical chains and the overall marker never clip.
+  const leftPad = showDimensions ? 100 : 0;
+  const rightPad = showDimensions ? 185 : 0;
+  const svgW = s(wallLength) + margin * 2 + leftPad + rightPad;
+  const svgH = s(ceil) + margin * 2 + (showDimensions ? 80 : 0);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="background:white">\n`;
   svg += `<style>text{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:${FONT_SIZE}px;fill:#333;}</style>\n`;
   // Title
   svg += `<text x="${svgW / 2}" y="20" text-anchor="middle" style="font-size:14px;font-weight:600;fill:#222;">${esc(elevTitle)}</text>\n`;
-  svg += `<g transform="translate(${margin + (showDimensions ? 20 : 0)},${margin + 14})">\n`;
+  svg += `<g transform="translate(${margin + leftPad},${margin + 18})">\n`;
 
   for (const el of elements) {
     svg += `  ${el}\n`;
@@ -1106,10 +1106,10 @@ export function renderElevation(layout, wallId, opts = {}) {
 
     svg += `<text x="${keyPlanSize / 2}" y="${keyPlanSize + 12}" text-anchor="middle" style="font-size:7px;fill:#666;font-weight:bold;">KEY PLAN</text>\n`;
     svg += `</g>\n`;
-    svg += `<g transform="translate(${margin + (showDimensions ? 20 : 0)},${margin + 14})">\n`;
+    svg += `<g transform="translate(${margin + leftPad},${margin + 18})">\n`;
   } else {
     svg += `</g>\n`;
-    svg += `<g transform="translate(${margin + (showDimensions ? 20 : 0)},${margin + 14})">\n`;
+    svg += `<g transform="translate(${margin + leftPad},${margin + 18})">\n`;
   }
 
   // Cyncly-style footer: design note + branding
