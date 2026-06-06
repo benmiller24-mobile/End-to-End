@@ -2800,6 +2800,43 @@ export function validateLayout(layout) {
       }
     }
 
+    // Tall-unit overlap + grouping (KF convention: tall units come grouped as an
+    // appliance tower + crockery run, frequently mirrored — never overlapping or
+    // scattered mid-run). Positions are 1D along each wall, so this is checkable
+    // even without 2D coordinates.
+    const tallsByWall = {};
+    for (const t of (layout.talls || [])) {
+      if (typeof t.position !== 'number') continue;
+      // Skip thin fridge-surround panels and above-fridge cabinets — they belong
+      // with the fridge, not the tall "tower" grouping.
+      if (/^(REP|FREP|RW)/i.test(t.sku || '') || t.role === 'fridge_panel' || t.role === 'fridge_wall_cab') continue;
+      (tallsByWall[t.wall] = tallsByWall[t.wall] || []).push(t);
+    }
+    for (const [wall, ts] of Object.entries(tallsByWall)) {
+      const sorted = ts.slice().sort((a, b) => a.position - b.position);
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const a = sorted[i], b = sorted[i + 1];
+        const aEnd = a.position + (a.width || 24);
+        if (aEnd > b.position + 0.5) {
+          issues.push({
+            rule: "Tall-Units-Overlap",
+            severity: "error",
+            message: `Tall units overlap on wall ${wall}: ${a.sku || 'tall'} ends at ${Math.round(aEnd)}" but ${b.sku || 'tall'} starts at ${Math.round(b.position)}".`,
+            location: wall,
+          });
+        } else if (b.position - aEnd > 12) {
+          // Two tall units on the same wall separated by >12" of base run — pros
+          // group them (tower + larder) rather than scattering.
+          issues.push({
+            rule: "Design-Tall-Units-Scattered",
+            severity: "info",
+            message: `Tall units on wall ${wall} are split by ${Math.round(b.position - aEnd)}" of cabinetry — grouping them (appliance tower + larder) reads more professional.`,
+            location: wall,
+          });
+        }
+      }
+    }
+
     // G20a — cooking surface must NOT be under an operable window.
     const cookers = (layout.appliances || []).filter(a => a.type === 'range' || a.type === 'cooktop');
     for (const cook of cookers) {
