@@ -150,6 +150,30 @@ export function renderFloorPlan(layout, opts = {}) {
 
     elements.push(`<line x1="${s(ox)}" y1="${s(oy)}" x2="${s(ex)}" y2="${s(ey)}" stroke="${STROKE}" stroke-width="3" />`);
 
+    // ── Window / door openings ──
+    // Drawn as a white break in the wall line with thin sill rails (windows) or
+    // a swing arc (doors). posFromLeft + width are measured along the wall.
+    for (const op of (wall.openings || [])) {
+      const p0 = op.posFromLeft || 0;
+      const ow = op.width || 0;
+      if (ow <= 0) continue;
+      const sx = ox + dx * p0, sy = oy + dy * p0;
+      const exo = ox + dx * (p0 + ow), eyo = oy + dy * (p0 + ow);
+      const nx = -dy, ny = dx; // inward normal
+      // White out the wall segment
+      elements.push(`<line x1="${s(sx)}" y1="${s(sy)}" x2="${s(exo)}" y2="${s(eyo)}" stroke="white" stroke-width="3" />`);
+      if (op.type === 'door') {
+        // Door leaf + quarter swing arc
+        elements.push(`<line x1="${s(sx)}" y1="${s(sy)}" x2="${s(sx + nx * ow)}" y2="${s(sy + ny * ow)}" stroke="${STROKE}" stroke-width="1" />`);
+        elements.push(`<path d="M ${s(sx + nx * ow)} ${s(sy + ny * ow)} A ${s(ow)} ${s(ow)} 0 0 1 ${s(exo)} ${s(eyo)}" fill="none" stroke="${STROKE_LIGHT}" stroke-width="0.6" />`);
+      } else {
+        // Window: two thin parallel rails set just inside the wall line
+        const off = 1.5;
+        elements.push(`<line x1="${s(sx + nx * off)}" y1="${s(sy + ny * off)}" x2="${s(exo + nx * off)}" y2="${s(eyo + ny * off)}" stroke="${STROKE}" stroke-width="0.7" />`);
+        elements.push(`<line x1="${s(sx - nx * off)}" y1="${s(sy - ny * off)}" x2="${s(exo - nx * off)}" y2="${s(eyo - ny * off)}" stroke="${STROKE}" stroke-width="0.7" />`);
+      }
+    }
+
     // Wall dimension (Rec #1: NKBA-standard dimension chain)
     if (showDimensions) {
       const mx = (ox + ex) / 2;
@@ -396,25 +420,47 @@ export function renderFloorPlan(layout, opts = {}) {
     }
   }
 
-  // ── Island ──
+  // ── Island (with internal cabinets, sink/cooktop, seating side) ──
   if (island && layout.island) {
     const il = layout.island;
-    // Position island centered below wall A
     const wallA = inputWalls[0];
     const cfgA = wallConfig[wallA?.id];
-    const islandX = cfgA ? cfgA.ox + (wallA.length / 2) - ((island.length || 96) / 2) : 48;
-    const islandY = (cfgA ? cfgA.oy : 0) + DIMS.baseDepth + 42; // 42" clearance
-    const islandW = island.length || 96;
-    const islandD = DIMS.baseDepth * 2; // work side + back side depth
+    const islandW = il.length || 96;
+    const islandX = cfgA ? cfgA.ox + (wallA.length / 2) - (islandW / 2) : 48;
+    const sideDepth = DIMS.baseDepth;        // 24" per side
+    const islandD = sideDepth * 2;           // work side + seating side
+    const islandY = (cfgA ? cfgA.oy : 0) + DIMS.baseDepth + 42; // 42" clearance from wall run
+    const endPanelW = 0.75;
 
-    const rect = { x: islandX, y: islandY, w: islandW, h: islandD };
-    elements.push(svgRect(rect, FILL_ISLAND));
-    elements.push(svgLabel(rect, 'ISLAND'));
+    // Base fill
+    elements.push(svgRect({ x: islandX, y: islandY, w: islandW, h: islandD }, FILL_ISLAND));
+
+    // Lay a row of cabinets across one side of the island
+    const drawSide = (cabsList, yTop) => {
+      let rx = islandX + endPanelW;
+      for (const cab of (cabsList || [])) {
+        const w = cab.width || 0;
+        if (w <= 0) continue;
+        const r = { x: rx, y: yTop, w, h: sideDepth };
+        const isApp = cab.type === 'appliance' || cab.role === 'appliance' || cab.applianceType;
+        elements.push(svgRect(r, isApp ? (APPLIANCE_FILLS[cab.applianceType] || FILL_APPLIANCE) : FILL_BASE));
+        if (isApp && cab.applianceType) elements.push(applianceSymbol(r, cab.applianceType));
+        if (showSkus && (cab.sku || cab.applianceType)) elements.push(svgLabel(r, cab.sku || cab.applianceType));
+        rx += w;
+      }
+    };
+    drawSide(il.workSide, islandY);                 // work side faces the wall run
+    drawSide(il.backSide, islandY + sideDepth);     // seating side faces the room
+
+    // Center seam between the two cabinet rows
+    elements.push(`<line x1="${s(islandX)}" y1="${s(islandY + sideDepth)}" x2="${s(islandX + islandW)}" y2="${s(islandY + sideDepth)}" stroke="${STROKE_CAB}" stroke-width="0.5" stroke-dasharray="3,3" />`);
+    // Outer countertop outline (slightly proud to read as the worktop overhang)
+    elements.push(`<rect x="${s(islandX)}" y="${s(islandY)}" width="${s(islandW)}" height="${s(islandD)}" fill="none" stroke="${STROKE}" stroke-width="1.5" />`);
 
     if (showDimensions) {
       elements.push(dimLine(islandX, islandY + islandD + DIM_OFFSET, islandX + islandW, islandY + islandD + DIM_OFFSET, formatDim(islandW)));
     }
-    rects.push(rect);
+    rects.push({ x: islandX, y: islandY, w: islandW, h: islandD });
   }
 
   // ── Solver warning overlays ──
