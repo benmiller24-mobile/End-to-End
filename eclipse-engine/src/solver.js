@@ -5402,16 +5402,14 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
           // Gap is too small or zero — must insert/expand to 3" minimum.
           const fillerW = 3;
           let shiftNeeded = fillerW - leftGap;
-          // CORNER-SAFE: never shift cabinets into a right-side corner zone.
-          // If the run already ends at (or near) the reserved corner, cap the
-          // shift to the available room so the last cabinet can't overrun it.
-          if (hasRightCorner) {
-            const rc = corners.find(cr => cr.wallA === wl.wallId);
-            const rightReserve = rc ? (rc.wallAConsumption || rc.size || 0) : 0;
-            const rightBoundary = wl.wallLength - rightReserve;
-            const lastCabEnd = last.position + (last.width || 0);
-            shiftNeeded = Math.max(0, Math.min(shiftNeeded, rightBoundary - lastCabEnd));
-          }
+          // BOUNDARY-SAFE: never shift the run past its right boundary — whether
+          // that boundary is a reserved corner zone OR simply the wall end. Cap
+          // the shift to the available room so the last cabinet can't overrun it.
+          const rc = hasRightCorner ? corners.find(cr => cr.wallA === wl.wallId) : null;
+          const rightReserve = rc ? (rc.wallAConsumption || rc.size || 0) : 0;
+          const rightBoundary = wl.wallLength - rightReserve;
+          const lastCabEnd = last.position + (last.width || 0);
+          shiftNeeded = Math.max(0, Math.min(shiftNeeded, rightBoundary - lastCabEnd));
           if (shiftNeeded > 0) {
             for (const cab of allCabs) {
               cab.position = (cab.position || 0) + shiftNeeded;
