@@ -130,6 +130,7 @@ export function renderFloorPlan(layout, opts = {}) {
   const corners = layout.corners || [];
   const { island, peninsula, layoutType } = layout;
   const wallConfig = buildWallConfig(inputWalls, layoutType);
+  const itemLegend = assignItemNumbers(layout);
 
   // Collect all rectangles for bounding box computation
   const rects = [];
@@ -249,8 +250,8 @@ export function renderFloorPlan(layout, opts = {}) {
       if ((cab.type === 'appliance' || cab.role === 'appliance') && cab.applianceType) {
         elements.push(applianceSymbol(rect, cab.applianceType));
       }
-      if (showSkus && cab.sku) {
-        elements.push(svgLabel(rect, cab.sku));
+      if (showSkus) {
+        elements.push(faceLabel(rect.x, rect.y, rect.w, rect.h, cab));
       }
       rects.push(rect);
 
@@ -422,8 +423,8 @@ export function renderFloorPlan(layout, opts = {}) {
 
     const rect = cabinetRectOnWall(cfg, runPos, w, d);
     elements.push(svgRect(rect, FILL_TALL));
-    if (showSkus && tall.sku) {
-      elements.push(svgLabel(rect, tall.sku));
+    if (showSkus) {
+      elements.push(faceLabel(rect.x, rect.y, rect.w, rect.h, tall));
     }
     rects.push(rect);
   }
@@ -449,8 +450,8 @@ export function renderFloorPlan(layout, opts = {}) {
         const rect = cabinetRectOnWall(cfg, x, w, d);
         const fill = ft.role === 'fridge_panel' ? FILL_FILLER : APPLIANCE_FILLS.refrigerator;
         elements.push(svgRect(rect, fill));
-        if (showSkus && ft.sku) {
-          elements.push(svgLabel(rect, ft.sku));
+        if (showSkus) {
+          elements.push(faceLabel(rect.x, rect.y, rect.w, rect.h, ft));
         }
         rects.push(rect);
         x += w;
@@ -494,7 +495,7 @@ export function renderFloorPlan(layout, opts = {}) {
         const isApp = cab.type === 'appliance' || cab.role === 'appliance' || cab.applianceType;
         elements.push(svgRect(r, isApp ? (APPLIANCE_FILLS[cab.applianceType] || FILL_APPLIANCE) : FILL_BASE));
         if (isApp && cab.applianceType) elements.push(applianceSymbol(r, cab.applianceType));
-        if (showSkus && (cab.sku || cab.applianceType)) elements.push(svgLabel(r, cab.sku || cab.applianceType));
+        if (showSkus) elements.push(faceLabel(r.x, r.y, r.w, r.h, cab));
         rx += w;
       }
     };
@@ -576,6 +577,33 @@ export function renderFloorPlan(layout, opts = {}) {
     legendX += 11 + entry.label.length * 4.2 + 6;
   }
 
+  // ── Numbered element list (keys the chips on every view) ──
+  if (itemLegend && itemLegend.length) {
+    const cols = Math.min(4, Math.max(1, Math.floor(svgW / 230)));
+    const rowH = 12;
+    const rowsPerCol = Math.ceil(itemLegend.length / cols);
+    const colW = (svgW - 16) / cols;
+    const listTop = svgH + 6;
+    const listH = rowsPerCol * rowH + 22;
+    let listSvg = `<text x="8" y="${listTop + 2}" style="font-size:9px;font-weight:bold;fill:#222;">Element List</text>`;
+    itemLegend.forEach((e, i) => {
+      const col = Math.floor(i / rowsPerCol);
+      const row = i % rowsPerCol;
+      const ex = 8 + col * colW;
+      const ey = listTop + 16 + row * rowH;
+      const qty = e.qty > 1 ? ` ×${e.qty}` : '';
+      const text = `${e.sku}${qty}`;
+      listSvg += `<rect x="${ex}" y="${ey - 7}" width="13" height="11" rx="2" fill="white" stroke="#222" stroke-width="0.8" />`;
+      listSvg += `<text x="${ex + 6.5}" y="${ey + 1.5}" text-anchor="middle" style="font-size:8px;font-weight:700;fill:#111;">${e.no}</text>`;
+      listSvg += `<text x="${ex + 18}" y="${ey + 1.5}" style="font-size:8px;fill:#444;">${esc(text)}</text>`;
+    });
+    // Extend canvas to fit the element list
+    const newH = svgH + listH;
+    svg = svg.replace(`height="${svgH}"`, `height="${newH}"`);
+    svg = svg.replace(`0 0 ${svgW} ${svgH}`, `0 0 ${svgW} ${newH}`);
+    svg += listSvg;
+  }
+
   // ── Solver warning panel ──
   const rendererWarnings = layout._rendererWarnings || [];
   if (rendererWarnings.length > 0) {
@@ -628,6 +656,7 @@ export function renderElevation(layout, wallId, opts = {}) {
   const uppers = (layout.uppers || []).find(ul => ul.wallId === wallId);
   const corners = (layout.corners || []).filter(c => c.wallA === wallId || c.wallB === wallId);
   const talls = (layout.talls || []).filter(t => t.wall === wallId);
+  assignItemNumbers(layout);
 
   // Map wall ID to cardinal direction (N, E, S, W for NKBA clockwise ordering)
   const wallDirMap = {
@@ -707,8 +736,8 @@ export function renderElevation(layout, wallId, opts = {}) {
         const hoodY = ceil - hoodMount - hoodH;
         elements.push(drawCabinetFace(bx, hoodY, w, hoodH, cab, APPLIANCE_FILLS.hood || fill));
         if (cab.applianceType) elements.push(elevApplianceSymbol(bx, hoodY, w, hoodH, cab.applianceType));
-        if (showSkus && cab.sku) {
-          elements.push(elevLabel(bx, hoodY, w, hoodH, cab.sku));
+        if (showSkus) {
+          elements.push(faceLabel(bx, hoodY, w, hoodH, cab));
         }
 
       } else {
@@ -717,8 +746,8 @@ export function renderElevation(layout, wallId, opts = {}) {
         if ((cab.type === 'appliance' || cab.role === 'appliance') && cab.applianceType) {
           elements.push(elevApplianceSymbol(bx, y, w, h, cab.applianceType));
         }
-        if (showSkus && cab.sku) {
-          elements.push(elevLabel(bx, y, w, h, cab.sku));
+        if (showSkus) {
+          elements.push(faceLabel(bx, y, w, h, cab));
         }
       }
 
@@ -830,8 +859,8 @@ export function renderElevation(layout, wallId, opts = {}) {
         elements.push(`<line x1="${s(x + w) - setbackScale}" y1="${s(y)}" x2="${s(x + w) - setbackScale}" y2="${s(y + upperH)}" stroke="#bbb" stroke-width="0.4" stroke-dasharray="2,2" />`);
       }
 
-      if (showSkus && cab.sku) {
-        elements.push(elevLabel(x, y, w, upperH, cab.sku));
+      if (showSkus) {
+        elements.push(faceLabel(x, y, w, upperH, cab));
       }
       if (showDimensions && w >= 12) {
         elements.push(dimText(x + w / 2, y - 6, formatDim(w)));
@@ -855,8 +884,8 @@ export function renderElevation(layout, wallId, opts = {}) {
     const y = ceil - yMount - h;
 
     elements.push(drawCabinetFace(x, y, w, h, tall, FILL_TALL));
-    if (showSkus && tall.sku) {
-      elements.push(elevLabel(x, y, w, h, tall.sku));
+    if (showSkus) {
+      elements.push(faceLabel(x, y, w, h, tall));
     }
   }
 
@@ -1077,6 +1106,7 @@ export function renderIslandElevation(layout, opts = {}) {
 
   const island = layout.island;
   if (!island) return '';
+  assignItemNumbers(layout);
 
   const isSeating = side === 'seating' || side === 'back';
   const cabs = (isSeating ? island.backSide : island.workSide) || [];
@@ -1119,8 +1149,8 @@ export function renderIslandElevation(layout, opts = {}) {
       elements.push(drawCabinetFace(x, viewH - cabTop, w, baseH, cab, fill));
       if (isAppliance && at) elements.push(elevApplianceSymbol(x, viewH - cabTop, w, baseH, at));
     }
-    if (showSkus && (cab.sku || at)) {
-      elements.push(elevLabel(x, viewH - cabTop, w, baseH, cab.sku || at));
+    if (showSkus) {
+      elements.push(faceLabel(x, viewH - cabTop, w, baseH, cab));
     }
     if (showDimensions && w >= 6) {
       elements.push(dimText(x + w / 2, floorY + ISL_DIM, formatDim(w)));
@@ -2031,6 +2061,55 @@ function elevLabel(x, y, w, h, text) {
   const label = text.length > maxChars ? text.slice(0, maxChars) : text;
   const fontSize = Math.min(FONT_SIZE, Math.max(6, w * SCALE / label.length * 0.7));
   return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" style="font-size:${Math.round(fontSize)}px;">${esc(label)}</text>`;
+}
+
+// ─── ITEM NUMBERING (numbered callouts + element list) ───────────────────────
+// Assigns a stable item number per distinct SKU across the whole layout so the
+// same number is used in every view, and returns a legend (no, sku, desc, qty).
+// Memoized on the layout object so floor plan and elevations stay in sync.
+function assignItemNumbers(layout) {
+  if (layout && layout._itemLegend) return layout._itemLegend;
+  const map = new Map();
+  let next = 1;
+  const consider = (cab) => {
+    if (!cab) return;
+    const w = cab.width || 0;
+    if (w <= 0) return;
+    const key = cab.sku || cab.applianceType || cab.type;
+    if (!key) return;
+    if (!map.has(key)) {
+      let desc = key;
+      try { desc = descriptionFromPlacement(cab) || key; } catch (_e) { /* keep key */ }
+      map.set(key, { no: next++, sku: key, desc, qty: 0 });
+    }
+    const e = map.get(key);
+    e.qty++;
+    cab._itemNo = e.no;
+  };
+  for (const wall of (layout.walls || [])) for (const c of (wall.cabinets || [])) consider(c);
+  for (const up of (layout.uppers || [])) for (const c of (up.cabinets || [])) consider(c);
+  for (const t of (layout.talls || [])) consider(t);
+  if (layout.island) {
+    for (const c of (layout.island.workSide || [])) consider(c);
+    for (const c of (layout.island.backSide || [])) consider(c);
+  }
+  const legend = [...map.values()].sort((a, b) => a.no - b.no);
+  if (layout) layout._itemLegend = legend;
+  return legend;
+}
+
+// Small numbered chip centered at (cx, cy) given in inches.
+function numberChip(cxIn, cyIn, no) {
+  const cx = s(cxIn), cy = s(cyIn);
+  const r = 8;
+  return `<g><rect x="${cx - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" rx="2" fill="white" stroke="#222" stroke-width="0.9" />` +
+    `<text x="${cx}" y="${cy + 3.5}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:#111;">${no}</text></g>`;
+}
+
+// A cabinet face label: numbered chip when an item number is assigned, else SKU.
+function faceLabel(x, y, w, h, cab) {
+  if (cab && cab._itemNo) return numberChip(x + w / 2, y + h / 2, cab._itemNo);
+  return elevLabel(x, y, w, h, cab.sku || cab.applianceType || '');
 }
 
 function dimText(x, y, label) {
