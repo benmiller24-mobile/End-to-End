@@ -240,6 +240,31 @@ function computeHingeSide(leftItem, rightItem, isFirst, isLast) {
 }
 
 
+/** Close small unintended gaps so cabinets in a run sit flush.
+ *  The solver can leave sub-inch packing slivers (e.g. a 41.25" cab ending
+ *  0.75" short of its neighbor) with no filler occupying them. Snap the left
+ *  cabinet's right edge to meet the next so the run reads flush. Large gaps
+ *  (appliance removed, window, open run) are preserved. Returns NEW objects so
+ *  both the cabinet rects and the dimension chain (which read .position/.width)
+ *  stay consistent. */
+const SNAP_MAX_GAP = 2.0;   // inches — close gaps up to this; keep bigger ones
+function snapRunFlush(items) {
+  if (!items || items.length < 2) return items;
+  const out = items.map(c => ({ ...c }));
+  for (let i = 0; i < out.length - 1; i++) {
+    const gap = out[i + 1].position - (out[i].position + out[i].width);
+    if (Math.abs(gap) < 0.01 || Math.abs(gap) > SNAP_MAX_GAP) continue;
+    if (!isAppliance(out[i])) {
+      out[i].width += gap;                 // grow/trim left cab to meet next
+    } else {
+      out[i + 1].position -= gap;          // left side is an appliance — grow
+      out[i + 1].width    += gap;          // the right cab leftward instead
+    }
+  }
+  return out;
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════
 // COMPONENT: CabTag — NKBA KD-prefix numbered circle tag
 // ═══════════════════════════════════════════════════════════════════════
@@ -734,9 +759,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
     && !(t._elev?.zone === 'ABOVE_TALL' || (t._elev?.yMount || 0) > 60));
 
   // Sort by position
-  const sortedBases  = [...validBases].sort((a, b) => a.position - b.position);
-  const sortedUppers = [...validUppers].sort((a, b) => a.position - b.position);
-  const sortedTalls  = [...validTalls].sort((a, b) => a.position - b.position);
+  const sortedBases  = snapRunFlush([...validBases].sort((a, b) => a.position - b.position));
+  const sortedUppers = snapRunFlush([...validUppers].sort((a, b) => a.position - b.position));
+  const sortedTalls  = snapRunFlush([...validTalls].sort((a, b) => a.position - b.position));
 
   // ── TAG NUMBERING (sequential: talls → bases → uppers) ──
   let tagNum = tagStart;
