@@ -2103,6 +2103,17 @@ function elevLabel(x, y, w, h, text) {
   return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" style="font-size:${Math.round(fontSize)}px;">${esc(label)}</text>`;
 }
 
+// Trim = panels and fillers (REP/FREP end panels, BEP/FWEP/EDGT/BDEP panels,
+// DP dishwasher panel, F## fillers). These are not numbered or labeled — they
+// are construction trim, not catalog "elements" a client tracks.
+function isTrim(cab) {
+  if (!cab) return false;
+  const role = (cab.role || '').toLowerCase();
+  if (role.includes('filler') || role.includes('panel') || role === 'rep') return true;
+  const sku = (cab.sku || '').toUpperCase();
+  return /^(FC-)?(REP|FREP|BEP|FWEP|EP|EDGT|BDEP|DP|F)\d|^(FC-)?(REP|FREP|BEP|FWEP|EDGT|BDEP)\b|^F\d/.test(sku);
+}
+
 // ─── ITEM NUMBERING (numbered callouts + element list) ───────────────────────
 // Assigns a stable item number per distinct SKU across the whole layout so the
 // same number is used in every view, and returns a legend (no, sku, desc, qty).
@@ -2115,6 +2126,7 @@ function assignItemNumbers(layout) {
     if (!cab) return;
     const w = cab.width || 0;
     if (w <= 0) return;
+    if (isTrim(cab)) return; // trim isn't numbered
     const key = cab.sku || cab.applianceType || cab.type;
     if (!key) return;
     if (!map.has(key)) {
@@ -2146,9 +2158,11 @@ function numberChip(cxIn, cyIn, no) {
     `<text x="${cx}" y="${cy + 3.5}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:#111;">${no}</text></g>`;
 }
 
-// A cabinet face label: numbered chip when an item number is assigned, else SKU.
+// A cabinet face label: numbered chip when an item number is assigned; nothing
+// for trim (panels/fillers); SKU text as a last resort.
 function faceLabel(x, y, w, h, cab) {
   if (cab && cab._itemNo) return numberChip(x + w / 2, y + h / 2, cab._itemNo);
+  if (isTrim(cab)) return '';
   return elevLabel(x, y, w, h, cab.sku || cab.applianceType || '');
 }
 
