@@ -616,34 +616,43 @@ export function solve(input) {
       const leftConsumed = cornerAtLeft ? cornerAtLeft.wallBConsumption : 0;
       const rightConsumed = cornerAtRight ? cornerAtRight.wallAConsumption : 0;
 
-      // Build the set of occupied spans on this wall. CRITICAL: include
-      // appliances (the fridge especially), not just base cabinets — appliances
-      // may not yet be merged into wl.cabinets at this phase, and ignoring them
-      // caused pantries to be dropped at x=0 on top of the fridge.
+      // Build the set of occupied spans on this wall. CRITICAL: include both
+      // appliances (the fridge especially) AND already-placed tall towers, so
+      // multiple talls GROUP at a terminal and stack instead of overlapping.
       const wallApps = assignedAppliances.filter(
         a => a.wall === tall.wall && typeof a.position === "number"
+      );
+      const placedTalls = talls.filter(
+        (t, idx) => idx !== ti && t.wall === tall.wall && typeof t.position === "number"
       );
       const occupied = [
         ...wl.cabinets.filter(c => typeof c.position === "number"),
         ...wallApps,
+        ...placedTalls,
       ];
-      const occFirstStart = occupied.length
-        ? Math.min(...occupied.map(c => c.position))
-        : wallLen - rightConsumed;
-      const occLastEnd = occupied.reduce(
-        (m, c) => Math.max(m, (c.position || 0) + (c.width || 0)), leftConsumed
-      );
 
-      const leftRoom = occFirstStart - leftConsumed;
-      const rightRoom = wallLen - rightConsumed - occLastEnd;
+      // Compute free gaps within [leftConsumed, wallLen - rightConsumed].
+      const lo = leftConsumed, hi = wallLen - rightConsumed;
+      const spans = occupied
+        .map(c => [c.position, c.position + (c.width || 0)])
+        .filter(([a, b]) => b > a)
+        .sort((x, y) => x[0] - y[0]);
+      let cursor = lo;
+      const gaps = [];
+      for (const [s, e] of spans) {
+        if (s > cursor) gaps.push([cursor, Math.min(s, hi)]);
+        cursor = Math.max(cursor, e);
+      }
+      if (cursor < hi) gaps.push([cursor, hi]);
+      const fitGaps = gaps.filter(([s, e]) => e - s >= tall.width - 0.01);
 
-      // Place at whichever terminal genuinely has room (prefer the larger gap).
+      // Prefer the rightmost fitting gap (groups talls at the run end) and place
+      // the tall flush to that gap's RIGHT edge so successive talls stack tightly
+      // against each other / the terminal.
       let placed = false;
-      if (rightRoom >= tall.width && rightRoom >= leftRoom) {
-        tall.position = wallLen - rightConsumed - tall.width;
-        placed = true;
-      } else if (leftRoom >= tall.width) {
-        tall.position = leftConsumed;
+      if (fitGaps.length) {
+        const gap = fitGaps[fitGaps.length - 1];
+        tall.position = Math.max(lo, Math.min(gap[1] - tall.width, hi - tall.width));
         placed = true;
       }
 
@@ -2073,9 +2082,24 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
   }
   availableLength -= leftConsumed + rightConsumed;
 
-  // Filter out hoods from base-level placement — hoods are ceiling-mounted and don't consume floor space.
-  // They are handled in solveUppers() instead, placed above the range/cooktop.
-  const baseAppliances = appliances.filter(a => a.type !== "hood");
+  // Filter out appliances that don't belong in the base run:
+  //  - hoods are ceiling-mounted (handled in solveUppers above the cooktop)
+  //  - wall ovens / speed ovens / steam ovens live INSIDE a tall oven tower
+  //    (handled in solveTalls) — placing them in the base run created a phantom
+  //    counter-height oven disconnected from its tower
+  //  - pantry is a full-height tall unit, never a base cabinet
+  const TOWER_APPLIANCES = new Set(["hood", "wallOven", "speedOven", "steamOven", "pantry"]);
+  const baseAppliances = appliances.filter(a => !TOWER_APPLIANCES.has(a.type));
+
+  // Reserve floor space at the run terminal for tall towers (wall oven / pantry)
+  // on this wall, so the base run doesn't consume it. The towers themselves are
+  // created and placed (grouped) in solveTalls; without this reservation the
+  // base cabinets fill the whole wall and the towers get dropped.
+  const wallTowerApps = appliances.filter(a =>
+    ["wallOven", "speedOven", "steamOven", "pantry"].includes(a.type) && (a.wall === wall.id));
+  const towerReservation = wallTowerApps.reduce(
+    (s, a) => s + (a.width || (a.type === "pantry" ? 24 : 30)), 0);
+  availableLength -= towerReservation;
 
   // Sort appliances by position (or infer positioning)
   const positioned = positionAppliances(baseAppliances, availableLength, leftConsumed, wall, prefs);
