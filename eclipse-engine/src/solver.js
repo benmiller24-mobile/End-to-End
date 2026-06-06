@@ -3219,7 +3219,15 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   const patternId = pattern?.id || null;
 
   // ── Define helper flags early (needed for both stacked walls and hutch logic) ──
-  const isGlassDisplay = patternId === "stacked_glass_display_wall";
+  // Full-height SW display/glass towers mount at y≈4" and span ~63", so they must
+  // never coexist with base cabinets at the same position (that draws a tower on
+  // top of the drawers). Suppress them on any wall carrying base cabinets — they
+  // belong only on dedicated display/tall walls.
+  const wallHasBaseCabs = (wallLayout.cabinets || []).some(
+    c => typeof c.position === 'number' && (c.type === 'base' || c.role === 'base' ||
+         /^(B|SB|FC-B)/.test(c.sku || '') || c.type === 'appliance')
+  );
+  const isGlassDisplay = patternId === "stacked_glass_display_wall" && !wallHasBaseCabs;
   const isGarage = patternId === "wall_garage_pocket_doors";
   const isHutch = effectivePrefs.upperApproach === "hutch" || effectivePrefs.upperApproach === "mixed_hutch";
   const isMixedHutch = effectivePrefs.upperApproach === "mixed_hutch";
@@ -3484,9 +3492,16 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   // DIEHL, Spector, Owen (high soph) all use standard W#### at 39" height.
   // "transitional" → "high" for pro features but NOT stacked walls.
   const effectiveSoph = (prefs.sophistication === "transitional") ? "high" : (prefs.sophistication || "high");
+  // NOTE: SW#### stacked-wall display units mount at y≈4" and span ~63" tall, so
+  // they are full-height columns that must NOT coexist with base cabinets at the
+  // same position (doing so draws a tower on top of the drawers). They are now
+  // gated to EXPLICIT opt-in (upperApproach "stacked" or a stacked pattern) and
+  // are suppressed on any wall that carries base cabinets (see wallHasBaseCabs
+  // above) — i.e. they only apply to dedicated display/tall walls. Default
+  // very_high kitchens get normal W#### uppers mounted at 54" (PRONORM-style).
   const useStackedWalls = (effectiveSoph === "very_high") &&
-    !isGlassDisplay && !isGarage && !isHutch &&
-    (effectivePrefs.upperApproach === "standard" || effectivePrefs.upperApproach === "stacked" ||
+    !isGlassDisplay && !isGarage && !isHutch && !wallHasBaseCabs &&
+    (effectivePrefs.upperApproach === "stacked" ||
      patternId === "stacked_uppers" || patternId === "stacked_wall_deep" ||
      patternId === "stacked_glass_display_wall");
   const stackedWallHeight = 63;

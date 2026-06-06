@@ -573,6 +573,13 @@ export function renderElevation(layout, wallId, opts = {}) {
       const isUpper = cab.type === 'upper' || cab.role === 'upper';
       if (isUpper) { baseRunX += w; continue; } // skip uppers here, drawn separately
 
+      // ── ABSOLUTE HORIZONTAL POSITIONING ──
+      // Draw each cabinet at its solver-assigned absolute `position` (normalized
+      // by the left corner consumption, same space uppers/talls use) so bases,
+      // uppers and talls all share one coordinate origin and line up vertically.
+      // Falls back to sequential running width only when position is missing.
+      const bx = (typeof cab.position === 'number') ? (cab.position - leftConsumed) : baseRunX;
+
       // ── 3D-AWARE VERTICAL POSITIONING ──
       // Use _elev spatial data for precise Y positioning when available.
       // _elev.yMount = bottom of cabinet from floor (in real inches)
@@ -601,32 +608,32 @@ export function renderElevation(layout, wallId, opts = {}) {
         const hoodH = cab._elev?.height || 24;
         const hoodMount = cab._elev?.yMount || DIMS.upperBottom;
         const hoodY = ceil - hoodMount - hoodH;
-        elements.push(drawCabinetFace(baseRunX, hoodY, w, hoodH, cab, APPLIANCE_FILLS.hood || fill));
-        if (cab.applianceType) elements.push(elevApplianceSymbol(baseRunX, hoodY, w, hoodH, cab.applianceType));
+        elements.push(drawCabinetFace(bx, hoodY, w, hoodH, cab, APPLIANCE_FILLS.hood || fill));
+        if (cab.applianceType) elements.push(elevApplianceSymbol(bx, hoodY, w, hoodH, cab.applianceType));
         if (showSkus && cab.sku) {
-          elements.push(elevLabel(baseRunX, hoodY, w, hoodH, cab.sku));
+          elements.push(elevLabel(bx, hoodY, w, hoodH, cab.sku));
         }
 
       } else {
-        elements.push(drawCabinetFace(baseRunX, y, w, h, cab, fill));
+        elements.push(drawCabinetFace(bx, y, w, h, cab, fill));
         // Elevation appliance symbol overlay
         if ((cab.type === 'appliance' || cab.role === 'appliance') && cab.applianceType) {
-          elements.push(elevApplianceSymbol(baseRunX, y, w, h, cab.applianceType));
+          elements.push(elevApplianceSymbol(bx, y, w, h, cab.applianceType));
         }
         if (showSkus && cab.sku) {
-          elements.push(elevLabel(baseRunX, y, w, h, cab.sku));
+          elements.push(elevLabel(bx, y, w, h, cab.sku));
         }
       }
 
       if (showDimensions && w >= 12) {
-        elements.push(dimText(baseRunX + w / 2, ceil + DIM_OFFSET, formatDim(w)));
+        elements.push(dimText(bx + w / 2, ceil + DIM_OFFSET, formatDim(w)));
       }
 
       // ── Depth overhang indicator in elevation view ──
       if (cab._depthOverhang > 0) {
         // Red dashed border around the appliance and small warning text
-        elements.push(`<rect x="${s(baseRunX)}" y="${s(y)}" width="${s(w)}" height="${s(h)}" fill="none" stroke="#c44" stroke-width="2" stroke-dasharray="4,2" />`);
-        elements.push(`<text x="${s(baseRunX + w / 2)}" y="${s(y - 3)}" text-anchor="middle" style="font-size:7px;fill:#c44;font-weight:bold;">depth +${cab._depthOverhang}"</text>`);
+        elements.push(`<rect x="${s(bx)}" y="${s(y)}" width="${s(w)}" height="${s(h)}" fill="none" stroke="#c44" stroke-width="2" stroke-dasharray="4,2" />`);
+        elements.push(`<text x="${s(bx + w / 2)}" y="${s(y - 3)}" text-anchor="middle" style="font-size:7px;fill:#c44;font-weight:bold;">depth +${cab._depthOverhang}"</text>`);
       }
 
       baseRunX += w;
