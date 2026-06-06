@@ -860,9 +860,9 @@ export function solve(input) {
       message: `Auto-corrected ${correctionsMade} layout issue(s) in validation loop` });
   }
 
-  // Merge solver warnings into validation results
+  // Merge solver warnings into validation results (respect explicit severity)
   for (const w of solverWarnings) {
-    validation.push({ severity: "warning", rule: w.type, message: w.message });
+    validation.push({ severity: w.severity || "warning", rule: w.type, message: w.message });
   }
 
   // ── 3D Spatial Validation (stacking rules + depth conflicts) ──
@@ -2758,9 +2758,41 @@ function positionAppliances(appliances, available, offset, wall, prefs) {
     }
 
     if (bestPos === null) {
-      _warnings.push({ type: "no_space", applianceType: app.type,
-        message: `Cannot place ${app.type} (${w}") on wall ${wallDef.id} — no valid position. Skipped.` });
-      continue;
+      // ── Body-fit fallback: a PRIMARY appliance must never be silently dropped.
+      // No position satisfied full NKBA landing — find the largest unclaimed gap
+      // that fits the appliance BODY and place it there, flagging the reduced
+      // clearance as an error. Only a wall physically too short for the body is
+      // a true skip.
+      const isPrimary = ["range", "cooktop", "sink", "refrigerator", "freezer"].includes(app.type);
+      if (isPrimary) {
+        const spans = claimed
+          .map(c => [Math.max(offset, c.start), Math.min(wallEnd, c.end)])
+          .filter(([a, b]) => b > a)
+          .sort((a, b) => a[0] - b[0]);
+        let cursor = offset, best = null;
+        const consider = (gs, ge) => {
+          if (ge - gs >= w && !inDoorZone(gs, gs + w)) {
+            const room = ge - gs;
+            if (!best || room > best.room) best = { pos: gs, room };
+          }
+        };
+        for (const [cs, ce] of spans) { if (cs > cursor) consider(cursor, cs); cursor = Math.max(cursor, ce); }
+        if (cursor < wallEnd) consider(cursor, wallEnd);
+        if (best) {
+          bestPos = Math.min(best.pos, wallEnd - w);
+          _warnings.push({
+            type: "Tight-Landing-Reduced-Clearance",
+            severity: "error",
+            applianceType: app.type,
+            message: `Wall ${wallDef.id} is too short to give the ${app.type} (${w}") its full NKBA landing area — it was placed at ${Math.round(bestPos)}" with reduced clearance. Use a longer wall or move an appliance to another run.`,
+          });
+        }
+      }
+      if (bestPos === null) {
+        _warnings.push({ type: "no_space", severity: "error", applianceType: app.type,
+          message: `Cannot place ${app.type} (${w}") on wall ${wallDef.id} — wall has no ${w}" open gap. Appliance omitted; the wall is physically too short for this appliance set.` });
+        continue;
+      }
     }
 
     const appDepth = getApplianceDepth(app);
@@ -2771,6 +2803,53 @@ function positionAppliances(appliances, available, offset, wall, prefs) {
 
     placed.push({ ...app, position: Math.round(bestPos), _depthOverhang: depthOverhang, _depth: appDepth });
     claimed.push({ start: Math.round(bestPos), end: Math.round(bestPos) + w, type: app.type });
+  }
+
+  // ── Rescue pass: never omit a primary appliance when the bodies physically
+  // fit. If the scorer fragmented the wall and dropped a primary (range/sink/
+  // fridge/DW), re-pack all primaries compactly from the open end so every one
+  // is placed (with reduced — but present — landing).
+  {
+    const PRIMARY = ["range", "cooktop", "sink", "refrigerator", "freezer", "dishwasher"];
+    const primaryApps = free.filter(a => PRIMARY.includes(a.type));
+    const isDropped = (a) => !placed.find(p => p.type === a.type && (p.model || '') === (a.model || ''));
+    const dropped = primaryApps.filter(isDropped);
+    if (dropped.length) {
+      const span = wallEnd - offset;
+      const doorW = claimed.filter(c => c.type === 'door_opening')
+        .reduce((s, c) => s + Math.max(0, Math.min(wallEnd, c.end) - Math.max(offset, c.start)), 0);
+      const totalBody = primaryApps.reduce((s, a) => s + (a.width || 30), 0);
+      if (totalBody + doorW <= span) {
+        // Order along the wall: fridge (open end) → sink → DW → cooktop/range.
+        const ord = { refrigerator: 0, freezer: 0, sink: 1, dishwasher: 2, cooktop: 3, range: 3 };
+        const seq = [...primaryApps].sort((a, b) => (ord[a.type] ?? 5) - (ord[b.type] ?? 5));
+        const gap = Math.max(0, (span - totalBody - doorW) / (seq.length + 1));
+        let cur = offset + gap;
+        for (const a of seq) {
+          const aw = a.width || 30;
+          let pos = cur;
+          while (inDoorZone(pos, pos + aw) && pos + aw <= wallEnd) pos += 3;
+          const appDepth = getApplianceDepth(a);
+          const dOver = appDepth > DIMS.baseDepth ? Math.round((appDepth - DIMS.baseDepth) * 10) / 10 : 0;
+          const existing = placed.find(p => p.type === a.type && (p.model || '') === (a.model || ''));
+          if (existing) existing.position = Math.round(pos);
+          else placed.push({ ...a, position: Math.round(pos), _depthOverhang: dOver, _depth: appDepth });
+          cur = pos + aw + gap;
+        }
+        // Drop the now-resolved omission/tight warnings; add one clear note.
+        for (let i = _warnings.length - 1; i >= 0; i--) {
+          if (["no_space", "Tight-Landing-Reduced-Clearance"].includes(_warnings[i].type)) _warnings.splice(i, 1);
+        }
+        _warnings.push({
+          type: "Compact-Placement", severity: "warning",
+          message: `Wall ${wallDef.id} is tight for ${seq.length} appliances — they were packed compactly with reduced landing areas so none is omitted. A longer run would restore full NKBA landing.`,
+        });
+        // Rebuild claimed from the final placements (used by the DW adjacency pass).
+        claimed.length = 0;
+        for (const dz of doorZones) claimed.push({ start: dz.start, end: dz.end, type: "door_opening" });
+        for (const p of placed) claimed.push({ start: p.position, end: p.position + (p.width || 0), type: p.type });
+      }
+    }
   }
 
   // ── Post-placement: verify DW adjacency to sink ──
