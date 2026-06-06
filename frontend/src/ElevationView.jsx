@@ -729,7 +729,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
   // ── FILTER VALID PLACEMENTS ──
   const validBases  = bases.filter(b => typeof b.position === 'number' && b.position >= 0 && b.width > 0);
   const validUppers = uppers.filter(u => typeof u.position === 'number' && u.position >= 0 && u.width > 0 && u.type !== 'end_panel');
-  const validTalls  = talls.filter(t => typeof t.position === 'number' && t.position >= 0 && t.width > 0);
+  const validTalls  = talls.filter(t => typeof t.position === 'number' && t.position >= 0 && t.width > 0
+    // Over-tall wall cabinets (above the fridge) belong to the upper pass, not here.
+    && !(t._elev?.zone === 'ABOVE_TALL' || (t._elev?.yMount || 0) > 60));
 
   // Sort by position
   const sortedBases  = [...validBases].sort((a, b) => a.position - b.position);
@@ -755,7 +757,10 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
     let segS = null, segE = null;
     for (const cab of sorted) {
       const skip = cab._isHood || cab.role === 'range_hood' || cab.type === 'rangeHood'
-        || (cab.applianceType || '') === 'microwave';
+        || (cab.applianceType || '') === 'microwave'
+        // Over-tall cabinets (above the fridge) mount near the ceiling — the
+        // light rail / crown band must NOT run across them.
+        || cab._elev?.zone === 'ABOVE_TALL' || (cab._elev?.yMount || 0) > 60;
       if (skip) {
         if (segS !== null) { segs.push({ s: segS, e: segE }); segS = null; }
         continue;
@@ -963,10 +968,22 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       {sortedUppers.map((cab, i) => {
         const x = cab.position * S;
         const w = cab.width * S;
-        // Parse height from SKU (W3630=30", W3642=42") or fall back to solver data or default
-        const skuH = parseSkuHeight(cab.sku);
-        const uH = (skuH || cab.height || UPPER_H_DEF) * S;
-        const y = upBotY - uH;
+        // Over-tall wall cabinets (over the fridge) mount on top of the tall unit
+        // at their real AFF (e.g. 84"→ceiling), NOT at the standard upper band.
+        const elev = cab._elev || {};
+        const aboveTall = elev.zone === 'ABOVE_TALL' || (elev.yMount || 0) > 60;
+        let uH, y;
+        if (aboveTall) {
+          const mountAFF = elev.yMount;
+          const topAFF = Math.min(elev.yTop || (mountAFF + (cab.height || 12)), ceilH);
+          uH = (topAFF - mountAFF) * S;
+          y = floorY - topAFF * S;
+        } else {
+          // Parse height from SKU (W3630=30", W3642=42") or fall back to solver data or default
+          const skuH = parseSkuHeight(cab.sku);
+          uH = (skuH || cab.height || UPPER_H_DEF) * S;
+          y = upBotY - uH;
+        }
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);
         const doors = cab.width > 24 ? 2 : 1;
@@ -989,6 +1006,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 
       {/* ══════════ TALL CABINETS & TALL APPLIANCES ══════════ */}
       {sortedTalls.map((cab, i) => {
+        // Over-tall wall cabinets (above the fridge) are rendered in the UPPER
+        // pass at their true mount height — skip the floor-anchored duplicate here.
+        if (cab._elev?.zone === 'ABOVE_TALL' || (cab._elev?.yMount || 0) > 60) return null;
         const x = (cab.position || 0) * S;
         const w = (cab.width || 18) * S;
         const tH = (cab._elev?.height || cab.height || TALL_H_DEF) * S;
