@@ -1551,6 +1551,41 @@ export function solve(input) {
     validation.push({ severity: 'info', rule: 'room_analysis_error', message: `Room analysis: ${e.message}` });
   }
 
+  // ── Professional completeness advisories (KF element-list conventions) ──
+  // Info-level only; never fail a layout. See docs/kf-element-list-mining.md.
+  if (roomType === 'kitchen') {
+    const baseCount = wallLayouts.reduce((s, w) => s + (w.cabinets || []).filter(c => c.type === 'base').length, 0);
+    const upperCount = (upperLayouts || []).reduce((s, u) => s + (u.cabinets || []).length, 0);
+    const tallCount = (talls || []).filter(t => !/^(REP|FREP|RW)/i.test(t.sku || '')).length;
+    const totalPerim = walls.reduce((s, w) => s + (w.length || 0), 0);
+    const ceilingH = (walls[0] && walls[0].ceilingHeight) || DIMS.standardCeiling;
+
+    // Standard lighting package: pros include under-cabinet LED almost universally.
+    const ledRuns = lightingPlan?.ledPlan?.runs?.length || 0;
+    const hasLED = ledRuns > 0 || (accessories || []).some(a => /LED|PWL/i.test(a.sku || a.role || ''));
+    if (upperCount > 0 && !hasLED) {
+      validation.push({
+        severity: 'info', rule: 'Design-Lighting-Package',
+        message: 'No under-cabinet LED lighting specified — a standard under-cabinet LED + transformer package is near-universal in professional kitchens.',
+      });
+    }
+
+    // Base : wall : tall mix vs the professional ~9:7:2 norm (KF mining). Only
+    // flag clear under-provisioning, not minor deviations.
+    if (baseCount >= 3 && ceilingH >= 84 && upperCount < Math.round(baseCount * 0.4)) {
+      validation.push({
+        severity: 'info', rule: 'Design-Wall-Storage-Low',
+        message: `Only ${upperCount} wall cabinet(s) for ${baseCount} base cabinet(s) — pros run roughly base:wall ≈ 9:7; consider adding upper storage.`,
+      });
+    }
+    if (totalPerim >= 300 && tallCount === 0) {
+      validation.push({
+        severity: 'info', rule: 'Design-No-Tall-Storage',
+        message: `A ${Math.round(totalPerim)}" kitchen with no tall/pantry unit — pros include a full-height pantry or appliance tower in kitchens this size.`,
+      });
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
 
   return {
