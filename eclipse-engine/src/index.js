@@ -117,5 +117,5 @@ export {
 
 // Renderer — Phase 4: Elevation + Floorplan SVG output + Bill of Materials
 export {
-  renderFloorPlan, renderElevation, generateBOM, renderLayout,
+  renderFloorPlan, renderElevation, renderIslandElevation, generateBOM, renderLayout,
 } from './renderer.js';

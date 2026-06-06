@@ -921,6 +921,131 @@ export function renderElevation(layout, wallId, opts = {}) {
 }
 
 
+// ─── ISLAND ELEVATION SVG ────────────────────────────────────────────────────
+
+/**
+ * Render a front elevation of the island, either the work side (sink/range/
+ * drawers) or the seating/back side (FHD panels). Mirrors PRONORM island
+ * elevations: marble counter band on top, cabinet faces, toe kick at the floor,
+ * width dimension chain along the bottom, height chain on the right.
+ *
+ * @param {Object} layout - solve() result (uses layout.island)
+ * @param {Object} [opts] - { side: 'work'|'seating', title, showDimensions, showSkus, margin }
+ * @returns {string} SVG markup (empty string if there is no island)
+ */
+export function renderIslandElevation(layout, opts = {}) {
+  const {
+    side = 'work',
+    title,
+    showDimensions = true,
+    showSkus = true,
+    margin = 50,
+  } = opts;
+
+  const island = layout.island;
+  if (!island) return '';
+
+  const isSeating = side === 'seating' || side === 'back';
+  const cabs = (isSeating ? island.backSide : island.workSide) || [];
+  const endPanelW = 0.75;
+  const runWidth = cabs.reduce((sum, c) => sum + (c.width || 0), 0);
+  const length = island.length || (runWidth + endPanelW * 2);
+
+  // ── Vertical model (inches) ──
+  const toe = DIMS.toeKickHeight;        // 4.5"
+  const baseH = DIMS.baseHeight;         // 34.5"
+  const counterT = 1.5;                  // counter slab thickness
+  const cabTop = toe + baseH;            // top of cabinet box / underside of counter
+  const counterTop = cabTop + counterT;  // top of countertop
+  const hasSink = cabs.some(c => c.applianceType === 'sink' || /^SB|^USX|^FC-SB/.test(c.sku || ''));
+  const faucetH = hasSink && !isSeating ? 16 : 0;  // faucet rises above counter on work side
+  const viewH = counterTop + Math.max(faucetH, 8) + 2;
+
+  const elements = [];
+  const floorY = viewH; // SVG y at floor
+  const ISL_DIM = 6;    // dimension offset in inches (kept small to stay on-canvas)
+
+  // End panel (left) — thin full-height side
+  let x = 0;
+  elements.push(elevRect(x, viewH - counterTop, endPanelW, counterTop, FILL_TALL));
+  x += endPanelW;
+
+  // ── Cabinet faces ──
+  for (const cab of cabs) {
+    const w = cab.width || 0;
+    if (w <= 0) continue;
+    const isAppliance = cab.type === 'appliance' || cab.role === 'appliance' || cab.applianceType;
+    const at = cab.applianceType;
+
+    if (at === 'range' || at === 'cooktop') {
+      // Range face spans toe→counter
+      elements.push(drawCabinetFace(x, viewH - cabTop, w, baseH, cab, APPLIANCE_FILLS.range));
+      elements.push(elevApplianceSymbol(x, viewH - cabTop, w, baseH, at));
+    } else {
+      const fill = isAppliance ? (APPLIANCE_FILLS[at] || FILL_APPLIANCE) : FILL_BASE;
+      elements.push(drawCabinetFace(x, viewH - cabTop, w, baseH, cab, fill));
+      if (isAppliance && at) elements.push(elevApplianceSymbol(x, viewH - cabTop, w, baseH, at));
+    }
+    if (showSkus && (cab.sku || at)) {
+      elements.push(elevLabel(x, viewH - cabTop, w, baseH, cab.sku || at));
+    }
+    if (showDimensions && w >= 6) {
+      elements.push(dimText(x + w / 2, floorY + ISL_DIM, formatDim(w)));
+    }
+    x += w;
+  }
+
+  // End panel (right)
+  elements.push(elevRect(x, viewH - counterTop, endPanelW, counterTop, FILL_TALL));
+  const runEnd = x + endPanelW;
+
+  // ── Countertop band (marble slab) across the whole top ──
+  elements.push(`<rect x="${s(0)}" y="${s(viewH - counterTop)}" width="${s(runEnd)}" height="${s(counterT)}" fill="${FILL_COUNTER}" stroke="${STROKE_CAB}" stroke-width="0.7" />`);
+
+  // ── Toe kick line ──
+  elements.push(`<line x1="${s(endPanelW)}" y1="${s(viewH - toe)}" x2="${s(x)}" y2="${s(viewH - toe)}" stroke="${STROKE_CAB}" stroke-width="0.5" />`);
+
+  // ── Faucet (work side with sink) ──
+  if (faucetH > 0) {
+    // find sink center
+    let sx = endPanelW, found = null;
+    for (const cab of cabs) {
+      if (cab.applianceType === 'sink' || /^SB|^USX|^FC-SB/.test(cab.sku || '')) { found = sx + (cab.width || 0) / 2; break; }
+      sx += cab.width || 0;
+    }
+    const fx = found ?? runEnd / 2;
+    const topY = viewH - counterTop - faucetH;
+    elements.push(`<path d="M ${s(fx)} ${s(viewH - counterTop)} L ${s(fx)} ${s(topY + 4)} Q ${s(fx)} ${s(topY)} ${s(fx + 5)} ${s(topY)}" fill="none" stroke="#888" stroke-width="1.4" />`);
+  }
+
+  // ── Dimension chains ──
+  if (showDimensions) {
+    // Overall width (top)
+    elements.push(dimLine(0, -ISL_DIM, runEnd, -ISL_DIM, formatDim(length)));
+    // Right-side vertical height chain: toe / base / counter
+    const rx = runEnd + ISL_DIM;
+    elements.push(dimLineVert(rx, viewH - toe, rx, viewH, formatDim(toe)));
+    elements.push(dimLineVert(rx, viewH - cabTop, rx, viewH - toe, formatDim(baseH)));
+    elements.push(dimLineVert(rx, viewH - counterTop, rx, viewH - cabTop, formatDim(counterT)));
+  }
+
+  const sideLabel = isSeating ? 'Seating Side' : 'Work Side';
+  const elevTitle = title || `Island Elevation — ${sideLabel}`;
+  const svgW = s(runEnd) + margin * 2 + (showDimensions ? 60 : 0);
+  const svgH = s(viewH) + margin * 2 + (showDimensions ? 70 : 0);
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="background:white">\n`;
+  svg += `<style>text{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:${FONT_SIZE}px;fill:#333;}</style>\n`;
+  svg += `<text x="${svgW / 2}" y="20" text-anchor="middle" style="font-size:14px;font-weight:600;fill:#222;">${esc(elevTitle)}</text>\n`;
+  svg += `<g transform="translate(${margin + (showDimensions ? 20 : 0)},${margin + 30})">\n`;
+  for (const el of elements) svg += `  ${el}\n`;
+  svg += `</g>\n`;
+  svg += `<text x="${svgW - 10}" y="${svgH - 12}" text-anchor="end" style="font-size:7px;fill:#999;">Eclipse Kitchen Designer</text>\n`;
+  svg += `</svg>`;
+  return svg;
+}
+
+
 // ─── BILL OF MATERIALS ─────────────────────────────────────────────────────
 
 /**
