@@ -363,6 +363,69 @@ export const TRIANGLE = {
 };
 
 
+// ─── NKBA KITCHEN PLANNING GUIDELINES — additional data ─────────────────────
+// Sourced from the NKBA Kitchen Planning Guidelines with Access Standards
+// (31 guidelines) + manufacturer appliance/hood specs. See
+// docs/kitchen-design-data-online.md for provenance. These fill gaps the
+// existing DIMS/LANDING/CLEARANCE/TRIANGLE constants did not cover.
+
+// NKBA G9 — seating knee space varies with counter height; G8 — traffic behind.
+export const SEATING = {
+  perSeatWidth: 24,                 // 24" of width per seated diner
+  byHeight: {
+    30: { kneeDepth: 18, kneeWidth: 24 },  // table height
+    36: { kneeDepth: 15, kneeWidth: 24 },  // standard counter height
+    42: { kneeDepth: 12, kneeWidth: 24 },  // bar height
+  },
+  clearNoTraffic: 32,               // G8: clearance behind diner, no traffic
+  clearEdgePast: 36,                // G8: traffic edges past
+  clearWalkPast: 44,                // G8: traffic walks past
+  // Resolve overhang/knee depth for a given counter height (nearest tier).
+  overhangForHeight(h) {
+    const tiers = [30, 36, 42];
+    const nearest = tiers.reduce((a, b) => Math.abs(b - h) < Math.abs(a - h) ? b : a, 36);
+    return this.byHeight[nearest].kneeDepth;
+  },
+};
+
+// NKBA G18 / IRC M1901.1 — clearance above a cooking surface.
+export const COOKING_CLEARANCE = {
+  protectedAbove: 24,    // to a protected, noncombustible surface
+  unprotectedAbove: 30,  // to an unprotected/combustible surface
+  behindOnIsland: 9,     // counter behind cooktop on island/peninsula (also LANDING)
+};
+
+// Range hood mounting + sizing (G18/G19 + manufacturer practice).
+export const HOOD = {
+  mountGasMin: 24, mountGasMax: 30,
+  mountElecMin: 28, mountElecMax: 36,
+  combustibleMin: 30,        // never closer than 30" under a combustible
+  widthOverhangPerSide: 3,   // hood ≥ cooktop width; +3"/side preferred
+  cfmRecommended: 150, cfmCodeMin: 100,
+};
+
+// NKBA G25/G27/G28/G11 — completeness targets for advisory checks.
+export const COMPLETENESS = {
+  countertopFrontageMin: 158,   // G25 total frontage
+  countertopDepthMin: 24,
+  countertopClearAbove: 15,
+  storageBySize: { small: 1400, medium: 1700, large: 2000 },  // sq-ft ≤150 / 151–350 / >350
+  storageNearSink: { small: 400, medium: 480, large: 560 },   // within 72" of sink
+  landingQualifies: { minDepth: 16, minAFF: 28, maxAFF: 45 }, // G11: counts as landing only if so
+};
+
+// Standard appliance widths (manufacturer norms) for fit validation/defaults.
+export const APPLIANCE_STD_WIDTHS = {
+  range: [30, 36, 48, 60],
+  cooktop: [24, 30, 36, 45, 48],
+  wallOven: [24, 27, 30, 36],
+  dishwasher: [18, 24],
+  microwaveOTR: [30],
+  refrigerator: [30, 33, 36],
+  fridgeColumn: [36, 42, 48],
+};
+
+
 // ─── EUROPEAN DESIGN GUIDE REFINEMENTS (ADVISORY LAYER) ─────────────────────
 // Source: "BookKitchen EN" European kitchen design guide (2025), Ch1/Ch3/Ch7.
 // Full extraction + metric→inch conversions: docs/euro-design-guide-bookkitchen.md
@@ -2699,6 +2762,72 @@ export function validateLayout(layout) {
           rule: "DW-Panel-Missing",
           severity: "warning",
           message: `Dishwasher set to panel-ready but no DW panel (DWP) found in accessories. Add 3/4" matching panel.`,
+        });
+      }
+    }
+  }
+
+  // ── NKBA additional guideline checks (data from kitchen-design-data-online.md) ──
+  if (roomConfig.nkbaLandingApplies) {
+    // G20a — cooking surface must NOT be under an operable window.
+    const cookers = (layout.appliances || []).filter(a => a.type === 'range' || a.type === 'cooktop');
+    for (const cook of cookers) {
+      const wallDef = (layout.inputWalls || []).find(w => w.id === cook.wall);
+      const cookStart = cook.position || 0;
+      const cookEnd = cookStart + (cook.width || 30);
+      for (const op of (wallDef?.openings || [])) {
+        if (op.type === 'door') continue;
+        if (op.operable === false) continue; // fixed window is allowed
+        const ws = op.posFromLeft || 0;
+        const we = ws + (op.width || 0);
+        if (ws < cookEnd && we > cookStart) {
+          issues.push({
+            rule: "NKBA-G20-Cooktop-Under-Window",
+            severity: "warning",
+            message: `Cooking surface on wall ${cook.wall} sits under a window — NKBA G20a advises against placing a cooktop/range below an operable window (fire/curtain hazard).`,
+            location: cook.wall,
+          });
+        }
+      }
+    }
+
+    // G25 — total countertop frontage should be ≥ 158".
+    let frontage = 0;
+    for (const wall of (layout.walls || [])) {
+      for (const c of (wall.cabinets || [])) {
+        const isUpper = c.type === 'upper' || c.role === 'upper';
+        const isTall = c.type === 'tall' || c.role === 'tall' ||
+          (c.applianceType && ['refrigerator', 'freezer', 'wineColumn'].includes(c.applianceType));
+        if (!isUpper && !isTall) frontage += (c.width || 0);
+      }
+    }
+    if (layout.island) {
+      for (const c of [...(layout.island.workSide || []), ...(layout.island.backSide || [])]) {
+        frontage += (c.width || 0);
+      }
+    }
+    if (frontage > 0 && frontage < COMPLETENESS.countertopFrontageMin) {
+      issues.push({
+        rule: "NKBA-G25-Countertop-Frontage",
+        severity: "info",
+        message: `Total countertop frontage ~${Math.round(frontage)}" < ${COMPLETENESS.countertopFrontageMin}" recommended (NKBA G25) — kitchen may be under-countered for prep, landing, and storage.`,
+      });
+    }
+
+    // Appliance standard-width sanity check (manufacturer norms).
+    const stdMap = {
+      range: APPLIANCE_STD_WIDTHS.range, cooktop: APPLIANCE_STD_WIDTHS.cooktop,
+      wallOven: APPLIANCE_STD_WIDTHS.wallOven, dishwasher: APPLIANCE_STD_WIDTHS.dishwasher,
+      refrigerator: APPLIANCE_STD_WIDTHS.refrigerator,
+    };
+    for (const app of (layout.appliances || [])) {
+      const std = stdMap[app.type];
+      if (std && app.width && !std.some(w => Math.abs(w - app.width) <= 0.6)) {
+        issues.push({
+          rule: "Appliance-Nonstandard-Width",
+          severity: "info",
+          message: `${app.type} width ${app.width}" is not a standard size (${std.join('"/')}\") — verify the appliance exists at this width.`,
+          location: app.wall,
         });
       }
     }

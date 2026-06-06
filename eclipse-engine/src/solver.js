@@ -849,7 +849,7 @@ export function solve(input) {
   }
 
   // Phase 7: Validate (pass roomType for context-aware validation)
-  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls);
+  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls, walls);
   const validation = validateLayout(validationInput);
   // Merge filler issues collected during Phase 4d (before `validation` existed)
   if (earlyFillerIssues.length) validation.push(...earlyFillerIssues);
@@ -7137,7 +7137,7 @@ function assignSpatialData(p) {
   p._elev.yTop = p._elev.yMount + p._elev.height;
 }
 
-function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = []) {
+function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = [], inputWalls = []) {
   // Build appliance list with ACTUAL positions and landing clearances
   // from the solved wall layouts — not estimated from cumulative widths.
   const appWithPositions = [];
@@ -7249,6 +7249,7 @@ function buildValidationInput(wallLayouts, islandLayout, appliances, corners, ro
     prefs: prefs || {},
     accessories: accessories || [],
     talls: talls || [],
+    inputWalls: inputWalls || [],   // carries wall.openings for NKBA window checks
     counterHeight: 36,
     upperCabBottomHeight: 54,
     walkwayClearance: 36,
