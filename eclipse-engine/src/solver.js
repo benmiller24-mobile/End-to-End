@@ -1252,8 +1252,21 @@ export function solve(input) {
         length: input.roomLength || 168,
         walls: walls.map(w => ({ id: w.id, length: w.length })),
       };
+      // Detect ventilation + whether a cooking surface even exists, so the
+      // "range hood required" check only fires when there's a cooktop AND no
+      // ventilation. A hood may be a wall/island upper (RH##), a tall, or an
+      // appliance with integrated/downdraft extraction.
+      const _allUpperCabs = (upperLayouts || []).flatMap(u => u.cabinets || []);
+      const _islandCabs = islandLayout ? [...(islandLayout.workSide || []), ...(islandLayout.backSide || [])] : [];
+      const _isHood = (c) => /^RH\d/i.test(c.sku || '') || c.applianceType === 'hood' || c.role === 'hood';
+      const hoodPresent =
+        _allUpperCabs.some(_isHood) ||
+        (talls || []).some(t => /^RH\d/i.test(t.sku || '') || t.applianceType === 'hood') ||
+        _islandCabs.some(_isHood) ||
+        (appliances || []).some(a => a.type === 'hood' || a.downdraft || a.ventedHob || a.integratedExtraction);
+      const hasCookingSurface = (appliances || []).some(a => a.type === 'range' || a.type === 'cooktop');
       nkbaReport = validateNKBA(
-        { walls: wallLayouts, uppers: upperLayouts, island: islandLayout, peninsula: peninsulaLayout, placements, corners },
+        { walls: wallLayouts, uppers: upperLayouts, island: islandLayout, peninsula: peninsulaLayout, placements, corners, hoodPresent, hasCookingSurface },
         roomGeometry,
         { adaMode: prefs?.adaCompliant || false, twoCook: prefs?.twoCookKitchen || false }
       );

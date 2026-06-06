@@ -647,8 +647,12 @@ export function validateNKBA(layoutResult = {}, roomGeometry = {}, options = {})
   }
 
   // --- VENTILATION VALIDATION ---
+  // Only require ventilation when a cooking surface actually exists. When the
+  // caller doesn't report hasCookingSurface (older callers), default to true to
+  // preserve prior behavior.
   const ventilationIssues = [];
-  if (NKBA_STANDARDS.ventilation.cooktopMustHaveVentilation && !layoutResult.hoodPresent) {
+  const hasCookingSurface = layoutResult.hasCookingSurface !== false;
+  if (hasCookingSurface && NKBA_STANDARDS.ventilation.cooktopMustHaveVentilation && !layoutResult.hoodPresent) {
     ventilationIssues.push({
       severity: strictMode ? 'error' : 'error',
       rule: 'Range Hood Required',
