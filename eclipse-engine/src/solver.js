@@ -672,10 +672,16 @@ export function solve(input) {
   }
 
   // Phase 4d: Validate fillers post-enforcement
+  // NOTE: `validation` is not created until Phase 7 (below). Collect filler
+  // issues here and merge them in after validateLayout() runs. (Previously this
+  // pushed into `validation` before it existed — a temporal-dead-zone crash that
+  // broke L-shape/multi-wall layouts with "Cannot access 'validation' before
+  // initialization".)
+  const earlyFillerIssues = [];
   for (const wl of wallLayouts) {
     const fillerIssues = validateFillers(wl.cabinets, wl.wallLength);
     for (const issue of fillerIssues) {
-      validation.push(issue);
+      earlyFillerIssues.push(issue);
     }
   }
 
@@ -825,6 +831,8 @@ export function solve(input) {
   // Phase 7: Validate (pass roomType for context-aware validation)
   const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls);
   const validation = validateLayout(validationInput);
+  // Merge filler issues collected during Phase 4d (before `validation` existed)
+  if (earlyFillerIssues.length) validation.push(...earlyFillerIssues);
 
   // Add correction loop metadata
   if (correctionsMade > 0) {
@@ -5289,7 +5297,7 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
           // Shift all cabinets right by (3 - leftGap) to make room
           const shiftNeeded = fillerW - leftGap;
           if (shiftNeeded > 0) {
-            for (const cab of sorted) {
+            for (const cab of allCabs) {
               cab.position = (cab.position || 0) + shiftNeeded;
             }
           }
