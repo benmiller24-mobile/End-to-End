@@ -189,14 +189,17 @@ export function auditWorkTriangle(placements) {
   const range = placements.range;
   const fridge = placements.fridge;
 
-  // If any appliance missing, flag but don't fail completely
+  // If any of the three work centers is absent, the triangle simply cannot be
+  // evaluated. This is informational (the kitchen may intentionally omit a
+  // range/fridge, e.g. a kitchenette) — NOT a critical error.
   if (!sink || !range || !fridge) {
     return {
-      score: sink && range && fridge ? 100 : 50,
+      score: sink && range && fridge ? 100 : 80,
+      evaluated: false,
       issues: [
-        ...(!sink ? [{ severity: 'critical', message: 'Sink not placed — work triangle cannot be evaluated' }] : []),
-        ...(!range ? [{ severity: 'critical', message: 'Range not placed — work triangle cannot be evaluated' }] : []),
-        ...(!fridge ? [{ severity: 'critical', message: 'Fridge not placed — work triangle cannot be evaluated' }] : []),
+        ...(!sink ? [{ severity: 'suggestion', message: 'No sink — work triangle not evaluated' }] : []),
+        ...(!range ? [{ severity: 'suggestion', message: 'No range/cooktop — work triangle not evaluated' }] : []),
+        ...(!fridge ? [{ severity: 'suggestion', message: 'No refrigerator — work triangle not evaluated' }] : []),
       ],
     };
   }
@@ -313,6 +316,15 @@ export function auditDishwasher(placements, appliances, walls) {
         },
       ],
     };
+  }
+
+  // Distance/angle checks need real room x/y. When coordinates are not assigned
+  // (the solve()-time case), the presence check above is the only valid result;
+  // skip the geometry checks to avoid phantom 0-distance "safety hazard" errors.
+  const dwHasXY = Number.isFinite(dw.x) && Number.isFinite(dw.y);
+  const sinkHasXY = sink && Number.isFinite(sink.x) && Number.isFinite(sink.y);
+  if (!dwHasXY || !sinkHasXY) {
+    return { score, evaluated: false, issues };
   }
 
   // Check distance to sink
@@ -965,16 +977,42 @@ export function auditMaterials(walls, preferences) {
  * @private
  */
 function extractPlacements(layoutResult, input) {
-  const appliances = layoutResult.appliances || {};
-  const placed = input.placed || {};
+  const placed = (input && input.placed) || {};
+
+  // Appliances live inside walls[].cabinets and the island — not as a keyed
+  // object. Collect them so presence checks (e.g. dishwasher) work. Coordinates
+  // are wall-relative `position`; real room x/y aren't available here, so the
+  // work-triangle audit guards itself and skips when coordinates are degenerate.
+  const found = {};
+  const key = (t) => t === 'dishwasher' ? 'dw'
+    : t === 'refrigerator' || t === 'freezer' ? 'fridge'
+    : t === 'cooktop' ? 'range'
+    : t === 'wallOven' || t === 'speedOven' || t === 'steamOven' ? 'oven'
+    : t;
+  const consider = (c, wall) => {
+    const t = c.applianceType;
+    if (!t) return;
+    const k = key(t);
+    if (!found[k]) found[k] = { type: t, wall, position: c.position, width: c.width };
+  };
+  for (const w of (layoutResult.walls || [])) for (const c of (w.cabinets || [])) consider(c, w.wallId);
+  if (layoutResult.island) {
+    for (const c of [...(layoutResult.island.workSide || []), ...(layoutResult.island.backSide || [])]) consider(c, 'island');
+  }
+  // coordinatedPlacements (if present) may carry real x/y — prefer them.
+  for (const p of (layoutResult.coordinatedPlacements || [])) {
+    if (!p || !p.applianceType) continue;
+    const k = key(p.applianceType);
+    if (found[k] && Number.isFinite(p.x)) { found[k].x = p.x; found[k].y = p.y; }
+  }
 
   return {
-    sink: appliances.sink || placed.sink || { x: 0, y: 0 },
-    range: appliances.range || placed.range || { x: 0, y: 0 },
-    fridge: appliances.fridge || placed.fridge || { x: 0, y: 0 },
-    dw: appliances.dw || placed.dw || null,
-    microwave: appliances.microwave || placed.microwave || null,
-    oven: appliances.oven || placed.oven || null,
+    sink: found.sink || placed.sink || null,
+    range: found.range || placed.range || null,
+    fridge: found.fridge || placed.fridge || null,
+    dw: found.dw || placed.dw || null,
+    microwave: found.microwave || placed.microwave || null,
+    oven: found.oven || placed.oven || null,
   };
 }
 
