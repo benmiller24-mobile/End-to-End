@@ -189,6 +189,58 @@ function parseDoorDrawer(sku, width) {
 
 
 // ═══════════════════════════════════════════════════════════════════════
+// HINGE-SIDE ASSIGNMENT  (which side the hinge goes on; pull = opposite side)
+//
+// Synthesized from NKBA guidance + kitchen-design industry convention
+// (Bradco, Home Decorators/Home Depot, JLC, Cabinet Joint). Rules, by force:
+//   1. Swing AWAY from an adjacent appliance (fridge, range, cooktop, DW, oven
+//      tower) — the open door parks clear of the appliance and its own door,
+//      and the pull lands on the side you stand to work. → hinge on the FAR side.
+//   2. Hinge AT a wall / return / end panel / run end — the free (latch) edge
+//      then opens away from the wall and the door can't collide with it.
+//   3. Sink-flanking single doors hinge AWAY from the sink (reach the bowl
+//      without walking around the open door).
+//   4. Pairs hinge on the OUTER edges (handled in CabFront, the "X").
+//   5. No constraint → hinge toward the nearer run end (traffic-flow default).
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Classify a wall neighbor for hinge decisions. */
+function hingeNeighborClass(item) {
+  if (!item) return 'end';                          // end of run → acts like a wall
+  if (isAppliance(item)) return 'appliance';        // fridge/range/cooktop/DW/oven
+  const sku  = (item.sku || '').toUpperCase();
+  const role = (item.role || '').toLowerCase();
+  const zf   = (item.zoneFunction || '').toLowerCase();
+  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(sku) || role.includes('sink')) return 'sink';
+  if (isREP(item) || isFiller(item) || item._isCorner || item.isCorner
+      || /^BEP|^WEP|^REP|PANEL/.test(sku)) return 'wall';
+  return 'cabinet';
+}
+
+/** Hinge side ('left'|'right') for a single-door cabinet from its neighbors. */
+function computeHingeSide(leftItem, rightItem, isFirst, isLast) {
+  const L = isFirst ? 'end' : hingeNeighborClass(leftItem);
+  const R = isLast  ? 'end' : hingeNeighborClass(rightItem);
+  let left = 0, right = 0;
+  // Walls / returns / ends: hinge TOWARD them (rule 2)
+  if (L === 'end' || L === 'wall') left  += 2;
+  if (R === 'end' || R === 'wall') right += 2;
+  // Appliances: hinge AWAY (rule 1) — strongest force
+  if (L === 'appliance') right += 3;
+  if (R === 'appliance') left  += 3;
+  // Sink: hinge AWAY (rule 3)
+  if (L === 'sink') right += 1.5;
+  if (R === 'sink') left  += 1.5;
+  if (left === right) {                              // rule 5: nearer run end
+    if (isFirst && !isLast) return 'left';
+    if (isLast && !isFirst) return 'right';
+    return 'left';
+  }
+  return left > right ? 'left' : 'right';
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
 // COMPONENT: CabTag — NKBA KD-prefix numbered circle tag
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -215,7 +267,7 @@ function CabTag({ cx, cy, num, prefix = 'KD' }) {
 // COMPONENT: CabFront — Shaker 5-piece door with raised inner panel
 // ═══════════════════════════════════════════════════════════════════════
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left' }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -310,7 +362,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper })
       // HINGE-side mid-height; the apex marks the hinge. Pairs hinge on the outer
       // edges (apex out), singles hinge on the wall/away side. A pair therefore
       // reads as the classic "X" across the two doors.
-      const hingeLeft = dc === 2 ? (i === 0) : true; // pair: L door→left, R door→right; single→left
+      const hingeLeft = dc === 2 ? (i === 0) : (hinge !== 'right'); // pair: outer hinges; single: per `hinge`
       const apexX = hingeLeft ? dx : dx + dw;
       const latchX = hingeLeft ? dx + dw : dx;
       const apexY = doorY + doorH / 2;
@@ -862,6 +914,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         }
 
         const { doors, drawers } = parseDoorDrawer(sku, cab.width);
+        const hinge = doors === 1
+          ? computeHingeSide(sortedBases[i - 1], sortedBases[i + 1], i === 0, i === sortedBases.length - 1)
+          : 'left';
 
         return (
           <g key={`b${i}`}>
@@ -872,7 +927,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isApp ? (
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers}
+              <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
                 isCorner={isCornerCab} cornerSide={cab._cornerSide} />
             )}
             {/* Appliance label ABOVE cabinet */}
@@ -915,6 +970,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);
         const doors = cab.width > 24 ? 2 : 1;
+        const hinge = doors === 1
+          ? computeHingeSide(sortedUppers[i - 1], sortedUppers[i + 1], i === 0, i === sortedUppers.length - 1)
+          : 'left';
 
         return (
           <g key={`u${i}`}>
@@ -923,7 +981,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper />
+              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} />
             )}
           </g>
         );
@@ -938,6 +996,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const isApp = isAppliance(cab);
         const isRepPanel = isREP(cab);
         const doors = cab.width > 24 ? 2 : 1;
+        const hinge = doors === 1
+          ? computeHingeSide(sortedTalls[i - 1], sortedTalls[i + 1], i === 0, i === sortedTalls.length - 1)
+          : 'left';
 
         return (
           <g key={`t${i}`}>
@@ -968,18 +1029,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                       x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
                       stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
                     {/* Door panel below */}
-                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} />
+                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} />
                   </g>
                 );
               }
               if (isFHD) {
-                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} />;
+                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} />;
               }
               // Standard utility: show shelf lines
               const shelfCount = Math.floor(tH / (20 * S));
               return (
                 <g>
-                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} />
+                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} />
                   {Array.from({ length: Math.min(shelfCount, 4) }, (_, si) => {
                     const sy = y + (si + 1) * tH / (Math.min(shelfCount, 4) + 1);
                     return (
