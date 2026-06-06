@@ -13,7 +13,7 @@
  *   Elevation:  X = horizontal along wall, Y = vertical (0 = floor, up = positive)
  */
 
-import { DIMS, TRIM_ACCESSORIES } from './constraints.js';
+import { DIMS, TRIM_ACCESSORIES, SEATING } from './constraints.js';
 import { VERTICAL_ZONES, DEPTH_TIERS } from './spatial-model.js';
 
 // ─── SVG CONSTANTS ──────────────────────────────────────────────────────────
@@ -472,9 +472,12 @@ export function renderFloorPlan(layout, opts = {}) {
     const endPanelW = 0.75;
 
     // ── Island worktop slab (drawn behind cabinets) ──
-    // Projects ~1" past the work side and the ends, and cantilevers ~12" on the
-    // seating side for stool knee space (PRONORM island convention).
-    const seatOverhang = (il.backSide && il.backSide.length) ? 12 : 1;
+    // Projects ~1" past the work side and the ends, and cantilevers on the
+    // seating side by the NKBA G9 knee depth for the island's counter height
+    // (36" counter → 15"; 42" bar → 12"; 30" table → 18").
+    const islandCounterH = il.counterHeight || DIMS.counterHeight; // default 36"
+    const seatOverhang = (il.backSide && il.backSide.length)
+      ? SEATING.overhangForHeight(islandCounterH) : 1;
     const wtX = islandX - COUNTER_OVERHANG;
     const wtY = islandY - COUNTER_OVERHANG;
     const wtW = islandW + COUNTER_OVERHANG * 2;
