@@ -408,6 +408,17 @@ export function validateWorkTriangle(sinkPos, rangePos, fridgePos) {
   const standards = NKBA_STANDARDS.workTriangle;
   const issues = [];
 
+  // Guard: real room x/y coordinates are required to measure the triangle. When
+  // they are missing or all three points coincide at the origin (coordinates not
+  // yet assigned at this stage), skip the check rather than reporting phantom
+  // 0-length legs — that previously produced 4 bogus errors per layout.
+  const pts = [sinkPos, rangePos, fridgePos];
+  const bad = pts.some(p => !p || !Number.isFinite(p.x) || !Number.isFinite(p.y));
+  const allAtOrigin = pts.every(p => p && (p.x || 0) === 0 && (p.y || 0) === 0);
+  if (bad || allAtOrigin) {
+    return { valid: true, evaluated: false, legs: [], perimeter: 0, issues: [] };
+  }
+
   // Calculate distances (using center points)
   const sinkToRange = calculateDistance(sinkPos, rangePos);
   const rangeToFridge = calculateDistance(rangePos, fridgePos);

@@ -201,6 +201,16 @@ export function auditWorkTriangle(placements) {
     };
   }
 
+  // Guard: need real room x/y to measure. If coordinates aren't assigned yet
+  // (all appliances default to the origin), skip rather than reporting phantom
+  // 0-length legs — that previously produced 4 bogus errors per layout.
+  const triPts = [sink, range, fridge];
+  const noCoords = triPts.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y)) ||
+    triPts.every(p => (p.x || 0) === 0 && (p.y || 0) === 0);
+  if (noCoords) {
+    return { score: 100, evaluated: false, issues: [] };
+  }
+
   // Calculate distances between appliances
   const sinkToRange = distance(sink, range);
   const rangeTofridge = distance(range, fridge);
