@@ -689,6 +689,34 @@ export function renderElevation(layout, wallId, opts = {}) {
     }
   }
 
+  // ── Windows / doors on this wall ──
+  // Drawn on the wall background (behind cabinets). Windows sit above the counter
+  // with mullions; doors run floor→head. x normalized by corner consumption.
+  for (const op of (wallDef.openings || [])) {
+    const ow = op.width || 0;
+    if (ow <= 0) continue;
+    const ox = (op.posFromLeft || 0) - leftConsumed;
+    if (op.type === 'door') {
+      const headAFF = op.headHeight || 80;
+      const yTop = ceil - headAFF;
+      elements.push(`<rect x="${s(ox)}" y="${s(yTop)}" width="${s(ow)}" height="${s(headAFF)}" fill="#fbfbfb" stroke="${STROKE}" stroke-width="1" />`);
+      elements.push(`<line x1="${s(ox + ow / 2)}" y1="${s(yTop)}" x2="${s(ox + ow / 2)}" y2="${s(ceil)}" stroke="${STROKE_LIGHT}" stroke-width="0.5" />`);
+    } else {
+      // Window: sill above counter, head below uppers
+      const sillAFF = op.sillHeight || 40;
+      const headAFF = op.headHeight || Math.min(ceil - 14, 80);
+      const yTop = ceil - headAFF;
+      const wh = headAFF - sillAFF;
+      if (wh <= 0) continue;
+      elements.push(`<rect x="${s(ox)}" y="${s(yTop)}" width="${s(ow)}" height="${s(wh)}" fill="#eef4fa" stroke="${STROKE}" stroke-width="1" />`);
+      // Inner frame
+      elements.push(`<rect x="${s(ox + 1.5)}" y="${s(yTop + 1.5)}" width="${s(ow - 3)}" height="${s(wh - 3)}" fill="none" stroke="${STROKE_LIGHT}" stroke-width="0.5" />`);
+      // Mullions: one vertical + one horizontal
+      elements.push(`<line x1="${s(ox + ow / 2)}" y1="${s(yTop)}" x2="${s(ox + ow / 2)}" y2="${s(yTop + wh)}" stroke="${STROKE_LIGHT}" stroke-width="0.6" />`);
+      elements.push(`<line x1="${s(ox)}" y1="${s(yTop + wh / 2)}" x2="${s(ox + ow)}" y2="${s(yTop + wh / 2)}" stroke="${STROKE_LIGHT}" stroke-width="0.6" />`);
+    }
+  }
+
   // ── Base cabinets ──
   let baseRunX = 0;
   if (wall && wall.cabinets) {
@@ -806,19 +834,31 @@ export function renderElevation(layout, wallId, opts = {}) {
     }
   }
 
-  // ── Backsplash zone (3D spatial model: 36"–54" clear zone) ──
-  // Draw a subtle indicator showing the backsplash zone between counter and upper cabinets.
-  // This matches Cyncly's approach: light fill showing the protected zone.
+  // ── Backsplash band (short stone band above the counter) ──
+  // Replaces the old 18" schematic "clear zone" shade with a realistic ~4"
+  // backsplash that sits directly on the worktop over the base runs (broken
+  // around window openings so glass shows through).
   if (hasBases_p4) {
-    const bsBottom = VERTICAL_ZONES.BACKSPLASH.yMin; // 36"
-    const bsTop = VERTICAL_ZONES.BACKSPLASH.yMax;    // 54"
-    const bsH = bsTop - bsBottom;                     // 18"
-    const bsYsvg = ceil - bsTop;                       // SVG Y (inverted)
-    // Subtle light gray fill for backsplash zone
-    elements.push(`<rect x="0" y="${s(bsYsvg)}" width="${s(baseEndX_p4)}" height="${s(bsH)}" fill="#f8f8f8" stroke="none" />`);
-    // Thin dashed lines marking zone boundaries
-    elements.push(`<line x1="0" y1="${s(bsYsvg)}" x2="${s(baseEndX_p4)}" y2="${s(bsYsvg)}" stroke="#ddd" stroke-width="0.4" stroke-dasharray="3,3" />`);
-    elements.push(`<line x1="0" y1="${s(ceil - bsBottom)}" x2="${s(baseEndX_p4)}" y2="${s(ceil - bsBottom)}" stroke="#ddd" stroke-width="0.4" stroke-dasharray="3,3" />`);
+    const counterTopAFF = DIMS.toeKickHeight + DIMS.baseHeight + COUNTER_THICK; // top of slab
+    const bsH = 4;                                   // 4" backsplash
+    const bsYsvg = ceil - (counterTopAFF + bsH);
+    // Collect window x-spans on this wall to cut out of the backsplash
+    const winSpans = (wallDef.openings || [])
+      .filter(o => o.type !== 'door' && (o.width || 0) > 0)
+      .map(o => [(o.posFromLeft || 0) - leftConsumed, (o.posFromLeft || 0) - leftConsumed + o.width]);
+    // Draw the band as segments between window cutouts across [0, baseEndX_p4]
+    let cursor = 0;
+    const stops = [...winSpans].sort((a, b) => a[0] - b[0]);
+    const segs = [];
+    for (const [ws, we] of stops) {
+      if (ws > cursor) segs.push([cursor, Math.min(ws, baseEndX_p4)]);
+      cursor = Math.max(cursor, we);
+    }
+    if (cursor < baseEndX_p4) segs.push([cursor, baseEndX_p4]);
+    for (const [x0, x1] of segs) {
+      if (x1 - x0 <= 0) continue;
+      elements.push(`<rect x="${s(x0)}" y="${s(bsYsvg)}" width="${s(x1 - x0)}" height="${s(bsH)}" fill="#f2efe9" stroke="${STROKE_LIGHT}" stroke-width="0.5" />`);
+    }
   }
 
   // ── Depth setback indicator for upper cabinets ──
