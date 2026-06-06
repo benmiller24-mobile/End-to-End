@@ -1027,15 +1027,23 @@ export function solve(input) {
       }
     }
 
-    // Pass 3: Check last cab doesn't exceed wall length
-    const lastCab = cabs[cabs.length - 1];
+    // Pass 3: Check the last real cabinet doesn't exceed wall length.
+    // Thin finished end panels (BEP/FWEP/end_panel, ~0.75") sit on the exposed
+    // face and legitimately project a fraction past the run end — they are not a
+    // cabinet overflowing the wall, so exclude them and use a small tolerance.
+    const isEndPanelOrTrim = (c) =>
+      c.type === 'end_panel' || c.role === 'end-panel' ||
+      /(BEP|FWEP|FREP|REP|EP)\b/i.test(c.sku || '') ||
+      (c.type === 'filler' && (c.width || 0) <= 1);
+    const realCabs = cabs.filter(c => !isEndPanelOrTrim(c));
+    const lastCab = realCabs[realCabs.length - 1];
     if (lastCab) {
       const lastEnd = (lastCab.position || 0) + (lastCab.width || 0);
-      if (lastEnd > wl.wallLength) {
+      if (lastEnd > wl.wallLength + 0.5) {
         validation.push({
           severity: 'error',
           rule: 'wall_overflow',
-          message: `Wall ${wl.wallId}: cabinets extend to ${lastEnd}" but wall is only ${wl.wallLength}" — overflow by ${lastEnd - wl.wallLength}"`,
+          message: `Wall ${wl.wallId}: cabinets extend to ${lastEnd}" but wall is only ${wl.wallLength}" — overflow by ${Math.round((lastEnd - wl.wallLength) * 100) / 100}"`,
           wall: wl.wallId,
           overflow: lastEnd - wl.wallLength,
         });

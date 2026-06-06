@@ -273,10 +273,17 @@ export function validateCabinetChains(wallLayouts) {
       }
     }
 
-    // Wall boundary check
+    // Wall boundary check. Exclude thin finished end panels (BEP/FWEP/end_panel,
+    // ~0.75") — they sit on the exposed face and legitimately project a fraction
+    // past the run end; they are not a cabinet overflowing the wall.
     if (cabs.length > 0) {
+      const isEndPanelOrTrim = (c) =>
+        c.type === 'end_panel' || c.role === 'end-panel' ||
+        /(BEP|FWEP|FREP|REP|EP)\b/i.test(c.sku || '') ||
+        (c.type === 'filler' && (c.width || 0) <= 1);
+      const realCabs = cabs.filter(c => !isEndPanelOrTrim(c));
       const first = cabs[0];
-      const last = cabs[cabs.length - 1];
+      const last = (realCabs[realCabs.length - 1]) || cabs[cabs.length - 1];
       const lastEnd = last.position + last.width;
 
       if (first.position < -0.5) {
