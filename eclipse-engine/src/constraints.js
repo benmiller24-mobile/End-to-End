@@ -2769,6 +2769,37 @@ export function validateLayout(layout) {
 
   // ── NKBA additional guideline checks (data from kitchen-design-data-online.md) ──
   if (roomConfig.nkbaLandingApplies) {
+    // G4 — a full-height unit (tall pantry / oven tower) must not separate two
+    // work centers on the same run. Research: a tall box between sink↔range etc.
+    // breaks the work triangle leg and the counter run. (The fridge is itself a
+    // work center, so it is excluded as the obstacle here.)
+    const centers = ['sink', 'range', 'cooktop', 'refrigerator']
+      .map(t => (layout.appliances || []).find(a => a.type === t))
+      .filter(a => a && typeof a.position === 'number');
+    const tallObstacles = (layout.talls || []).filter(t =>
+      (t.role === 'pantry_tower' || t.role === 'oven_tower' || t.type === 'tall') &&
+      typeof t.position === 'number');
+    for (let i = 0; i < centers.length; i++) {
+      for (let j = i + 1; j < centers.length; j++) {
+        const a = centers[i], b = centers[j];
+        if (a.wall !== b.wall) continue;
+        const lo = Math.min(a.position, b.position);
+        const hi = Math.max(a.position + (a.width || 30), b.position + (b.width || 30));
+        for (const t of tallObstacles) {
+          if (t.wall !== a.wall) continue;
+          const tc = t.position + (t.width || 24) / 2;
+          if (tc > lo && tc < hi) {
+            issues.push({
+              rule: "NKBA-G4-Tall-Splits-Work-Centers",
+              severity: "warning",
+              message: `A full-height unit (${t.sku || 'tall'}) sits between the ${a.type} and ${b.type} on wall ${a.wall} — NKBA G4 advises against a tall obstacle separating two work centers (it breaks the work triangle and the counter run).`,
+              location: a.wall,
+            });
+          }
+        }
+      }
+    }
+
     // G20a — cooking surface must NOT be under an operable window.
     const cookers = (layout.appliances || []).filter(a => a.type === 'range' || a.type === 'cooktop');
     for (const cook of cookers) {
