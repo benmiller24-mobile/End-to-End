@@ -242,8 +242,13 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper })
   }
 
   // ── DRAWERS (from top of box) ──
-  const maxDrawerZone = h * 0.35;
-  const drH = drawers > 0 ? Math.min(maxDrawerZone / drawers, 7 * S) : 0;
+  // A pure drawer stack (doors === 0, e.g. B3D/B4D) fills the FULL box height;
+  // a drawer-over-door base keeps drawers to the top ~35%.
+  const isDrawerStack = doors === 0 && drawers > 0;
+  const drawerZone = isDrawerStack ? (h - 2 * pad) : h * 0.35;
+  const drH = drawers > 0
+    ? (isDrawerStack ? drawerZone / drawers : Math.min(drawerZone / drawers, 7 * S))
+    : 0;
 
   for (let i = 0; i < drawers; i++) {
     const dy = y + pad + i * drH;
@@ -276,8 +281,8 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper })
   const doorY = y + pad + drawers * drH + (drawers > 0 ? 1.2 : 0);
   const doorH = h - pad * 2 - drawers * drH - (drawers > 0 ? 1.2 : 0);
 
-  if (doorH > 3 * S) {
-    const dc = Math.max(doors, 1);
+  if (doors > 0 && doorH > 3 * S) {
+    const dc = doors;
     const gapBetween = dc > 1 ? 0.8 : 0;
     const dw = (w - 2 * pad - gapBetween * (dc - 1)) / dc;
 
@@ -300,10 +305,27 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper })
         );
       }
 
-      // Knob (small circle), hinge-side opposite. Base doors carry the knob near
-      // the TOP; wall (upper) cabinet doors carry it near the BOTTOM for reach —
-      // drawing it at the top made uppers look upside-down.
-      const knobX = i === 0 ? dx + dw - 2.5 * S : dx + 2.5 * S;
+      // ── Door-swing notation (millwork convention) ──
+      // Two thin lines from the LATCH-side top & bottom corners converging to the
+      // HINGE-side mid-height; the apex marks the hinge. Pairs hinge on the outer
+      // edges (apex out), singles hinge on the wall/away side. A pair therefore
+      // reads as the classic "X" across the two doors.
+      const hingeLeft = dc === 2 ? (i === 0) : true; // pair: L door→left, R door→right; single→left
+      const apexX = hingeLeft ? dx : dx + dw;
+      const latchX = hingeLeft ? dx + dw : dx;
+      const apexY = doorY + doorH / 2;
+      els.push(
+        <line key={`sw1${i}`} x1={latchX} y1={doorY} x2={apexX} y2={apexY}
+          stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />
+      );
+      els.push(
+        <line key={`sw2${i}`} x1={latchX} y1={doorY + doorH} x2={apexX} y2={apexY}
+          stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />
+      );
+
+      // Knob (small circle) on the LATCH side (opposite the hinge). Base doors
+      // carry it near the TOP; wall (upper) doors near the BOTTOM for reach.
+      const knobX = hingeLeft ? dx + dw - 2.5 * S : dx + 2.5 * S;
       const knobY = isUpper ? doorY + doorH - 3 * S : doorY + 3 * S;
       els.push(
         <circle key={`k${i}`} cx={knobX} cy={knobY} r={0.8}
@@ -635,7 +657,7 @@ function LightRailSegment({ x1, x2, y }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, trim = {}, tagStart = 1, debug = false }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false }) {
   const wW = wallLen * S;
   const cH = ceilH * S;
   const topMargin = 45;         // space above ceiling for dims
@@ -743,6 +765,55 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, tri
         stroke={C.line} strokeWidth={0.8} />
       <line x1={wW} y1={ceilY} x2={wW} y2={floorY}
         stroke={C.line} strokeWidth={0.8} />
+
+      {/* ══════════ WINDOWS & DOORS (openings on this wall) ══════════ */}
+      {openings.filter(o => (o.width || 0) > 0).map((op, i) => {
+        const ox = (op.posFromLeft || 0) * S;
+        const ow = op.width * S;
+        if (op.type === 'door') {
+          const headAFF = op.headHeight || 80;
+          const yTop = floorY - headAFF * S;
+          return (
+            <g key={`op${i}`}>
+              <rect x={ox} y={yTop} width={ow} height={floorY - yTop}
+                fill="#fbfbfb" stroke={C.line} strokeWidth={0.7} />
+              <line x1={ox + ow / 2} y1={yTop} x2={ox + ow / 2} y2={floorY}
+                stroke={C.thinLine} strokeWidth={0.3} opacity={0.5} />
+              <text x={ox + ow / 2} y={yTop - 2} fill={C.dimText} fontSize={3.5}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="600">DOOR</text>
+            </g>
+          );
+        }
+        // Window: sill above the counter (~40") up to a head below the uppers.
+        const sillAFF = op.sillHeight || 40;
+        const headAFF = op.headHeight || Math.min(ceilH - 14, 80);
+        const yTop = floorY - headAFF * S;
+        const yBot = floorY - sillAFF * S;
+        if (yBot - yTop <= 0) return null;
+        const cols = Math.max(1, Math.round(op.width / 24));   // ~24" lites
+        const rows = 2;
+        return (
+          <g key={`op${i}`}>
+            {/* Outer frame */}
+            <rect x={ox} y={yTop} width={ow} height={yBot - yTop}
+              fill="#dfe7ee" stroke={C.line} strokeWidth={0.9} />
+            {/* Glass inset */}
+            <rect x={ox + 1.2} y={yTop + 1.2} width={ow - 2.4} height={yBot - yTop - 2.4}
+              fill="#cdd9e4" stroke="none" />
+            {/* True-divided-light mullions */}
+            {Array.from({ length: cols - 1 }, (_, c) => (
+              <line key={`mv${c}`} x1={ox + (c + 1) * ow / cols} y1={yTop}
+                x2={ox + (c + 1) * ow / cols} y2={yBot} stroke="#ffffff" strokeWidth={0.7} />
+            ))}
+            {Array.from({ length: rows - 1 }, (_, r) => (
+              <line key={`mh${r}`} x1={ox} y1={yTop + (r + 1) * (yBot - yTop) / rows}
+                x2={ox + ow} y2={yTop + (r + 1) * (yBot - yTop) / rows} stroke="#ffffff" strokeWidth={0.7} />
+            ))}
+            {/* Sill */}
+            <rect x={ox - 1.5} y={yBot} width={ow + 3} height={1.6} fill={C.ctrFill} stroke={C.line} strokeWidth={0.4} />
+          </g>
+        );
+      })}
 
       {/* ══════════ TOEKICK BAND ══════════ */}
       {validBases.length > 0 && (() => {
@@ -1339,6 +1410,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false }
       data[w.id] = {
         id: w.id, length: w.length,
         ceilingHeight: w.ceilingHeight || 96,
+        openings: w.openings || [],
         bases: [], uppers: [], talls: [], hood: null,
       };
     });
@@ -1428,6 +1500,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false }
             uppers={wd.uppers}
             talls={wd.talls}
             hood={wd.hood}
+            openings={wd.openings}
             trim={trim}
             tagStart={start}
             debug={debug}
