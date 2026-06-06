@@ -2286,6 +2286,13 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     }
   }
 
+  // ── PRO_DESIGN: Symmetric range/cooktop flanking ──
+  // KF/PRONORM element lists: the hob is flanked by two EQUAL-width drawer bases
+  // in 5 of 6 kitchens. When the range has plain (non-sink/waste/appliance) base
+  // cabinets immediately on both sides, center the range between them with equal
+  // flank widths — outer edges fixed, so nothing else on the wall shifts.
+  applyRangeFlankSymmetry(cabinets, prefs);
+
   return {
     wallId: wall.id,
     wallLength: wall.length,
@@ -2297,6 +2304,53 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     cornerAnchors: { left: wallStartAnchor, right: wallEndAnchor },
     _warnings: placementWarnings,
   };
+}
+
+// Equalize the two base cabinets immediately flanking a range/cooktop so the hob
+// reads as a symmetric focal point (professional convention). Only triggers when
+// BOTH neighbors are plain fillable bases; functional clusters (sink/waste) are
+// left asymmetric on purpose. Outer edges stay fixed → no cascade.
+function applyRangeFlankSymmetry(cabinets, prefs) {
+  if (prefs && prefs.preferSymmetry === false) return;
+  const sorted = cabinets.slice().sort((a, b) => (a.position || 0) - (b.position || 0));
+  const ri = sorted.findIndex(c => c.applianceType === 'range' || c.applianceType === 'cooktop');
+  if (ri <= 0 || ri >= sorted.length - 1) return;
+  const range = sorted[ri], left = sorted[ri - 1], right = sorted[ri + 1];
+  const isPlainBase = (c) =>
+    c && c.type === 'base' &&
+    !/^(FC-)?(SB|BWDM|BKI|BPOS)/i.test(c.sku || '') &&
+    !['sink-base', 'waste', 'corner', 'filler'].includes(c.role || '');
+  if (!isPlainBase(left) || !isPlainBase(right)) return;
+  // Must be directly adjacent to the range (no gap/appliance between).
+  const rangeStart = range.position || 0;
+  const rangeEnd = rangeStart + (range.width || 0);
+  if (Math.abs((left.position + left.width) - rangeStart) > 0.5) return;
+  if (Math.abs(right.position - rangeEnd) > 0.5) return;
+  if (Math.abs((left.width || 0) - (right.width || 0)) < 0.5) return; // already symmetric
+
+  const leftOuter = left.position;
+  const rightOuter = right.position + (right.width || 0);
+  const rangeW = range.width || 30;
+  const flankTotal = (rightOuter - leftOuter) - rangeW;
+  const flankW = flankTotal / 2;
+  // Only equalize when each flank is ≥15": symmetry must not override the NKBA
+  // asymmetric landing rule (one side ≥15", other ≥12"). When the space is too
+  // tight for two ≥15" flanks, keep the NKBA-compliant asymmetric placement.
+  if (flankW < 15 || flankW > 48) return;
+
+  const setW = (cab, x, w) => {
+    cab.width = w; cab.position = x;
+    cab.position_start = x; cab.position_end = x + w;
+    cab._modWidth = true;
+    cab._modWidthNote = `Width set to ${Math.round(w * 100) / 100}" for symmetric range flanking`;
+    // Update the width number in the SKU (last digit group before any -suffix).
+    if (cab.sku) cab.sku = cab.sku.replace(/\d+(?=(?:-[A-Za-z].*)?$)/, String(Math.round(w)));
+  };
+  setW(left, leftOuter, flankW);
+  range.position = leftOuter + flankW;
+  range.position_start = range.position;
+  range.position_end = range.position + rangeW;
+  setW(right, range.position_end, flankW);
 }
 
 
