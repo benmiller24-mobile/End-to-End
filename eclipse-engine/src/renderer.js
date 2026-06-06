@@ -270,6 +270,44 @@ export function renderFloorPlan(layout, opts = {}) {
     }
   }
 
+  // ── Countertop (worktop) layer over wall runs ──
+  // A stone slab band that follows the counter-height base cabinets and
+  // projects ~1" past the cabinet front (overhang). Drawn as a distinct outline
+  // with a light fill so the cabinets read through it. Breaks around full-height
+  // elements (fridge/tall) which have no counter over them.
+  const COUNTER_OVERHANG = 1; // inches the worktop projects past the cabinet face
+  for (const wall of inputWalls) {
+    const cfg = wallConfig[wall.id];
+    if (!cfg) continue;
+    const wallLayout = wallLayouts.find(wl => wl.wallId === wall.id);
+    if (!wallLayout) continue;
+
+    let runPos = 0;
+    const leftCorner = corners.find(c => c.wallB === wall.id);
+    if (leftCorner) runPos = leftCorner.wallBConsumption || 0;
+
+    // Collect contiguous spans of counter-height base cabinets along the run
+    const spans = [];
+    for (const cab of wallLayout.cabinets) {
+      const w = cab.width || 0;
+      if (w <= 0) continue;
+      const isUpper = cab.type === 'upper' || cab.role === 'upper';
+      const isTall = cab.type === 'tall' || cab.role === 'tall' ||
+        (cab.applianceType && ['refrigerator', 'freezer', 'wineColumn'].includes(cab.applianceType));
+      if (!isUpper && !isTall) {
+        const last = spans[spans.length - 1];
+        if (last && Math.abs(last.end - runPos) < 0.01) last.end = runPos + w;
+        else spans.push({ start: runPos, end: runPos + w });
+      }
+      runPos += w;
+    }
+    // Draw a worktop band per span, projecting overhang into the room
+    for (const sp of spans) {
+      const wt = cabinetRectOnWall(cfg, sp.start, sp.end - sp.start, DIMS.baseDepth + COUNTER_OVERHANG);
+      elements.push(`<rect x="${s(wt.x)}" y="${s(wt.y)}" width="${s(wt.w)}" height="${s(wt.h)}" fill="${FILL_COUNTER}" fill-opacity="0.28" stroke="${STROKE}" stroke-width="1" />`);
+    }
+  }
+
   // ── Corner cabinets ──
   for (const corner of corners) {
     const cfgA = wallConfig[corner.wallA];
@@ -431,6 +469,17 @@ export function renderFloorPlan(layout, opts = {}) {
     const islandD = sideDepth * 2;           // work side + seating side
     const islandY = (cfgA ? cfgA.oy : 0) + DIMS.baseDepth + 42; // 42" clearance from wall run
     const endPanelW = 0.75;
+
+    // ── Island worktop slab (drawn behind cabinets) ──
+    // Projects ~1" past the work side and the ends, and cantilevers ~12" on the
+    // seating side for stool knee space (PRONORM island convention).
+    const seatOverhang = (il.backSide && il.backSide.length) ? 12 : 1;
+    const wtX = islandX - COUNTER_OVERHANG;
+    const wtY = islandY - COUNTER_OVERHANG;
+    const wtW = islandW + COUNTER_OVERHANG * 2;
+    const wtH = islandD + COUNTER_OVERHANG + seatOverhang;
+    elements.push(`<rect x="${s(wtX)}" y="${s(wtY)}" width="${s(wtW)}" height="${s(wtH)}" fill="${FILL_COUNTER}" fill-opacity="0.28" stroke="${STROKE}" stroke-width="1.2" />`);
+    rects.push({ x: wtX, y: wtY, w: wtW, h: wtH });
 
     // Base fill
     elements.push(svgRect({ x: islandX, y: islandY, w: islandW, h: islandD }, FILL_ISLAND));
@@ -594,9 +643,11 @@ export function renderElevation(layout, wallId, opts = {}) {
   // Wall background (Cyncly style: white with thin border)
   elements.push(`<rect x="0" y="0" width="${s(wallLength)}" height="${s(ceil)}" fill="white" stroke="#999" stroke-width="0.6" />`);
 
-  // Counter line (light gray horizontal line at counter height)
+  // Counter reference line (top of countertop, at counter height AFF)
   const counterY = ceil - DIMS.counterHeight;
-  elements.push(`<line x1="0" y1="${s(counterY)}" x2="${s(wallLength)}" y2="${s(counterY)}" stroke="${STROKE_CAB}" stroke-width="0.7" />`);
+  const COUNTER_THICK = 1.5;   // ~40mm stone slab (PRONORM default 1 9/16")
+  // (The solid counter slab band is drawn after the base run, once its extent
+  //  is known — see COUNTER SLAB below.)
 
   // ── Compute left corner offset for coordinate normalization ──
   // Bases are drawn sequentially from x=0 within the available zone.
@@ -689,6 +740,42 @@ export function renderElevation(layout, wallId, opts = {}) {
   // ── PROJECT 4: Professional elevation renderer ──
   const baseEndX_p4 = baseRunX; // right edge of base cabinet run
   const hasBases_p4 = baseEndX_p4 > 0;
+
+  // ── COUNTER SLAB (stone worktop band over counter-height bases) ──
+  // Draws a solid ~1.5" slab on top of the base cabinets, breaking around
+  // full-height elements (fridge/tall) and projecting a small front-edge lip.
+  if (hasBases_p4 && wall && wall.cabinets) {
+    const slabTopAFF = DIMS.toeKickHeight + DIMS.baseHeight; // top of the base box as drawn
+    const yTop = ceil - slabTopAFF - COUNTER_THICK;
+    // Collect counter-height cabinet spans (absolute x), then merge contiguous ones.
+    const spans = [];
+    for (const cab of wall.cabinets) {
+      const w = cab.width || 0;
+      if (w <= 0) continue;
+      if (cab.type === 'upper' || cab.role === 'upper') continue;
+      const ch = cab._elev?.height ?? DIMS.baseHeight;
+      const tallish = ch > 45 ||
+        (cab.applianceType && ['refrigerator', 'freezer', 'wineColumn'].includes(cab.applianceType));
+      if (tallish) continue;
+      const bx = (typeof cab.position === 'number') ? (cab.position - leftConsumed) : null;
+      if (bx === null) continue;
+      spans.push([bx, bx + w]);
+    }
+    spans.sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    for (const sp of spans) {
+      const last = merged[merged.length - 1];
+      if (last && sp[0] - last[1] <= 1.01) last[1] = Math.max(last[1], sp[1]);
+      else merged.push([...sp]);
+    }
+    for (const [x0, x1] of merged) {
+      // Slab body
+      elements.push(`<rect x="${s(x0)}" y="${s(yTop)}" width="${s(x1 - x0)}" height="${s(COUNTER_THICK)}" fill="${FILL_COUNTER}" stroke="${STROKE_CAB}" stroke-width="0.7" />`);
+      // Front-edge lip (slab projects ~1" past the cabinet face — shown as a
+      // thin shadow line just under the slab front)
+      elements.push(`<line x1="${s(x0)}" y1="${s(yTop + COUNTER_THICK)}" x2="${s(x1)}" y2="${s(yTop + COUNTER_THICK)}" stroke="${STROKE}" stroke-width="0.9" />`);
+    }
+  }
 
   // ── Backsplash zone (3D spatial model: 36"–54" clear zone) ──
   // Draw a subtle indicator showing the backsplash zone between counter and upper cabinets.
