@@ -840,7 +840,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {/* Elevations tab */}
       {tab === 'elevations' && (
         <div>
-          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} />
+          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} />
           {/* Tag SVGs for PDF export */}
           <style>{`[data-pdf="elevation"] { /* marker */ }`}</style>
         </div>

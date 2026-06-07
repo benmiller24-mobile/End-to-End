@@ -295,7 +295,20 @@ function CabTag({ cx, cy, num, prefix = 'KD' }) {
 // COMPONENT: CabFront — Shaker 5-piece door with raised inner panel
 // ═══════════════════════════════════════════════════════════════════════
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false }) {
+// Map an Eclipse door-style code to a render spec (catalog door-style section B1-B4).
+//  slab (Metropolitan): flat door, no inner panel
+//  flat (Shaker/Hanover/Arch-Flat/Crown-Flat): recessed flat panel
+//  raised (Arch/Crown Raised Panel): panel with a bevel field
+//  Arch/Crown styles carry a 4 1/2" top rail (others 2 1/2")
+function doorStyleSpec(code) {
+  const c = (code || '').toUpperCase();
+  if (/MET|SLAB/.test(c)) return { panel: 'slab', topRail: 2.5 };
+  const archCrown = /^(A|C)(FP|RP|GFD)/.test(c) || /ARCH|CROWN|^AFP|^ARP|^CFP|^CRP/.test(c);
+  const raised = /RP/.test(c) && !/FP/.test(c);
+  return { panel: raised ? 'raised' : 'flat', topRail: archCrown ? 4.5 : 2.5 };
+}
+
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -338,20 +351,29 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     return Array.from({ length: n }, () => boxIn / n);
   };
 
-  // Draw one shaker front (full-overlay panel inset REVEAL, inner panel inset RAIL)
-  const drawFront = (key, fx, fy, fw, fh, pull) => {
+  // Draw one full-overlay front. Panel style per door style:
+  //  slab → no inner panel; flat → recessed panel; raised → panel + bevel field.
+  //  Doors carry the style's top rail (2 1/2" or 4 1/2" arch/crown); drawers use 2 1/2".
+  const drawFront = (key, fx, fy, fw, fh, pull, isDoor = false) => {
     const ax = fx + REVEAL, ay = fy + REVEAL, aw = fw - 2 * REVEAL, ah = fh - 2 * REVEAL;
     if (aw <= 0 || ah <= 0) return;
     els.push(<rect key={key} x={ax} y={ay} width={aw} height={ah}
       fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
-    if (aw > 2 * RAIL + 2 && ah > 2 * RAIL + 2) {
-      els.push(<rect key={`${key}p`} x={fx + RAIL} y={fy + RAIL} width={fw - 2 * RAIL} height={fh - 2 * RAIL}
+    const topRail = (isDoor ? styleSpec.topRail : 2.5) * S;
+    const px = fx + RAIL, py = fy + topRail, pw = fw - 2 * RAIL, ph = fh - topRail - RAIL;
+    if (styleSpec.panel !== 'slab' && pw > 3 && ph > 3) {
+      els.push(<rect key={`${key}p`} x={px} y={py} width={pw} height={ph}
         fill="none" stroke={C.thinLine} strokeWidth={0.22} opacity={0.4} rx={0.2} />);
+      if (styleSpec.panel === 'raised' && pw > 6 && ph > 6) {
+        const b = 1.1 * S;   // bevel field for raised-panel doors
+        els.push(<rect key={`${key}pr`} x={px + b} y={py + b} width={pw - 2 * b} height={ph - 2 * b}
+          fill="none" stroke={C.thinLine} strokeWidth={0.18} opacity={0.3} rx={0.2} />);
+      }
     }
     if (pull === 'bar') {
-      const pw = Math.min(aw * 0.28, 5 * S);
-      els.push(<line key={`${key}h`} x1={ax + aw / 2 - pw / 2} y1={ay + ah / 2}
-        x2={ax + aw / 2 + pw / 2} y2={ay + ah / 2}
+      const pw2 = Math.min(aw * 0.28, 5 * S);
+      els.push(<line key={`${key}h`} x1={ax + aw / 2 - pw2 / 2} y1={ay + ah / 2}
+        x2={ax + aw / 2 + pw2 / 2} y2={ay + ah / 2}
         stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />);
     }
   };
@@ -387,7 +409,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     const dw = w / dc;
     for (let i = 0; i < dc; i++) {
       const dx = x + i * dw;
-      drawFront(`d${i}`, dx, doorY, dw, doorH, null);
+      drawFront(`d${i}`, dx, doorY, dw, doorH, null, true);
       // door-swing notation over the visible (full-overlay) door panel
       const ix = dx + REVEAL, iw = dw - 2 * REVEAL, iy = doorY + REVEAL, ih = doorH - 2 * REVEAL;
       const hingeLeft = dc === 2 ? (i === 0) : (hinge !== 'right');
@@ -749,7 +771,7 @@ function LightRailSegment({ x1, x2, y }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
   const wW = wallLen * S;
   const cH = ceilH * S;
   const topMargin = 45;         // space above ceiling for dims
@@ -973,7 +995,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
@@ -1038,7 +1060,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} />
+              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} />
             )}
           </g>
         );
@@ -1089,18 +1111,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                       x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
                       stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
                     {/* Door panel below */}
-                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} />
+                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} />
                   </g>
                 );
               }
               if (isFHD) {
-                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} />;
+                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} />;
               }
               // Standard utility: show shelf lines
               const shelfCount = Math.floor(tH / (20 * S));
               return (
                 <g>
-                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} />
+                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} />
                   {Array.from({ length: Math.min(shelfCount, 4) }, (_, si) => {
                     const sy = y + (si + 1) * tH / (Math.min(shelfCount, 4) + 1);
                     return (
@@ -1516,7 +1538,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
-export default function ElevationView({ solverResult, trim = {}, debug = false }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V' }) {
+  const styleSpec = doorStyleSpec(doorStyle);
   if (!solverResult) return null;
 
   const wallLayouts  = solverResult.walls || [];
@@ -1625,6 +1648,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false }
             trim={trim}
             tagStart={start}
             debug={debug}
+            styleSpec={styleSpec}
           />
         );
       })}
