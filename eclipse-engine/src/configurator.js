@@ -67,18 +67,29 @@ const CATALOG_PRICES = {
     24: 440,   27: 495,   30: 550,   33: 605,   36: 660,
     42: 770,   48: 880,
   },
-  // Drawer bases (B3D, B4D) — ~15% premium over standard
+  // Drawer bases — EXACT Eclipse 8.8.0 catalog list prices (page I13).
+  // B3D (3-drawer base):
   drawerBase: {
-    9:  215,   12: 255,   15: 315,   18: 380,   21: 445,
-    24: 510,   27: 570,   30: 635,   33: 695,   36: 760,
+    12: 511,   15: 530,   18: 569,   21: 610,   24: 645,
+    27: 686,   30: 727,   33: 822,   36: 917,   39: 1192,  42: 1287,
+  },
+  // B4D (4-drawer base) — exact catalog list prices:
+  b4Drawer: {
+    12: 523,   15: 541,   18: 582,   21: 623,   24: 658,
+    27: 697,   30: 738,   33: 833,   36: 928,   39: 1263,  42: 1358,
+  },
+  // B2TD (2 tiered drawer base, heavy-duty) — exact catalog list prices:
+  twoTierDrawer: {
+    12: 1247,  15: 1265,  18: 1306,  21: 1347,  24: 1382,
+    27: 1421,  30: 1462,  33: 1557,  36: 1652,  39: 1867,  42: 1962,
   },
   // Heavy-duty drawer (B2HD) — ~20% premium
   heavyDrawer: {
     18: 400,   21: 460,   24: 530,   27: 600,   30: 660,   33: 725,   36: 790,
   },
-  // Sink bases (SB, SBA)
+  // Sink bases (SB, SBA) — EXACT catalog list prices:
   sinkBase: {
-    30: 480,   33: 540,   36: 600,   42: 720,
+    18: 476,   21: 493,   24: 506,   27: 633,   30: 650,   33: 690,   36: 730,   42: 820,
   },
   // Waste cabinets
   waste: {
@@ -174,7 +185,7 @@ function parseSku(sku) {
   //   BWDMA, BWDMW, BWDMB, BWS, BO, BCF, BWC, BPTPO, BUBO, TB, W, RW, RH,
   //   NTK, TP, FIO, TC, FLVSB, VTSB3D, VTSB, UV, FD2HD, LD, VB3D, etc.
   const stripped = cleanSku.replace(
-    /^(?:SWSC|FLVSB|VTSB3D|VTSB|FD2HD|BWDMA|BWDMW|BWDMB|BPTPO|BBC|BKI|B2HD|B3D|B4D|BPOS|BTD|BUBO|BWS|BWC|BCF|SBA|DSB|RTB|WND|WGT|WGP?D|WPD|B-(?:RT|2D|FHD)|NTK|VB3D|WGPD|WSC|W1DR|RH|RW|SB|BL|TB|FIO|TC|TP|UV|BO|LD|WS|DWP|FDP|FZP|W|B|F)/,
+    /^(?:SWSC|FLVSB|VTSB3D|VTSB|FD2HD|BWDMA|BWDMW|BWDMB|BPTPO|BBC|BKI|B2TD|B2HD|B3D|B4D|BPOS|BTD|BUBO|BWS|BWC|BCF|SBA|DSB|RTB|WND|WGT|WGP?D|WPD|B-(?:RT|2D|FHD)|NTK|VB3D|WGPD|WSC|W1DR|RH|RW|SB|BL|TB|FIO|TC|TP|UV|BO|LD|WS|DWP|FDP|FZP|W|B|F)/,
     ""
   );
   // Also check for width after a dash (e.g., BPOS-12)
@@ -250,11 +261,14 @@ function parseSku(sku) {
     family = "specialty";
     numDoors = 0;
     numDrawers = 1;
+  } else if (/^B2TD/.test(cleanSku)) {
+    family = "twoTierDrawer";
+    numDrawers = 2;
   } else if (/^B2HD/.test(cleanSku)) {
     family = "heavyDrawer";
     numDrawers = 2;
   } else if (/^B4D/.test(cleanSku)) {
-    family = "drawerBase";
+    family = "b4Drawer";
     numDrawers = 4;
   } else if (/^B3D/.test(cleanSku)) {
     family = "drawerBase";
