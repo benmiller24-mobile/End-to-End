@@ -60,12 +60,16 @@ import { generateProjectSummary } from './summary.js';
 // Keyed by cabinet prefix; width-based interpolation for non-standard widths.
 
 const CATALOG_PRICES = {
-  // ── Base cabinets ──
+  // ── Base cabinets ── EXACT Eclipse 8.8.0 catalog list prices (page I7/I13).
+  // Standard base (1 door + 1 drawer; also B-FHD full-height-door variant, same price).
   base: {
-    // width → list price (Maple/Standard)
-    9:  185,   12: 220,   15: 275,   18: 330,   21: 385,
-    24: 440,   27: 495,   30: 550,   33: 605,   36: 660,
-    42: 770,   48: 880,
+    9:  417,   12: 447,   15: 476,   18: 487,   21: 522,
+    24: 541,   27: 685,   30: 719,   33: 754,   36: 784,
+    39: 937,   42: 972,   48: 1090,
+  },
+  // Tray base cabinets (TB) — exact catalog list prices:
+  trayBase: {
+    9:  417,   12: 447,   15: 638,   18: 650,   21: 685,   24: 703,
   },
   // Drawer bases — EXACT Eclipse 8.8.0 catalog list prices (page I13).
   // B3D (3-drawer base):
@@ -167,6 +171,53 @@ const CATALOG_PRICES = {
   // ── GOLA (FC-) prefix adds ~10%
   golaMultiplier: 1.10,
 };
+
+
+// ─── WALL CABINET 2D PRICE MATRIX (width × height) ──────────────────────────
+// EXACT Eclipse 8.8.0 catalog list prices, page (Wall Cabinets pricing matrix).
+// Wall cabinet price depends on BOTH width and height — keyed [width][height].
+const WALL_HEIGHTS = [12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48];
+const WALL_MATRIX = {
+  9:    [262, 262, 267, 267, 285, 302, 319, 359, 398, 437, 476, 515, 554],
+  12:   [262, 262, 281, 281, 297, 313, 332, 371, 410, 453, 495, 538, 580],
+  15:   [262, 293, 293, 293, 308, 324, 343, 382, 421, 466, 511, 556, 601],
+  18:   [262, 302, 302, 319, 337, 354, 372, 411, 449, 501, 552, 604, 655],
+  21:   [262, 313, 324, 343, 361, 380, 402, 441, 479, 536, 593, 650, 707],
+  22.5: [262, 313, 343, 362, 382, 401, 422, 460, 499, 562, 625, 688, 750],
+  24:   [262, 313, 361, 381, 402, 421, 441, 480, 519, 588, 656, 725, 793],
+  27:   [313, 365, 413, 436, 459, 482, 506, 545, 583, 655, 726, 798, 869],
+  30:   [330, 372, 424, 451, 476, 498, 522, 561, 599, 677, 754, 832, 909],
+  33:   [348, 389, 452, 479, 506, 530, 557, 596, 634, 721, 808, 895, 982],
+  36:   [372, 400, 482, 508, 533, 561, 591, 631, 670, 765, 859, 954, 1048],
+  39:   [389, 429, 498, 528, 557, 587, 615, 654, 693, 793, 893, 993, 1093],
+  42:   [406, 459, 522, 555, 587, 615, 645, 684, 723, 830, 936, 1043, 1149],
+};
+
+// Bilinear interpolation of the wall matrix for any (width, height) in inches.
+function wallPrice(width, height) {
+  const widths = Object.keys(WALL_MATRIX).map(Number).sort((a, b) => a - b);
+  const clamp = (v, arr) => Math.max(arr[0], Math.min(arr[arr.length - 1], v));
+  const w = clamp(width, widths), hh = clamp(height, WALL_HEIGHTS);
+  const bracket = (v, arr) => {
+    let lo = arr[0], hi = arr[arr.length - 1];
+    for (const a of arr) { if (a <= v) lo = a; }
+    for (let i = arr.length - 1; i >= 0; i--) { if (arr[i] >= v) hi = arr[i]; }
+    return [lo, hi];
+  };
+  const rowAt = (wd, h) => {
+    const idx = WALL_HEIGHTS.indexOf(h);
+    if (idx >= 0) return WALL_MATRIX[wd][idx];
+    const [h0, h1] = bracket(h, WALL_HEIGHTS);
+    const i0 = WALL_HEIGHTS.indexOf(h0), i1 = WALL_HEIGHTS.indexOf(h1);
+    if (h0 === h1) return WALL_MATRIX[wd][i0];
+    const r = (h - h0) / (h1 - h0);
+    return WALL_MATRIX[wd][i0] + r * (WALL_MATRIX[wd][i1] - WALL_MATRIX[wd][i0]);
+  };
+  const [w0, w1] = bracket(w, widths);
+  const p0 = rowAt(w0, hh), p1 = rowAt(w1, hh);
+  const price = w0 === w1 ? p0 : p0 + ((w - w0) / (w1 - w0)) * (p1 - p0);
+  return Math.round(price * 100) / 100;
+}
 
 
 // ─── SKU PARSER ──────────────────────────────────────────────────────────────
@@ -283,8 +334,8 @@ function parseSku(sku) {
     family = "base";
     numDoors = 1;
   } else if (/^TB/.test(cleanSku)) {
-    family = "specialty";
-    numDoors = 0;
+    family = "trayBase";
+    numDoors = 2;
   } else if (/^B\d/.test(cleanSku) || /^B$/.test(cleanSku)) {
     family = "base";
     numDoors = width >= 27 ? 2 : 1;
@@ -357,7 +408,18 @@ function parseSku(sku) {
     numDoors = 0;
   }
 
-  return { prefix: cleanSku, width, family, isGola, numDoors, numDrawers };
+  // Wall cabinets price by width AND height — re-derive both from the W{w}{h} code.
+  let height = 0;
+  if (family === "wall") {
+    const wm = cleanSku.match(/^W(\d{3,4})/);
+    if (wm) {
+      const d = wm[1];
+      if (d.length === 4) { width = parseInt(d.slice(0, 2)); height = parseInt(d.slice(2)); }
+      else { width = parseInt(d.slice(0, 1)); height = parseInt(d.slice(1)); }
+    }
+  }
+
+  return { prefix: cleanSku, width, family, isGola, numDoors, numDrawers, height };
 }
 
 
@@ -365,11 +427,18 @@ function parseSku(sku) {
  * Look up the catalog list price for a parsed SKU.
  */
 function lookupListPrice(parsed) {
-  const { family, width, isGola } = parsed;
+  const { family, width, isGola, height } = parsed;
 
   // Non-cabinet items (accessories, fillers, trim) — priced separately
   if (["filler", "endPanel", "accessory", "trim", "hardware"].includes(family)) {
     return 0; // priced through accessory channel
+  }
+
+  // Wall cabinets: exact 2D (width × height) catalog matrix.
+  if (family === "wall" && height > 0) {
+    let wp = wallPrice(width, height);
+    if (isGola) wp *= CATALOG_PRICES.golaMultiplier;
+    return Math.round(wp * 100) / 100;
   }
 
   const priceTable = CATALOG_PRICES[family] || CATALOG_PRICES.base;
