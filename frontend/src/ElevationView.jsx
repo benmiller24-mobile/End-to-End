@@ -726,8 +726,8 @@ function ScribeAnnotation({ x, y1, y2, side = 'left' }) {
 // COMPONENT: CrownProfile — Crown molding cross-section profile
 // ═══════════════════════════════════════════════════════════════════════
 
-function CrownSegment({ x1, x2, y }) {
-  const h = CROWN_H * S;
+function CrownSegment({ x1, x2, y, height }) {
+  const h = height != null ? height : CROWN_H * S;
   // Profile: bottom-left, cove curve up, ogee top, straight to right, mirror
   const w = x2 - x1;
   return (
@@ -816,7 +816,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       .sort((a, b) => a.position - b.position);
 
     const segs = [];
-    let segS = null, segE = null;
+    let segS = null, segE = null, segTopY = null;
     for (const cab of sorted) {
       const skip = cab._isHood || cab.role === 'range_hood' || cab.type === 'rangeHood'
         || (cab.applianceType || '') === 'microwave'
@@ -824,16 +824,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         // light rail / crown band must NOT run across them.
         || cab._elev?.zone === 'ABOVE_TALL' || (cab._elev?.yMount || 0) > 60;
       if (skip) {
-        if (segS !== null) { segs.push({ s: segS, e: segE }); segS = null; }
+        if (segS !== null) { segs.push({ s: segS, e: segE, topY: segTopY }); segS = null; }
         continue;
       }
       const cs = cab.position;
       const ce = cab.position + (cab.width || 0);
-      if (segS === null) { segS = cs; segE = ce; }
-      else if (cs <= segE + 0.5) { segE = Math.max(segE, ce); }
-      else { segs.push({ s: segS, e: segE }); segS = cs; segE = ce; }
+      const uH = (parseSkuHeight(cab.sku) || cab.height || UPPER_H_DEF) * S;
+      const topY = upBotY - uH;   // actual top of this upper cabinet (screen y)
+      if (segS === null) { segS = cs; segE = ce; segTopY = topY; }
+      else if (cs <= segE + 0.5) { segE = Math.max(segE, ce); segTopY = Math.min(segTopY, topY); }
+      else { segs.push({ s: segS, e: segE, topY: segTopY }); segS = cs; segE = ce; segTopY = topY; }
     }
-    if (segS !== null) segs.push({ s: segS, e: segE });
+    if (segS !== null) segs.push({ s: segS, e: segE, topY: segTopY });
     return segs;
   }
 
@@ -1194,10 +1196,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         );
       })()}
 
-      {/* ══════════ CROWN MOLDING (profiled, skips hoods) ══════════ */}
-      {trim.crown && upperSegs.map((seg, i) => (
-        <CrownSegment key={`cr${i}`} x1={seg.s * S} x2={seg.e * S} y={upTopY - CROWN_H * S} />
-      ))}
+      {/* ══════════ CROWN MOLDING ══════════ */}
+      {/* Sits on the ACTUAL top of each upper run; capped so it stops ~1/4" below
+          the ceiling (NKBA: crown never touches the ceiling). Omitted for slab/
+          modern door styles, which take a clean straight fill to the ceiling. */}
+      {trim.crown && styleSpec.panel !== 'slab' && upperSegs.map((seg, i) => {
+        const ceilGapY = ceilY + 0.25 * S;                 // 1/4" below the ceiling line
+        const crownBotY = seg.topY != null ? seg.topY : (upTopY);   // upper top
+        const crownTopY = Math.max(ceilGapY, crownBotY - CROWN_H * S);
+        const h = crownBotY - crownTopY;
+        if (h < 1) return null;
+        return <CrownSegment key={`cr${i}`} x1={seg.s * S} x2={seg.e * S} y={crownTopY} height={h} />;
+      })}
 
       {/* ══════════ LIGHT RAIL (skips hoods) ══════════ */}
       {trim.lightRail && upperSegs.map((seg, i) => (
