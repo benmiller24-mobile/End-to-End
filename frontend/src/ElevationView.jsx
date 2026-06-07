@@ -319,96 +319,85 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     }
   }
 
-  // ── DRAWERS (from top of box) ──
-  // A pure drawer stack (doors === 0, e.g. B3D/B4D) fills the FULL box height;
-  // a drawer-over-door base keeps drawers to the top ~35%.
+  // ── FRONTS (Eclipse 8.8.0 spec: frameless full-overlay, 3/32" reveals,
+  //    2 1/2" shaker rails, catalog drawer-face heights from page H3/I1) ──
+  const REVEAL = 0.094 * S;        // 3/32" reveal around every front (full overlay)
+  const RAIL   = 2.5 * S;          // 2 1/2" shaker frame rail width
+  const innerH = h - 2 * REVEAL;
+  const boxIn  = h / S;            // box height in inches
   const isDrawerStack = doors === 0 && drawers > 0;
-  const drawerZone = isDrawerStack ? (h - 2 * pad) : h * 0.35;
-  const drH = drawers > 0
-    ? (isDrawerStack ? drawerZone / drawers : Math.min(drawerZone / drawers, 7 * S))
-    : 0;
 
-  for (let i = 0; i < drawers; i++) {
-    const dy = y + pad + i * drH;
-    const dw = w - 2 * pad;
-    // Drawer panel outline
-    els.push(
-      <rect key={`dr${i}`} x={x + pad} y={dy} width={dw} height={drH - 0.8}
-        fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />
-    );
-    // Inner raised panel (smaller inset)
-    const ip = 1.5 * S;
-    if (dw > 2 * ip + 2 && drH - 0.8 > 2 * ip) {
-      els.push(
-        <rect key={`dri${i}`} x={x + pad + ip} y={dy + ip * 0.6}
-          width={dw - 2 * ip} height={drH - 0.8 - ip * 1.2}
-          fill="none" stroke={C.thinLine} strokeWidth={0.2} opacity={0.45} rx={0.2} />
-      );
+  // Catalog drawer-face proportions:
+  //   3-drawer base → 6" top, 10 3/4" x2 ;  4-drawer base → 6" x3, 8 3/4" bottom
+  const drawerFacesIn = (n) => {
+    if (n === 3) return [6, 10.75, 10.75];
+    if (n === 4) return [6, 6, 6, 8.75];
+    if (n === 2) return [boxIn * 0.42, boxIn * 0.58];
+    return Array.from({ length: n }, () => boxIn / n);
+  };
+
+  // Draw one shaker front (full-overlay panel inset REVEAL, inner panel inset RAIL)
+  const drawFront = (key, fx, fy, fw, fh, pull) => {
+    const ax = fx + REVEAL, ay = fy + REVEAL, aw = fw - 2 * REVEAL, ah = fh - 2 * REVEAL;
+    if (aw <= 0 || ah <= 0) return;
+    els.push(<rect key={key} x={ax} y={ay} width={aw} height={ah}
+      fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+    if (aw > 2 * RAIL + 2 && ah > 2 * RAIL + 2) {
+      els.push(<rect key={`${key}p`} x={fx + RAIL} y={fy + RAIL} width={fw - 2 * RAIL} height={fh - 2 * RAIL}
+        fill="none" stroke={C.thinLine} strokeWidth={0.22} opacity={0.4} rx={0.2} />);
     }
-    // Pull (horizontal bar)
-    const pullW = Math.min(dw * 0.25, 5 * S);
-    els.push(
-      <line key={`drp${i}`}
-        x1={x + w / 2 - pullW / 2} y1={dy + drH / 2}
-        x2={x + w / 2 + pullW / 2} y2={dy + drH / 2}
-        stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />
-    );
+    if (pull === 'bar') {
+      const pw = Math.min(aw * 0.28, 5 * S);
+      els.push(<line key={`${key}h`} x1={ax + aw / 2 - pw / 2} y1={ay + ah / 2}
+        x2={ax + aw / 2 + pw / 2} y2={ay + ah / 2}
+        stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />);
+    }
+  };
+
+  // Cells tile the box exactly; each front insets REVEAL → 3/32" at box edges,
+  // 3/16" between adjacent fronts (full-overlay reveals).
+  // DRAWERS — stack fills the box (catalog proportions); drawer-over-door = 6" top band
+  let cursorY = y;
+  if (drawers > 0) {
+    if (isDrawerStack) {
+      const faces = drawerFacesIn(drawers);
+      const total = faces.reduce((a, b) => a + b, 0);
+      faces.forEach((f, i) => {
+        const fh = (f / total) * h;
+        drawFront(`dr${i}`, x, cursorY, w, fh, 'bar');
+        cursorY += fh;
+      });
+    } else {
+      // single 6" top drawer; cabinets over 36" wide get 2 side-by-side drawers
+      const fh = 6 * S;
+      const splits = (w / S) > 36 ? 2 : 1;
+      for (let s = 0; s < splits; s++) drawFront(`dr0_${s}`, x + s * (w / splits), cursorY, w / splits, fh, 'bar');
+      cursorY += fh;
+    }
   }
 
-  // ── DOORS (below drawers) ──
-  const doorY = y + pad + drawers * drH + (drawers > 0 ? 1.2 : 0);
-  const doorH = h - pad * 2 - drawers * drH - (drawers > 0 ? 1.2 : 0);
-
+  // DOORS — fill remaining height below the drawer band
+  const doorY = cursorY;
+  const doorH = (y + h) - cursorY;
   if (doors > 0 && doorH > 3 * S) {
     const dc = doors;
-    const gapBetween = dc > 1 ? 0.8 : 0;
-    const dw = (w - 2 * pad - gapBetween * (dc - 1)) / dc;
-
+    const dw = w / dc;
     for (let i = 0; i < dc; i++) {
-      const dx = x + pad + i * (dw + gapBetween);
-
-      // Door panel outer (stile & rail frame)
-      els.push(
-        <rect key={`d${i}`} x={dx} y={doorY} width={dw} height={doorH}
-          fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />
-      );
-
-      // Inner raised panel (5-piece shaker center panel)
-      const ip = 2 * S;
-      if (dw > 2 * ip + 2 && doorH > 2 * ip + 2) {
-        els.push(
-          <rect key={`di${i}`} x={dx + ip} y={doorY + ip}
-            width={dw - 2 * ip} height={doorH - 2 * ip}
-            fill="none" stroke={C.thinLine} strokeWidth={0.25} opacity={0.4} rx={0.2} />
-        );
-      }
-
-      // ── Door-swing notation (millwork convention) ──
-      // Two thin lines from the LATCH-side top & bottom corners converging to the
-      // HINGE-side mid-height; the apex marks the hinge. Pairs hinge on the outer
-      // edges (apex out), singles hinge on the wall/away side. A pair therefore
-      // reads as the classic "X" across the two doors.
-      const hingeLeft = dc === 2 ? (i === 0) : (hinge !== 'right'); // pair: outer hinges; single: per `hinge`
-      const apexX = hingeLeft ? dx : dx + dw;
-      const latchX = hingeLeft ? dx + dw : dx;
-      const apexY = doorY + doorH / 2;
-      els.push(
-        <line key={`sw1${i}`} x1={latchX} y1={doorY} x2={apexX} y2={apexY}
-          stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />
-      );
-      els.push(
-        <line key={`sw2${i}`} x1={latchX} y1={doorY + doorH} x2={apexX} y2={apexY}
-          stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />
-      );
-
-      // Knob (small circle) on the LATCH side (opposite the hinge). Base doors
-      // carry it near the TOP; wall (upper) doors near the BOTTOM for reach.
-      const knobX = hingeLeft ? dx + dw - 2.5 * S : dx + 2.5 * S;
-      const knobY = isUpper ? doorY + doorH - 3 * S : doorY + 3 * S;
-      els.push(
-        <circle key={`k${i}`} cx={knobX} cy={knobY} r={0.8}
-          fill={C.hwColor} stroke="none" />
-      );
+      const dx = x + i * dw;
+      drawFront(`d${i}`, dx, doorY, dw, doorH, null);
+      // door-swing notation over the visible (full-overlay) door panel
+      const ix = dx + REVEAL, iw = dw - 2 * REVEAL, iy = doorY + REVEAL, ih = doorH - 2 * REVEAL;
+      const hingeLeft = dc === 2 ? (i === 0) : (hinge !== 'right');
+      const apexX = hingeLeft ? ix : ix + iw;
+      const latchX = hingeLeft ? ix + iw : ix;
+      const apexY = iy + ih / 2;
+      els.push(<line key={`sw1${i}`} x1={latchX} y1={iy} x2={apexX} y2={apexY}
+        stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />);
+      els.push(<line key={`sw2${i}`} x1={latchX} y1={iy + ih} x2={apexX} y2={apexY}
+        stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />);
+      const knobX = hingeLeft ? ix + iw - 1.4 * S : ix + 1.4 * S;
+      const knobY = isUpper ? iy + ih - 3 * S : iy + 3 * S;
+      els.push(<circle key={`k${i}`} cx={knobX} cy={knobY} r={0.8} fill={C.hwColor} stroke="none" />);
     }
   }
 
