@@ -112,8 +112,8 @@ const CATALOG_PRICES = {
   lazySusan: {
     33: 850,   36: 950,
   },
-  blindCorner: {
-    36: 620,   39: 680,   42: 740,   45: 800,   48: 860,
+  blindCorner: {   // EXACT catalog (BBC): page 414
+    36: 593,   39: 621,   42: 680,   45: 708,   48: 738,
   },
   magicCorner: {
     48: 3940,  // Bollini BBC48R-MC $3,938
