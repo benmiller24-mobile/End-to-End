@@ -789,6 +789,13 @@ export function solve(input) {
     }
   }
 
+  // ── DESIGNER MOVE: center the primary sink under its window ──
+  // High-end KDs nearly always center the sink under the window; an off-center
+  // sink is the #1 "auto-generated" tell. Anchors fridge/tall/corner cabinets at
+  // the run ends and reflows the movable middle to slide the sink+DW cluster under
+  // the window. Fully guarded — reverts (no-op) on any anomaly.
+  try { centerSinkUnderWindow(wallLayouts, walls); } catch (_e) { /* non-fatal */ }
+
   // ── PROJECT 5: Validation-driven correction loop ──
   // Run validation, then auto-correct fixable errors (up to 3 iterations).
   // This catches overlaps, unfillable gaps, and other layout errors that
@@ -7383,6 +7390,96 @@ function assignSpatialData(p) {
 
   // Compute top edge (yMount + height)
   p._elev.yTop = p._elev.yMount + p._elev.height;
+}
+
+// Center the primary sink (+ adjacent dishwasher) under its window by reflowing
+// the movable middle of the sink wall. Anchors fridge/tall/corner/end-panel
+// cabinets at the run ends. Preserves every cabinet and the total wall width;
+// only commits when the sink ends up meaningfully closer to the window center.
+function centerSinkUnderWindow(wallLayouts, inputWalls) {
+  for (const wl of wallLayouts) {
+    try {
+      const wallDef = (inputWalls || []).find(w => w.id === wl.wallId);
+      if (!wallDef) continue;
+      const windows = (wallDef.openings || []).filter(o => (o.type || "window") === "window" && o.width > 0);
+      if (!windows.length) continue;
+      const all = (wl.cabinets || [])
+        .filter(c => typeof c.position === "number" && c.width > 0)
+        .sort((a, b) => a.position - b.position);
+      const sink = all.find(c => c.applianceType === "sink");
+      if (!sink || all.length < 3) continue;
+      const wallLen = wl.wallLength || all.reduce((m, c) => Math.max(m, c.position + c.width), 0);
+      const totalW0 = all.reduce((s, c) => s + c.width, 0);
+
+      const sinkC0 = sink.position + sink.width / 2;
+      let winC = null, bd = 1e9;
+      for (const w of windows) { const c = (w.posFromLeft || 0) + w.width / 2; if (Math.abs(c - sinkC0) < bd) { bd = Math.abs(c - sinkC0); winC = c; } }
+      if (winC === null || bd <= 6) continue;        // already centered (±6")
+
+      // sink cluster = sink + contiguous dishwasher(s)
+      const si = all.indexOf(sink);
+      let lo = si, hi = si;
+      while (lo - 1 >= 0 && all[lo - 1].applianceType === "dishwasher") lo--;
+      while (hi + 1 < all.length && all[hi + 1].applianceType === "dishwasher") hi++;
+      const cluster = all.slice(lo, hi + 1);
+
+      const isAnchor = (c) => c.role === "corner" || c._isCorner
+        || /^BBC|^BL|^REP|^BEP|^WEP|^FREP|^FWEP/i.test(c.sku || "")
+        || (c.type === "appliance" && /refrigerator|freezer|wallOven|range|cooktop/i.test(c.applianceType || ""))
+        || (c._elev && c._elev.zone === "TALL");
+
+      let aL = 0; while (aL < all.length && isAnchor(all[aL]) && !cluster.includes(all[aL])) aL++;
+      let aR = all.length - 1; while (aR >= 0 && isAnchor(all[aR]) && !cluster.includes(all[aR])) aR--;
+      const leftAnchor = all.slice(0, aL), rightAnchor = all.slice(aR + 1);
+      const middle = all.slice(aL, aR + 1);
+      if (!middle.includes(sink)) continue;                                   // sink inside anchored zone
+      if (middle.some(c => isAnchor(c) && !cluster.includes(c))) continue;     // anchor stuck mid-run
+
+      const leftAW = leftAnchor.reduce((s, c) => s + c.width, 0);
+      const rightAW = rightAnchor.reduce((s, c) => s + c.width, 0);
+      const spanStart = leftAW, spanEnd = wallLen - rightAW;
+      const clusterW = cluster.reduce((s, c) => s + c.width, 0);
+      if (clusterW > spanEnd - spanStart + 0.01) continue;
+      const movable = middle.filter(c => !cluster.includes(c));
+      const byPos = [...movable].sort((a, b) => a.position - b.position);
+
+      // Search: dishwasher may flank either side of the sink (NKBA allows both),
+      // and the movable cabinets split into a left prefix. Pick the configuration
+      // that lands the sink centerline closest to the window center.
+      const clusterOrders = cluster.length > 1
+        ? [cluster, [...cluster].reverse()]
+        : [cluster];
+      let best = null;
+      for (const cl of clusterOrders) {
+        const sinkOff = cl.slice(0, cl.indexOf(sink)).reduce((s, c) => s + c.width, 0) + sink.width / 2;
+        let lw = 0;
+        const prefixes = [{ lw: 0, left: [] }];
+        for (let k = 0; k < byPos.length; k++) { lw += byPos[k].width; prefixes.push({ lw, left: byPos.slice(0, k + 1) }); }
+        for (const p of prefixes) {
+          if (spanStart + p.lw + clusterW > spanEnd + 0.01) continue;          // cluster must fit in span
+          const sc = spanStart + p.lw + sinkOff;
+          const err = Math.abs(sc - winC);
+          if (!best || err < best.err) best = { err, left: p.left, cl, sc };
+        }
+      }
+      if (!best || best.err >= bd - 2) continue;                               // no meaningful improvement
+      const newSinkC = best.sc;
+      const right = byPos.filter(c => !best.left.includes(c));
+      const order = [...leftAnchor, ...best.left, ...best.cl, ...right, ...rightAnchor];
+      if (order.length !== all.length) continue;
+      if (Math.abs(order.reduce((s, c) => s + c.width, 0) - totalW0) > 0.01) continue;  // width must be conserved
+
+      let pos = 0;
+      for (const c of order) {
+        c.position = Math.round(pos * 100) / 100;
+        c.position_start = c.position;
+        c.position_end = Math.round((pos + c.width) * 100) / 100;
+        pos += c.width;
+      }
+      if (pos > wallLen + 0.6) continue;             // sanity (won't happen if width conserved)
+      wl._sinkCenteredUnderWindow = Math.round(newSinkC);
+    } catch (_e) { /* leave this wall unchanged */ }
+  }
 }
 
 function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = [], inputWalls = []) {
