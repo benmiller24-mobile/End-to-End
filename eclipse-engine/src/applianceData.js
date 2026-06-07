@@ -189,6 +189,36 @@ export const APPLIANCES = [
   { id:'gag-cm470', brand:'gaggenau', type:'coffee', subtype:'built-in', model:'CM470711', width:24, height:17.9, depth:22, panelReady:false, ss:true, msrp:8500, priceNote:'map-est', features:['400 Fully Automatic Espresso','Plumbed','Bean-to-Cup'] },
   { id:'gag-cm450', brand:'gaggenau', type:'coffee', subtype:'built-in', model:'CM450710', width:24, height:17.9, depth:22, panelReady:false, ss:true, msrp:5500, priceNote:'map-est', features:['400 Automatic Coffee','Steam Clean'] },
   { id:'gag-aw442', brand:'gaggenau', type:'hood', subtype:'wall', model:'AW442720', width:48, height:18, depth:20, panelReady:false, ss:true, msrp:4500, priceNote:'map-est', features:['400 Wall Hood','48"','Stainless'] },
+
+  // ──────────── WOLF (E/M Series built-ins, cooktops, warming) ────────────
+  { id:'wolf-so3050te', brand:'wolf', type:'wallOven', subtype:'single', model:'SO3050TE/S/T', width:30, height:28.75, depth:24, panelReady:false, ss:true, msrp:5800, priceNote:'map-est', features:['E Series Transitional','Single Oven','4.7 cu ft','Dual Convection'] },
+  { id:'wolf-so3050pe', brand:'wolf', type:'wallOven', subtype:'single', model:'SO3050PE/S/P', width:30, height:28.75, depth:24, panelReady:false, ss:true, msrp:6100, priceNote:'map-est', features:['E Series Professional','Single Oven','Pro Handle'] },
+  { id:'wolf-do3050te', brand:'wolf', type:'wallOven', subtype:'double', model:'DO3050TE/S/T', width:30, height:51, depth:24, panelReady:false, ss:true, msrp:8800, priceNote:'map-est', features:['E Series Transitional','Double Oven'] },
+  { id:'wolf-cso3050te', brand:'wolf', type:'steamOven', subtype:'combi-steam', model:'CSO3050TE/S/T', width:30, height:28.75, depth:24, panelReady:false, ss:true, msrp:5200, priceNote:'map-est', features:['Convection Steam Oven','2.4 cu ft','40 oz Tank','Sous Vide'] },
+  { id:'wolf-ci304cb', brand:'wolf', type:'cooktop', subtype:'induction', model:'CI304C/B', width:30, height:4, depth:21, panelReady:false, ss:false, msrp:3300, priceNote:'map-est', fuel:'induction', features:['Contemporary Induction','4 Zones','Bridge','Boost'] },
+  { id:'wolf-ci365cb', brand:'wolf', type:'cooktop', subtype:'induction', model:'CI365C/B', width:36, height:4, depth:21, panelReady:false, ss:false, msrp:4000, priceNote:'map-est', fuel:'induction', features:['Contemporary Induction','5 Zones'] },
+  { id:'wolf-ce304cb', brand:'wolf', type:'cooktop', subtype:'electric', model:'CE304C/B', width:30, height:4, depth:21, panelReady:false, ss:false, msrp:2000, priceNote:'map-est', fuel:'electric', features:['Contemporary Electric Radiant','4 Elements'] },
+  { id:'wolf-wwd30', brand:'wolf', type:'warmingDrawer', subtype:'warming', model:'WWD30', width:30, height:10, depth:24, panelReady:false, ss:true, msrp:1900, priceNote:'map-est', features:['Warming Drawer','Transitional'] },
+
+  // ──────────── SUB-ZERO (undercounter + wine additions) ────────────
+  { id:'sz-uc24bg', brand:'subzero', type:'refrigerator', subtype:'undercounter', model:'UC-24BG/S', width:24, height:34, depth:24, panelReady:true, ss:true, msrp:4400, priceNote:'map-est', features:['Undercounter Beverage Center','Glass Door'] },
+  { id:'sz-uw24', brand:'subzero', type:'wine', subtype:'undercounter', model:'UW-24/S', width:24, height:34, depth:24, panelReady:false, ss:true, msrp:4600, priceNote:'map-est', features:['Undercounter Wine Storage','46 bottles','2 Zones'] },
+  { id:'sz-dew2450wine', brand:'subzero', type:'wine', subtype:'column', model:'DEW2450', width:24, height:84, depth:24, panelReady:true, ss:false, msrp:7000, priceNote:'map-est', builtIn:true, features:['24" Wine Column','146 bottles','Designer'] },
+
+  // ──────────── MIELE (Generation 7000 ranges, MasterCool, coffee, steam) ────────────
+  { id:'miele-hr1924', brand:'miele', type:'range', subtype:'pro', model:'HR1924DF', width:30, height:36, depth:24.6, panelReady:false, ss:true, msrp:8000, priceNote:'map-est', fuel:'dual', features:['Generation 7000','M Touch','4.6 cu ft','Dual Fuel'] },
+  { id:'miele-hr1934', brand:'miele', type:'range', subtype:'pro', model:'HR1934DF', width:36, height:36, depth:24.6, panelReady:false, ss:true, msrp:10500, priceNote:'map-est', fuel:'dual', features:['Generation 7000','M Touch','6 Burners','Dual Fuel'] },
+  { id:'miele-hr1954', brand:'miele', type:'range', subtype:'pro', model:'HR1954DF', width:48, height:36, depth:24.6, panelReady:false, ss:true, msrp:13500, priceNote:'map-est', fuel:'dual', features:['Generation 7000','48"','Griddle','Dual Fuel'] },
+  { id:'miele-kf2982', brand:'miele', type:'refrigerator', subtype:'french-door', model:'KF2982SF', width:36, height:84, depth:24, panelReady:false, ss:true, msrp:12000, priceNote:'map-est', builtIn:true, features:['MasterCool French Door','Built-In','19.6 cu ft'] },
+  { id:'miele-k2911', brand:'miele', type:'refrigerator', subtype:'column', model:'K2911SF', width:30, height:84, depth:24, panelReady:true, ss:false, msrp:9000, priceNote:'map-est', builtIn:true, features:['MasterCool Refrigerator Column','30"'] },
+  { id:'miele-f2911', brand:'miele', type:'freezer', subtype:'column', model:'F2911SF', width:30, height:84, depth:24, panelReady:true, ss:false, msrp:9000, priceNote:'map-est', builtIn:true, features:['MasterCool Freezer Column','30"','Ice Maker'] },
+  { id:'miele-cva7370', brand:'miele', type:'coffee', subtype:'built-in', model:'CVA7370', width:24, height:17.6, depth:22, panelReady:false, ss:true, msrp:4500, priceNote:'map-est', features:['Built-In Coffee','Bean-to-Cup','Plumbed'] },
+  { id:'miele-dgc7780', brand:'miele', type:'steamOven', subtype:'combi-steam', model:'DGC7780', width:24, height:18, depth:22, panelReady:false, ss:true, msrp:5000, priceNote:'map-est', features:['Combi-Steam Oven','XL','Plumbed'] },
+  { id:'miele-g7966', brand:'miele', type:'dishwasher', subtype:'panel-ready', model:'G7966SCVi', width:24, height:33.9, depth:24, panelReady:true, ss:false, msrp:2799, priceNote:'map-est', features:['Generation 7000','Fully Integrated','AutoDos','42 dBA','3D Cutlery Tray'] },
+
+  // ──────────── KITCHENAID (built-in MW + combo + warming) ────────────
+  { id:'ka-kmbp100ess', brand:'kitchenaid', type:'microwave', subtype:'built-in', model:'KMBP100ESS', width:30, height:18.81, depth:24, panelReady:false, ss:true, msrp:899, priceNote:'est', features:['Built-In Microwave','1.4 cu ft','Convenience'] },
+  { id:'ka-koce500ess', brand:'kitchenaid', type:'wallOven', subtype:'combo', model:'KOCE500ESS', width:30, height:43, depth:27.125, panelReady:false, ss:true, msrp:3899, priceNote:'est', features:['Combination Wall Oven','Microwave + Oven','Even-Heat'] },
 ];
 
 // ═══ APPLIANCE DESIGN RULES (from Eclipse Specs Reference) ═══
