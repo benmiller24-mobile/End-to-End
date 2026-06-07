@@ -334,7 +334,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
   const drawerFacesIn = (n) => {
     if (n === 3) return [6, 10.75, 10.75];
     if (n === 4) return [6, 6, 6, 8.75];
-    if (n === 2) return [boxIn * 0.42, boxIn * 0.58];
+    if (n === 2) return [6, Math.max(6, boxIn - 6)];   // B2TD: small top, large bottom (catalog I13)
     return Array.from({ length: n }, () => boxIn / n);
   };
 
