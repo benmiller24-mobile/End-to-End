@@ -2899,6 +2899,61 @@ export function validateLayout(layout) {
         });
       }
     }
+
+    // ── DESIGNER CONVENTIONS (NKBA Planning Guidelines + KD practice) ──
+
+    // KD move: center the primary sink under a window on its wall. High-end
+    // designers nearly always do this; an off-center sink reads "auto-generated".
+    const sinkApp = (layout.appliances || []).find(a => a.type === "sink");
+    if (sinkApp && sinkApp.wall) {
+      const wallDef = (layout.inputWalls || []).find(w => w.id === sinkApp.wall);
+      const wins = ((wallDef && wallDef.openings) || []).filter(o => (o.type || "window") === "window" && o.width > 0);
+      if (wins.length) {
+        const sinkCenter = (sinkApp.position || 0) + (sinkApp.width || 0) / 2;
+        let best = 1e9;
+        for (const w of wins) best = Math.min(best, Math.abs((w.posFromLeft || 0) + w.width / 2 - sinkCenter));
+        if (best > 6) {
+          issues.push({ rule: "KD-Sink-Window-Centering", severity: "suggestion", location: sinkApp.wall,
+            message: `Primary sink centerline is ~${Math.round(best)}" off the window center — high-end designers center the sink under the window (±6").` });
+        }
+      }
+    }
+
+    // NKBA G15: at least two waste receptacles (trash + recycling) near the sink.
+    const wasteRe = /waste|trash|recycl|^BWDM/i;
+    const wasteCount =
+      (layout.accessories || []).filter(a => wasteRe.test(a.type || a.name || a.sku || "")).length +
+      (layout.walls || []).reduce((n, w) => n + ((w.cabinets || []).filter(c => /^BWDM/i.test(c.sku || "")).length), 0);
+    if (wasteCount < 2) {
+      issues.push({ rule: "NKBA-G15-Waste-Recycling", severity: "suggestion",
+        message: `Plan at least two waste receptacles — trash + recycling — near the cleanup sink (NKBA G15). Found ${wasteCount}.` });
+    }
+
+    // NKBA G29: at least one corner cabinet should have a functional storage device.
+    if ((layout.corners || []).length) {
+      const cornerStore = (layout.accessories || []).some(a => /susan|magic|carousel|corner|blind/i.test(a.type || a.name || a.sku || "")) ||
+        (layout.walls || []).some(w => (w.cabinets || []).some(c => /^BL|^BBC|SUSAN|MAGIC/i.test(c.sku || "")));
+      if (!cornerStore) {
+        issues.push({ rule: "NKBA-G29-Corner-Storage", severity: "suggestion",
+          message: `A corner cabinet is present but has no functional storage device (NKBA G29) — add a lazy susan, magic corner, or corner pull-out.` });
+      }
+    }
+
+    // NKBA G28: concentrate cleanup storage within 72" of the sink centerline.
+    if (sinkApp && sinkApp.wall) {
+      const sinkCenter = (sinkApp.position || 0) + (sinkApp.width || 0) / 2;
+      const sinkWall = (layout.walls || []).find(w => w.wallId === sinkApp.wall);
+      if (sinkWall) {
+        const nearFrontage = (sinkWall.cabinets || [])
+          .filter(c => c.type !== "appliance" && typeof c.position === "number")
+          .filter(c => Math.abs((c.position + (c.width || 0) / 2) - sinkCenter) <= 72)
+          .reduce((s, c) => s + (c.width || 0), 0);
+        if (nearFrontage < 24) {
+          issues.push({ rule: "NKBA-G28-Storage-At-Sink", severity: "info", location: sinkApp.wall,
+            message: `Only ~${Math.round(nearFrontage)}" of cabinet frontage within 72" of the sink — NKBA G28 wants the bulk of cleanup storage clustered at the sink.` });
+        }
+      }
+    }
   }
 
   return issues;
