@@ -753,9 +753,20 @@ export const FILLER_RULES = {
       includesToeKick: true,
     },
     applianceFiller: {
-      location: "Cabinet to refrigerator or dishwasher",
-      widthRange: [1, 3],
-      purpose: "Creates finished look between appliance and adjacent cabinet",
+      location: "Cabinet to range/cooktop, refrigerator, or dishwasher",
+      widthRange: [3, 6],
+      minWidth: 3,             // doors-only neighbor
+      minWidthAtRange: 4.5,    // NKBA/KD: base scribe filler AT a range/cooktop starts at 4.5",
+                               // often 5–6", so the cabinet door/drawer AND the appliance
+                               // knobs/handles clear and the door doesn't sit over burners.
+      purpose: "Finished look + clearance: the cabinet door/drawer and the appliance handle/knob must clear each other when open.",
+    },
+    // Corner filler size depends on the adjacent front (KD practice):
+    cornerFillerByFront: {
+      baseDrawers: 3,    // 3" min beside a corner when a DRAWER base adjoins (drawers need room to clear)
+      baseDoorsOnly: 1.5, // 1.5" when only doors adjoin
+      upper: 1.5,        // upper corner fillers 1.5"
+      ceiling: 0.75,     // ceiling / starter filler min 3/4"
     },
     tallPantryFiller: {
       location: "Tall cabinet to wall or adjacent cabinet",
