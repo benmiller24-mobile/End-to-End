@@ -160,13 +160,15 @@ function parseSkuHeight(sku) {
 function parseDoorDrawer(sku, width) {
   if (!sku) return { doors: width > 24 ? 2 : 1, drawers: 1 };
   const s = sku.toUpperCase().replace(/^FC-/, '');
-  // All-drawer bases
+  // Full-height door variant: tall single panel, no drawer/false front (check first)
+  if (/-FHD/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 0 };
+  // All-drawer bases (catalog: B3D = 3-drawer, B4D = 4-drawer, B2TD = 2 tiered drawers)
   if (/^B3D/.test(s)) return { doors: 0, drawers: 3 };
   if (/^B4D/.test(s)) return { doors: 0, drawers: 4 };
-  // Sink bases: false front (no functional drawer), doors below
-  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 0 };
-  // Full-height door: tall single panel, no drawer
-  if (/-FHD/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 0 };
+  if (/^B2TD/.test(s)) return { doors: 0, drawers: 2 };
+  // Sink bases: catalog SB cabinets have a FALSE drawer front on top + doors below
+  // (the -FHD full-height-door variant handled above has none).
+  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 1, falseFront: true };
   // Roll-out tray, pull-out shelf: door only
   if (/-RT/.test(s) || /^BPOS/.test(s)) return { doors: 1, drawers: 0 };
   // Range top base: open frame
@@ -293,7 +295,7 @@ function CabTag({ cx, cy, num, prefix = 'KD' }) {
 // COMPONENT: CabFront — Shaker 5-piece door with raised inner panel
 // ═══════════════════════════════════════════════════════════════════════
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left' }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -368,10 +370,11 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
         cursorY += fh;
       });
     } else {
-      // single 6" top drawer; cabinets over 36" wide get 2 side-by-side drawers
+      // single 6" top drawer; cabinets over 36" wide get 2 side-by-side drawers.
+      // A sink-base false front is one full-width panel with no pull.
       const fh = 6 * S;
-      const splits = (w / S) > 36 ? 2 : 1;
-      for (let s = 0; s < splits; s++) drawFront(`dr0_${s}`, x + s * (w / splits), cursorY, w / splits, fh, 'bar');
+      const splits = (!falseFront && (w / S) > 36) ? 2 : 1;
+      for (let s = 0; s < splits; s++) drawFront(`dr0_${s}`, x + s * (w / splits), cursorY, w / splits, fh, falseFront ? null : 'bar');
       cursorY += fh;
     }
   }
@@ -955,7 +958,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           y = tkTopY - h;
         }
 
-        const { doors, drawers } = parseDoorDrawer(sku, cab.width);
+        const { doors, drawers, falseFront } = parseDoorDrawer(sku, cab.width);
         const hinge = doors === 1
           ? computeHingeSide(sortedBases[i - 1], sortedBases[i + 1], i === 0, i === sortedBases.length - 1)
           : 'left';
@@ -970,7 +973,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                isCorner={isCornerCab} cornerSide={cab._cornerSide} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
