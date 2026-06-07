@@ -2920,22 +2920,33 @@ export function validateLayout(layout) {
     }
 
     // NKBA G15: at least two waste receptacles (trash + recycling) near the sink.
-    const wasteRe = /waste|trash|recycl|^BWDM/i;
-    const wasteCount =
-      (layout.accessories || []).filter(a => wasteRe.test(a.type || a.name || a.sku || "")).length +
-      (layout.walls || []).reduce((n, w) => n + ((w.cabinets || []).filter(c => /^BWDM/i.test(c.sku || "")).length), 0);
+    // A double-bin pull-out (BWDMA) counts as two; a single (BWDMB) as one.
+    let wasteCount = 0;
+    for (const w of (layout.walls || [])) {
+      for (const c of (w.cabinets || [])) {
+        if (/^(FC-)?BWDMA/i.test(c.sku || "")) wasteCount += 2;
+        else if (/^(FC-)?BWDM/i.test(c.sku || "")) wasteCount += 1;
+      }
+    }
+    wasteCount += (layout.accessories || []).filter(a => /waste|trash|recycl/i.test(a.type || a.name || a.sku || "")).length;
     if (wasteCount < 2) {
       issues.push({ rule: "NKBA-G15-Waste-Recycling", severity: "suggestion",
         message: `Plan at least two waste receptacles — trash + recycling — near the cleanup sink (NKBA G15). Found ${wasteCount}.` });
     }
 
-    // NKBA G29: at least one corner cabinet should have a functional storage device.
-    if ((layout.corners || []).length) {
-      const cornerStore = (layout.accessories || []).some(a => /susan|magic|carousel|corner|blind/i.test(a.type || a.name || a.sku || "")) ||
-        (layout.walls || []).some(w => (w.cabinets || []).some(c => /^BL|^BBC|SUSAN|MAGIC/i.test(c.sku || "")));
-      if (!cornerStore) {
+    // NKBA G29: corner cabinets need a functional storage device. The guideline
+    // only applies when a CABINET actually sits in a corner (not when the corner
+    // is dead space / a filler). Functional = lazy/super susan (-SS/-WSS), magic
+    // corner (-MC), or a corner pull-out accessory; a plain blind box does NOT.
+    const cornerCabs = (layout.walls || []).flatMap(w =>
+      (w.cabinets || []).filter(c => c.role === "corner" || /^(FC-)?(BBC|BL)\d/i.test(c.sku || "")));
+    if (cornerCabs.length) {
+      const anyFunctional =
+        cornerCabs.some(c => /-MC|-SS|-WSS|SUSAN|MAGIC/i.test(c.sku || "")) ||
+        (layout.accessories || []).some(a => /susan|magic|carousel|pull.?out/i.test(a.type || a.name || a.sku || ""));
+      if (!anyFunctional) {
         issues.push({ rule: "NKBA-G29-Corner-Storage", severity: "suggestion",
-          message: `A corner cabinet is present but has no functional storage device (NKBA G29) — add a lazy susan, magic corner, or corner pull-out.` });
+          message: `A corner cabinet (${cornerCabs[0].sku || "corner"}) has no functional storage device (NKBA G29) — add a lazy susan, magic corner, or corner pull-out.` });
       }
     }
 

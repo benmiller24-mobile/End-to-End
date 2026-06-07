@@ -796,6 +796,11 @@ export function solve(input) {
   // the window. Fully guarded — reverts (no-op) on any anomaly.
   try { centerSinkUnderWindow(wallLayouts, walls); } catch (_e) { /* non-fatal */ }
 
+  // ── DESIGNER COMPLETENESS: recycling + functional corner storage ──
+  // Auto-fix the two NKBA gaps the validator flags (G15 trash+recycling, G29
+  // functional corner device). Both are layout-safe SKU swaps (width unchanged).
+  try { ensureRecyclingAndCornerStorage(wallLayouts, islandLayout, pf); } catch (_e) { /* non-fatal */ }
+
   // ── PROJECT 5: Validation-driven correction loop ──
   // Run validation, then auto-correct fixable errors (up to 3 iterations).
   // This catches overlaps, unfillable gaps, and other layout errors that
@@ -7479,6 +7484,64 @@ function centerSinkUnderWindow(wallLayouts, inputWalls) {
       if (pos > wallLen + 0.6) continue;             // sanity (won't happen if width conserved)
       wl._sinkCenteredUnderWindow = Math.round(newSinkC);
     } catch (_e) { /* leave this wall unchanged */ }
+  }
+}
+
+// Auto-satisfy two NKBA storage guidelines via layout-safe SKU swaps (widths
+// unchanged, so positions are untouched):
+//   G15 — trash + recycling: ensure a double-bin waste pull-out (BWDMA) near the
+//         sink (one cabinet, two bins = trash + recycling).
+//   G29 — a blind corner cabinet must have a functional device: upgrade a plain
+//         BBC to a magic-corner pull-out (BBC…-MC).
+function ensureRecyclingAndCornerStorage(wallLayouts, islandLayout, prefs) {
+  const golaPrefix = prefs && prefs.golaChannel ? "FC-" : "";
+  const allWalls = [...wallLayouts, ...(islandLayout ? [islandLayout] : [])];
+  const allCabs = allWalls.flatMap(w => w.cabinets || []);
+
+  // ── G15: trash + recycling (a double-bin BWDMA provides both) ──
+  const wasteCabs = allCabs.filter(c => /^(FC-)?BWDM/i.test(c.sku || ""));
+  if (!wasteCabs.some(c => /BWDMA/i.test(c.sku || ""))) {
+    let target = wasteCabs.find(c => c.width >= 18);  // upgrade an existing single
+    if (!target) {
+      const sinkCab = allCabs.find(c => c.applianceType === "sink");
+      const wall = sinkCab && allWalls.find(w => (w.cabinets || []).includes(sinkCab));
+      if (wall) {
+        const cabs = (wall.cabinets || []).filter(c => typeof c.position === "number");
+        const sIdx = cabs.indexOf(sinkCab);
+        let bestD = 1e9;
+        cabs.forEach((c, i) => {
+          if (c.type !== "base" || c.role === "corner" || (c.width || 0) < 18) return;
+          if (/^(FC-)?(SB|BBC|BL|BPOS)/i.test(c.sku || "")) return;     // don't clobber sink/corner/specialty
+          const d = Math.abs(i - sIdx);
+          if (d < bestD) { bestD = d; target = c; }
+        });
+      }
+    }
+    if (target && (target.width || 0) >= 18) {
+      target.sku = `${golaPrefix}BWDMA${Math.round(target.width)}`;
+      target._recyclingAdded = true;
+      target.decisionNote = "G15: double-bin pull-out (trash + recycling) at the cleanup sink";
+    }
+  }
+
+  // ── G29: every corner cabinet needs a functional device ──
+  // Blind base corner (BBC…) → add a magic-corner pull-out (…-MC).
+  // Blind lazy-susan box (BL…-PH, no -SS) → upgrade to a super susan (…-SS-PH).
+  for (const w of allWalls) {
+    for (const c of (w.cabinets || [])) {
+      const sku = (c.sku || "");
+      const isCornerCab = c.role === "corner" || /^(FC-)?(BBC|BL)\d/i.test(sku);
+      if (!isCornerCab || /-MC|-SS|-WSS|SUSAN|MAGIC/i.test(sku)) continue;
+      if (/^(FC-)?BBC/i.test(sku)) {
+        c.sku = `${sku}-MC`;
+      } else if (/^(FC-)?BL\d/i.test(sku)) {
+        c.sku = `${sku.replace(/-PH$/i, "")}-SS-PH`;
+      } else {
+        continue;
+      }
+      c._cornerDeviceAdded = true;
+      c.decisionNote = "G29: functional corner device added (magic corner / super susan)";
+    }
   }
 }
 
