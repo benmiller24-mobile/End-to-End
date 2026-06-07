@@ -91,21 +91,37 @@ const CATALOG_PRICES = {
   heavyDrawer: {
     18: 400,   21: 460,   24: 530,   27: 600,   30: 660,   33: 725,   36: 790,
   },
-  // Sink bases (SB, SBA) — EXACT catalog list prices:
+  // Sink bases (SB, SBA) — EXACT catalog list prices (page 408):
   sinkBase: {
-    18: 476,   21: 493,   24: 506,   27: 633,   30: 650,   33: 690,   36: 730,   42: 820,
+    18: 476, 21: 493, 24: 506, 27: 633, 30: 650, 33: 680, 36: 761, 39: 918, 42: 961, 45: 989, 48: 1000,
   },
-  // Waste cabinets
-  waste: {
-    18: 350,   21: 395,
+  // Sink base w/ Full-Height Door (SB...-FHD) — EXACT (page 410); much pricier:
+  sinkBaseFHD: {
+    18: 815, 21: 832, 24: 845, 27: 972, 30: 989, 33: 1019, 36: 1100, 39: 1257, 42: 1300, 45: 1328, 48: 1339,
+  },
+  // Waste cabinets — EXACT catalog (page 427/428). Two door-mount variants:
+  wasteB: { 15: 881, 18: 916, 21: 1045, 24: 1150, 30: 1300 },   // BWDMB (15-21 exact; 24/30 extrap)
+  wasteA: { 12: 1106, 15: 1141, 18: 1176, 21: 1378, 24: 1500 }, // BWDMA (15-21 exact; 12/24 extrap)
+  waste:  { 15: 881, 18: 916, 21: 1045 },                       // fallback = BWDMB
+  // Heavy-duty 2-drawer base (B2HD) — EXACT (page 417); 15/18/21/36 interpolated:
+  heavyDrawer: {
+    12: 811, 15: 845, 18: 879, 21: 913, 24: 946, 27: 985, 30: 1026, 33: 1121, 36: 1276, 39: 1431, 42: 1526,
+  },
+  // Base wine cabinet (BWC) — EXACT (page 436), BWC30 exact:
+  wineBase: { 24: 900, 30: 960, 36: 1020 },
+  // Flush inset oven tall cabinet (FIO) — EXACT (page 492), standard column:
+  fioTall: { 27: 1830, 30: 1906, 33: 2080, 36: 2256 },
+  // Floating vanity sink base (FLVSB) — EXACT (page 507), standard column:
+  vanitySinkBase: {
+    9: 528, 12: 540, 15: 548, 18: 555, 21: 569, 24: 583, 27: 670, 30: 727, 33: 752, 36: 814, 39: 876, 42: 938,
   },
   // Specialty base (BPOS, BTD, BKI, etc.)
   specialty: {
     9:  280,   12: 340,   15: 400,   18: 460,
   },
-  // Roll-out tray base (B-RT)
+  // Base roll-out tray (B-RT) — EXACT catalog list prices (page 411):
   rollOut: {
-    18: 390,   21: 450,   24: 510,   27: 575,   30: 640,   33: 700,   36: 760,
+    12: 886,   15: 914,   18: 935,   21: 956,   24: 977,
   },
 
   // ── Corner cabinets ──
@@ -128,10 +144,11 @@ const CATALOG_PRICES = {
     24: 310,   27: 345,   30: 385,   33: 420,   36: 460,
     42: 535,   48: 610,
   },
-  // Range hood
-  rangeHood: {
-    21: 380,   30: 450,   36: 520,   42: 580,   48: 640,   50: 680,
-  },
+  // Range hoods (wood cabinetry) — EXACT catalog list prices, standard column by width.
+  // Engine emits "RH21 {w}24" (page 358) and "RH50 {w}4224" (page 379).
+  rangeHood21: { 30: 3015, 36: 3030, 42: 3091, 48: 3429, 54: 3967, 60: 4111, 66: 4255, 72: 4399 },
+  rangeHood50: { 30: 3681, 36: 3835, 42: 3989, 48: 4383, 54: 4977, 60: 5438, 66: 5932, 72: 6426 },
+  rangeHood:   { 30: 3015, 36: 3030, 42: 3091, 48: 3429 },  // fallback = RH21
   // Stacked wall
   stackedWall: {
     24: 620,   27: 700,   30: 780,   33: 860,   36: 940,
@@ -274,6 +291,9 @@ function parseSku(sku) {
   } else if (/^WSC/.test(cleanSku)) {
     family = "wall";
     numDoors = 2;
+  } else if (/^(?:SB|DSB|SBA|BSB)/.test(cleanSku) && /-FHD/.test(cleanSku)) {
+    family = "sinkBaseFHD";   // full-height-door sink base — separate (pricier) table
+    numDoors = 2;
   } else if (/^SBA/.test(cleanSku)) {
     family = "sinkBase";
     numDoors = 1; // farmhouse apron — single front
@@ -286,8 +306,10 @@ function parseSku(sku) {
   } else if (/^RTB/.test(cleanSku)) {
     family = "specialty";
     numDoors = 0;
+  } else if (/^BWDMA/.test(cleanSku)) {
+    family = "wasteA";
   } else if (/^BWDM/.test(cleanSku)) {
-    family = "waste";
+    family = "wasteB";
     numDoors = 1;
   } else if (/^BPOS/.test(cleanSku)) {
     family = "specialty";
@@ -303,7 +325,7 @@ function parseSku(sku) {
     family = "specialty";
     numDoors = 1;
   } else if (/^BWC/.test(cleanSku)) {
-    family = "specialty";
+    family = "wineBase";
     numDoors = 1;
   } else if (/^BPTPO/.test(cleanSku)) {
     family = "specialty";
@@ -363,11 +385,13 @@ function parseSku(sku) {
   } else if (/^NTK|^TP/.test(cleanSku)) {
     family = "tallPantry";
     numDoors = 2;
-  } else if (/^FIO|^TC|^BO/.test(cleanSku)) {
+  } else if (/^FIO/.test(cleanSku)) {
+    family = "fioTall";
+  } else if (/^TC|^BO/.test(cleanSku)) {
     family = "tall";
     numDoors = 2;
   } else if (/^FLVSB/.test(cleanSku)) {
-    family = "vanity";
+    family = "vanitySinkBase";
     numDoors = 2;
   } else if (/^VTSB3D/.test(cleanSku)) {
     family = "vanity";
@@ -408,14 +432,28 @@ function parseSku(sku) {
     numDoors = 0;
   }
 
-  // Wall cabinets price by width AND height — re-derive both from the W{w}{h} code.
+  // Wall cabinets price by width AND height — re-derive both from W{w}{h}
+  // (also RW refrigerator-wall, e.g. RW3612-27 → 36w × 12h).
   let height = 0;
   if (family === "wall") {
-    const wm = cleanSku.match(/^W(\d{3,4})/);
+    const wm = cleanSku.match(/^R?W(\d{3,4})/);
     if (wm) {
       const d = wm[1];
       if (d.length === 4) { width = parseInt(d.slice(0, 2)); height = parseInt(d.slice(2)); }
       else { width = parseInt(d.slice(0, 1)); height = parseInt(d.slice(1)); }
+    }
+  }
+
+  // Range hoods: SKU "RH{style} {width}{depth}" (RH21) or "{width}4224" (RH50).
+  // The strip logic above grabbed the STYLE number as width — fix it here.
+  if (/^RH\d/.test(cleanSku)) {
+    const m = cleanSku.match(/^RH(\d+)\s+(\d+)/);
+    if (m) {
+      const style = parseInt(m[1]);
+      const dims = m[2];
+      const w = style === 50 ? parseInt(dims.slice(0, -4)) : parseInt(dims.slice(0, -2));
+      if (w > 0) width = w;
+      family = style === 50 ? "rangeHood50" : "rangeHood21";
     }
   }
 
