@@ -13,6 +13,7 @@ export const APPLIANCE_BRANDS = [
   { id: 'fisherPaykel', name: 'Fisher & Paykel', tier: 'premium', logo: '🌿', categories: ['range','cooktop','dishwasher','refrigerator'] },
   { id: 'miele', name: 'Miele', tier: 'premium', logo: '🏔️', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
   { id: 'kitchenaid', name: 'KitchenAid', tier: 'mid-premium', logo: '🍳', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
+  { id: 'gaggenau', name: 'Gaggenau', tier: 'ultra', logo: '🖤', categories: ['cooktop','wallOven','steamOven','speedOven','warmingDrawer','refrigerator','freezer','wine','dishwasher','coffee','hood'] },
 ];
 
 // ═══ APPLIANCE CATALOG ═══
@@ -159,6 +160,35 @@ export const APPLIANCES = [
   // KitchenAid Cooktops
   { id:'ka-kcgs550ess', brand:'kitchenaid', type:'cooktop', subtype:'gas', model:'KCGS550ESS', width:30, height:3.625, depth:21, panelReady:false, ss:true, msrp:1399, fuel:'gas', features:['5 Burners','17K BTU','Even-Heat Simmer'] },
   { id:'ka-kcgs356ess', brand:'kitchenaid', type:'cooktop', subtype:'gas', model:'KCGS356ESS', width:36, height:3.625, depth:21, panelReady:false, ss:true, msrp:1799, fuel:'gas', features:['5 Burners','ADA Compliant'] },
+
+  // ──────────── GAGGENAU ────────────
+  // priceNote: 'retail' = list price verified from an authorized US retailer;
+  // 'map-est' = Gaggenau enforces MAP (no public price), value is an estimate.
+  // Dimensions are standard built-in cutout sizes from Gaggenau planning docs.
+  { id:'gag-vi492', brand:'gaggenau', type:'cooktop', subtype:'induction', model:'VI492613', width:36, height:4, depth:21.25, panelReady:false, ss:true, msrp:5499, priceNote:'map-est', fuel:'induction', features:['Vario 400','Flex Induction','5 Zones','Home Connect'] },
+  { id:'gag-cx482', brand:'gaggenau', type:'cooktop', subtype:'induction', model:'CX482611', width:30, height:4, depth:21.25, panelReady:false, ss:true, msrp:8000, priceNote:'map-est', fuel:'induction', features:['400 Full-Surface Induction','Free Placement'] },
+  { id:'gag-vg491', brand:'gaggenau', type:'cooktop', subtype:'gas', model:'VG491220', width:36, height:4.5, depth:21.25, panelReady:false, ss:true, msrp:4500, priceNote:'map-est', fuel:'gas', features:['Vario 400 Gas','Wok Burner'] },
+  { id:'gag-vi462', brand:'gaggenau', type:'cooktop', subtype:'induction', model:'VI462613', width:30, height:4, depth:21.25, panelReady:false, ss:true, msrp:4800, priceNote:'map-est', fuel:'induction', features:['Vario 400 Induction'] },
+  { id:'gag-ci282', brand:'gaggenau', type:'cooktop', subtype:'induction', model:'CI282602', width:30, height:3.75, depth:20.25, panelReady:false, ss:false, msrp:4499, priceNote:'retail', fuel:'induction', features:['200 Flex Induction','TwistPad','Home Connect'] },
+  { id:'gag-bo481', brand:'gaggenau', type:'wallOven', subtype:'single', model:'BO481611', width:30, height:28.75, depth:24, panelReady:false, ss:true, msrp:8440, priceNote:'retail', features:['400 Single Oven','Auto Door','Pyrolytic','TFT Display'] },
+  { id:'gag-bs484', brand:'gaggenau', type:'steamOven', subtype:'combi-steam', model:'BS484612', width:30, height:28.75, depth:24, panelReady:false, ss:true, msrp:10500, priceNote:'map-est', features:['400 Combi-Steam','Plumbed','Sous-Vide'] },
+  { id:'gag-bm484', brand:'gaggenau', type:'speedOven', subtype:'combi-microwave', model:'BM484710', width:30, height:18, depth:24, panelReady:false, ss:true, msrp:8200, priceNote:'map-est', features:['400 Combi-Microwave','Speed Oven'] },
+  { id:'gag-ws482', brand:'gaggenau', type:'warmingDrawer', subtype:'warming', model:'WS482710', width:30, height:11, depth:24, panelReady:false, ss:true, msrp:2400, priceNote:'map-est', features:['400 Warming Drawer'] },
+  { id:'gag-dv461', brand:'gaggenau', type:'warmingDrawer', subtype:'vacuum', model:'DV461100', width:24, height:5.5, depth:24, panelReady:false, ss:true, msrp:3500, priceNote:'map-est', features:['400 Vacuuming Drawer','Sous-Vide Seal'] },
+  { id:'gag-bop220', brand:'gaggenau', type:'wallOven', subtype:'single', model:'BOP220612', width:30, height:28.75, depth:24, panelReady:false, ss:true, msrp:3700, priceNote:'map-est', features:['200 Single Oven','Pyrolytic'] },
+  { id:'gag-rc462', brand:'gaggenau', type:'refrigerator', subtype:'column', model:'RC462704', width:24, height:84, depth:24, panelReady:true, ss:false, msrp:8000, priceNote:'map-est', builtIn:true, features:['24" 400 Refrigeration Column','Integrated'] },
+  { id:'gag-rc472', brand:'gaggenau', type:'refrigerator', subtype:'column', model:'RC472704', width:30, height:84, depth:24, panelReady:true, ss:false, msrp:9500, priceNote:'map-est', builtIn:true, features:['30" 400 Refrigeration Column'] },
+  { id:'gag-rc492', brand:'gaggenau', type:'refrigerator', subtype:'column', model:'RC492704', width:36, height:84, depth:24, panelReady:true, ss:false, msrp:11000, priceNote:'map-est', builtIn:true, features:['36" 400 Refrigeration Column'] },
+  { id:'gag-rf461', brand:'gaggenau', type:'freezer', subtype:'column', model:'RF461705', width:24, height:84, depth:24, panelReady:true, ss:false, msrp:8200, priceNote:'map-est', builtIn:true, features:['24" 400 Freezer Column','Ice Maker'] },
+  { id:'gag-rf471', brand:'gaggenau', type:'freezer', subtype:'column', model:'RF471705', width:30, height:84, depth:24, panelReady:true, ss:false, msrp:9600, priceNote:'map-est', builtIn:true, features:['30" 400 Freezer Column'] },
+  { id:'gag-rf411', brand:'gaggenau', type:'freezer', subtype:'column', model:'RF411705', width:18, height:84, depth:24, panelReady:true, ss:false, msrp:7000, priceNote:'map-est', builtIn:true, features:['18" 400 Freezer Column'] },
+  { id:'gag-rw466', brand:'gaggenau', type:'wine', subtype:'column', model:'RW466365', width:24, height:84, depth:24, panelReady:true, ss:false, msrp:7500, priceNote:'map-est', builtIn:true, features:['24" 400 Wine Climate Column','2 Zones'] },
+  { id:'gag-rw414', brand:'gaggenau', type:'wine', subtype:'column', model:'RW414365', width:18, height:84, depth:24, panelReady:true, ss:false, msrp:6500, priceNote:'map-est', builtIn:true, features:['18" 400 Wine Climate Column'] },
+  { id:'gag-df480', brand:'gaggenau', type:'dishwasher', subtype:'panel-ready', model:'DF480701', width:24, height:34, depth:24, panelReady:true, ss:false, msrp:3899, priceNote:'retail', features:['400 Fully Integrated','42 dBA','Push-to-Open','3rd Rack','Home Connect'] },
+  { id:'gag-df210', brand:'gaggenau', type:'dishwasher', subtype:'panel-ready', model:'DF210701', width:24, height:34, depth:24, panelReady:true, ss:false, msrp:2400, priceNote:'map-est', features:['200 Fully Integrated','Euro Tub','ADA'] },
+  { id:'gag-cm470', brand:'gaggenau', type:'coffee', subtype:'built-in', model:'CM470711', width:24, height:17.9, depth:22, panelReady:false, ss:true, msrp:8500, priceNote:'map-est', features:['400 Fully Automatic Espresso','Plumbed','Bean-to-Cup'] },
+  { id:'gag-cm450', brand:'gaggenau', type:'coffee', subtype:'built-in', model:'CM450710', width:24, height:17.9, depth:22, panelReady:false, ss:true, msrp:5500, priceNote:'map-est', features:['400 Automatic Coffee','Steam Clean'] },
+  { id:'gag-aw442', brand:'gaggenau', type:'hood', subtype:'wall', model:'AW442720', width:48, height:18, depth:20, panelReady:false, ss:true, msrp:4500, priceNote:'map-est', features:['400 Wall Hood','48"','Stainless'] },
 ];
 
 // ═══ APPLIANCE DESIGN RULES (from Eclipse Specs Reference) ═══

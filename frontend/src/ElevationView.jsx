@@ -111,6 +111,7 @@ function appLabel(aType) {
     steamOven: 'STEAM OVEN', sink: 'SINK', microwave: 'MW',
     warmingDrawer: 'WARM DR', wineCooler: 'WINE', wineColumn: 'WINE COL',
     beverageCenter: 'BEV CTR', iceMaker: 'ICE', freezer: 'FREEZER',
+    wine: 'WINE', coffee: 'COFFEE', hood: 'HOOD',
   };
   return map[aType] || (aType || '').toUpperCase().substring(0, 8);
 }
@@ -565,6 +566,28 @@ function ApplianceSym({ x, y, w, h, aType }) {
         x2={x + w * 0.7} y2={y + h * 0.72}
         stroke={C.line} strokeWidth={0.45} />
     );
+  } else if (aType === 'wine') {
+    // Wine column: glass door with horizontal rack slats + vertical handle
+    els.push(
+      <rect key="glass" x={x + 1.5 * S} y={y + 2 * S} width={w - 3 * S} height={h - 4 * S}
+        fill="#cdd9e4" stroke={C.line} strokeWidth={0.4} opacity={0.5} rx={0.4} />
+    );
+    const slats = Math.max(4, Math.floor((h - 4 * S) / (3.5 * S)));
+    for (let i = 1; i < slats; i++) {
+      const sy = y + 2 * S + i * (h - 4 * S) / slats;
+      els.push(<line key={`rack${i}`} x1={x + 1.5 * S} y1={sy} x2={x + w - 1.5 * S} y2={sy}
+        stroke={C.thinLine} strokeWidth={0.3} opacity={0.6} />);
+    }
+    els.push(<line key="whdl" x1={x + w - 2.5 * S} y1={y + 5 * S} x2={x + w - 2.5 * S} y2={y + h * 0.5}
+      stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />);
+  } else if (aType === 'coffee') {
+    // Built-in coffee machine: control strip, central dispenser, two spouts
+    els.push(<rect key="panel" x={x + 1.5 * S} y={y + 1.5 * S} width={w - 3 * S} height={2.2 * S}
+      fill="#e8e8e8" stroke={C.line} strokeWidth={0.3} rx={0.3} />);
+    els.push(<rect key="disp" x={x + w * 0.32} y={y + 4.5 * S} width={w * 0.36} height={h - 8 * S}
+      fill="#d8d8d8" stroke={C.line} strokeWidth={0.35} rx={0.3} />);
+    els.push(<line key="sp1" x1={x + w * 0.44} y1={y + h - 4 * S} x2={x + w * 0.44} y2={y + h - 2.5 * S} stroke={C.line} strokeWidth={0.5} />);
+    els.push(<line key="sp2" x1={x + w * 0.56} y1={y + h - 4 * S} x2={x + w * 0.56} y2={y + h - 2.5 * S} stroke={C.line} strokeWidth={0.5} />);
   } else if (aType === 'dishwasher') {
     // Top control panel line
     els.push(
