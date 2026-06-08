@@ -89,6 +89,56 @@ const norm = (s) => (s || '').toUpperCase().replace(/^FC-/, '');
 const openPos = (o) => (typeof o.posFromLeft === 'number' ? o.posFromLeft
   : typeof o.position === 'number' ? o.position : 0);
 
+// NKBA island clearances (Guideline 5 Traffic / Guideline 6 Work Aisle).
+const ISL = {
+  workAisle: 42,   // ≥42" between island work face and an opposing run/appliance (1 cook)
+  seatSide:  48,   // ≥48" on the seating side (stools + a walkway behind)
+  minClear:  36,   // absolute floor (tight walkway)
+};
+
+/**
+ * Place the island in the renderer's wall-layout coordinates with NKBA clearances.
+ * Centers it on wall A, clamped to keep ≥42" to a perpendicular wall (L/U) and,
+ * when a far wall bounds the room (U/galley), centered between the two run faces.
+ * Returns SVG coords + the actual clearance on each constrained side.
+ */
+function placeIsland(wp, layoutType, island) {
+  const wA = wp[0];
+  if (!wA) return null;
+  const wB = wp[1], wC = wp[2];
+  const iw = island.length || 72;
+  const id = island.depth || 36;
+  const topFace = wA.y + WALL_T / 2 + BASE_D;          // wall A cabinet front (room side)
+  const rightFaceX = (wB && Math.abs((wB.angle || 0) - 90) < 1)
+    ? wB.x - WALL_T / 2 - BASE_D : null;               // perpendicular wall B run face
+  let bottomFace = null;
+  if (wC && Math.abs((wC.angle || 0) - 180) < 1) bottomFace = wC.y - WALL_T / 2 - BASE_D; // U far wall
+  else if (wB && Math.abs(wB.angle || 0) < 1) bottomFace = wB.y - WALL_T / 2 - BASE_D;    // galley far wall
+
+  // Horizontal: center on wall A, then clamp to preserve the work aisle to wall B.
+  let ix = wA.x + (wA.length - iw) / 2;
+  if (rightFaceX != null && ix + iw > rightFaceX - ISL.workAisle) ix = rightFaceX - ISL.workAisle - iw;
+  if (ix < wA.x) ix = wA.x;
+
+  // Vertical: open room → 42" off wall A; bounded room → centered between the runs.
+  let iy;
+  if (bottomFace != null) {
+    const span = bottomFace - topFace;
+    iy = topFace + Math.max(ISL.workAisle, (span - id) / 2);
+    if (iy + id > bottomFace - ISL.workAisle) iy = Math.max(topFace + ISL.minClear, bottomFace - ISL.workAisle - id);
+  } else {
+    iy = topFace + ISL.workAisle;
+  }
+
+  const clTop = iy - topFace;
+  const clRight = rightFaceX != null ? rightFaceX - (ix + iw) : null;
+  const clBottom = bottomFace != null ? bottomFace - (iy + id) : null;
+  const tight = clTop < ISL.minClear ||
+    (clRight != null && clRight < ISL.minClear) ||
+    (clBottom != null && clBottom < ISL.minClear);
+  return { ix, iy, iw, id, topFace, rightFaceX, bottomFace, clTop, clRight, clBottom, tight };
+}
+
 /** Numbered cabinet tag — circle with KD prefix per NKBA Ch.2 */
 function Tag({ cx, cy, num, prefix = 'KD' }) {
   const r = 6;
@@ -687,8 +737,17 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
       maxX = Math.max(maxX, wp.x, ex);
       maxY = Math.max(maxY, wp.y, ey);
     });
+    // Extend to include the island (slab + seating overhang + stool row + caption).
+    if (island) {
+      const pl = placeIsland(wallPositions, layoutType, island);
+      if (pl) {
+        const ohD = island.overhang && island.overhang.depth ? island.overhang.depth : 0;
+        maxX = Math.max(maxX, pl.ix + pl.iw);
+        maxY = Math.max(maxY, pl.iy + pl.id + ohD + 16);
+      }
+    }
     return `0 0 ${Math.max(maxX + 110, 300)} ${Math.max(maxY + 130, 220)}`;
-  }, [wallPositions]);
+  }, [wallPositions, island, layoutType]);
 
   const tagAssignments = useMemo(() => {
     const tags = [];
@@ -755,25 +814,117 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
         return <Tag key={`tag${i}`} cx={cx} cy={cy} num={tag.num} />;
       })}
 
-      {/* ── ISLAND ── */}
+      {/* ── ISLAND ── NKBA-clearance placement + real cabinetry ── */}
       {island && (() => {
-        const wA = wallPositions[0];
-        if (!wA) return null;
-        const iw = island.length || 96;
-        const id = island.depth || 42;
-        const ix = wA.x + (wA.length - iw) / 2;
-        const iy = wA.y + WALL_T / 2 + BASE_D + AISLE;
+        const pl = placeIsland(wallPositions, layoutType, island);
+        if (!pl) return null;
+        const { ix, iy, iw, id, topFace, rightFaceX, bottomFace, clTop, clRight, clBottom, tight } = pl;
+        const work = island.workSide || [];
+        const back = island.backSide || [];
+        const oh = island.overhang || null;
+        const ohD = oh && oh.depth ? oh.depth : 0;
+        const backDepth = back.length ? (back[0].depth || 13.875) : 0;
+        const workDepth = 24;
+
+        // One island cabinet: box + role-appropriate symbol + small sku label.
+        const islCab = (c, x, y, w, d, key) => {
+          const sk = norm(c.sku);
+          const role = (c.role || '').toLowerCase();
+          const isSink = role.includes('sink') || /^SB|^BSB|^DSB/.test(sk);
+          const isWaste = role.includes('waste') || /WDM|BWD/.test(sk);
+          const isDrawer = /^B[234]D/.test(sk) || role.includes('drawer');
+          return (
+            <g key={key}>
+              <rect x={x} y={y} width={w} height={d}
+                fill={C.cabFill} stroke={C.cabStroke} strokeWidth={W.cab} />
+              {isSink && (
+                <ellipse cx={x + w / 2} cy={y + d / 2} rx={w * 0.3} ry={d * 0.3}
+                  fill="none" stroke={C.appStroke} strokeWidth={W.cabThin} opacity={0.8} />
+              )}
+              {isWaste && (
+                <line x1={x + 2} y1={y + 2} x2={x + w - 2} y2={y + d - 2}
+                  stroke={C.cabStroke} strokeWidth={W.cabThin} opacity={0.5} />
+              )}
+              {isDrawer && !isSink && Array.from({ length: 3 }, (_, k) => (
+                <line key={k} x1={x + 1.5} y1={y + d * (k + 1) / 4} x2={x + w - 1.5} y2={y + d * (k + 1) / 4}
+                  stroke={C.cabStroke} strokeWidth={W.cabThin} opacity={0.7} />
+              ))}
+              {w >= 14 && (
+                <text x={x + w / 2} y={y + d / 2 + 1} fill={C.dimText}
+                  fontSize={2.6} fontFamily="Helvetica,Arial,sans-serif"
+                  textAnchor="middle" opacity={0.85}>{c.sku}</text>
+              )}
+            </g>
+          );
+        };
+
         return (
           <g>
+            {/* slab footprint */}
             <rect x={ix} y={iy} width={iw} height={id}
               fill={C.islandFill} stroke={C.islandStroke} strokeWidth={W.cab} />
-            <text x={ix + iw / 2} y={iy + id / 2 + 1.5} fill={C.dimText}
-              fontSize={4} fontFamily="Helvetica,Arial,sans-serif"
-              textAnchor="middle" fontWeight="600">ISLAND</text>
-            <HDim x1={ix} x2={ix + iw} y={iy + id + 10} label={`${iw}"`} above={false} />
-            <VDim y1={iy} y2={iy + id} x={ix + iw + 10} label={`${id}"`} left={false} />
-            <VDim y1={wA.y + WALL_T / 2 + BASE_D} y2={iy} x={ix - 10}
-              label={`${AISLE}" aisle`} left={true} />
+
+            {/* work side (faces wall A): base cabinets, sink / waste / drawers */}
+            {work.map((c, i) => islCab(c, ix + (c.position || 0), iy, c.width, workDepth, `iw${i}`))}
+
+            {/* back side (seating): shallow cabinets along the far long edge */}
+            {back.map((c, i) => islCab(c, ix + (c.position || 0), iy + id - backDepth, c.width, backDepth, `ib${i}`))}
+
+            {/* seating overhang + stools projecting past the seating edge */}
+            {ohD > 0 && (() => {
+              const oy = iy + id;
+              const stools = Math.max(1, Math.floor(iw / 24));
+              return (
+                <g>
+                  <line x1={ix} y1={oy + ohD} x2={ix + iw} y2={oy + ohD}
+                    stroke={C.counter} strokeWidth={W.counter} strokeDasharray={DASH.hidden} />
+                  <line x1={ix} y1={oy} x2={ix} y2={oy + ohD} stroke={C.counter} strokeWidth={W.counter} opacity={0.6} />
+                  <line x1={ix + iw} y1={oy} x2={ix + iw} y2={oy + ohD} stroke={C.counter} strokeWidth={W.counter} opacity={0.6} />
+                  {Array.from({ length: stools }, (_, s) => {
+                    const sx = ix + (s + 0.5) * (iw / stools);
+                    return <circle key={s} cx={sx} cy={oy + ohD - 3} r={4.5}
+                      fill="none" stroke={C.appStroke} strokeWidth={W.cabThin} opacity={0.7} />;
+                  })}
+                  <text x={ix + iw / 2} y={oy + ohD + 5} fill={C.dimText}
+                    fontSize={3} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle"
+                    opacity={0.7}>{stools} SEATS · {ohD}" OVERHANG</text>
+                </g>
+              );
+            })()}
+
+            {/* end panels */}
+            {(island.endPanels || []).map((p, i) => (
+              <rect key={`ep${i}`} x={i === 0 ? ix - 0.8 : ix + iw - 0.8} y={iy}
+                width={1.6} height={id} fill={C.islandStroke} opacity={0.5} />
+            ))}
+
+            {/* caption (in the slab core, between the two cabinet rows) */}
+            <text x={ix + iw / 2} y={iy + workDepth + 4} fill={C.dimText}
+              fontSize={3.4} fontFamily="Helvetica,Arial,sans-serif"
+              textAnchor="middle" fontWeight="600" letterSpacing="0.5" opacity={0.8}>
+              ISLAND {iw}"×{id}"{island.hasSink ? ' · SINK' : ''}{island.hasRange ? ' · RANGE' : ''}
+            </text>
+
+            {/* size dimensions */}
+            <HDim x1={ix} x2={ix + iw} y={iy + id + (ohD > 0 ? ohD + 9 : 9)} label={`${iw}"`} above={false} />
+            <VDim y1={iy} y2={iy + id} x={ix + iw + 9} label={`${id}"`} left={false} />
+
+            {/* clearance dimensions (NKBA work aisle / seating side) */}
+            <VDim y1={topFace} y2={iy} x={ix - 9} label={`${Math.round(clTop)}" aisle`} left={true} />
+            {clRight != null && (
+              <HDim x1={ix + iw} x2={rightFaceX} y={iy + id / 2} label={`${Math.round(clRight)}"`} above={false} />
+            )}
+            {clBottom != null && (
+              <VDim y1={iy + id} y2={bottomFace} x={ix + iw + 20} label={`${Math.round(clBottom)}"`} left={false} />
+            )}
+
+            {tight && (
+              <text x={ix + iw / 2} y={iy - 4} fill="#c0392b"
+                fontSize={3.6} fontFamily="Helvetica,Arial,sans-serif"
+                textAnchor="middle" fontWeight="700">
+                ⚠ clearance below 36" NKBA min — reduce island size
+              </text>
+            )}
           </g>
         );
       })()}
