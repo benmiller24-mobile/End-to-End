@@ -807,7 +807,7 @@ function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '' }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -902,8 +902,37 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 
   const topSegs  = buildUpperSegments(false);  // crown / top line — spans over-fridge
   const railSegs = buildUpperSegments(true);   // light rail — skips the over-fridge cab
-  const totalH = cH + topMargin + botDim + 25;
-  const totalW = wW + rightDim + leftMargin + 10;
+  // ── CABINET SCHEDULE rows (tag → sku → size → hinge → notes) ─────────────
+  const _hsched = (cab) => Math.round(cab._elev?.height || cab.height || 34.5);
+  const _hingeLabel = (list, i, cab) => {
+    if (isAppliance(cab) || isFiller(cab) || isREP(cab)) return '\u2014';
+    const { doors } = parseDoorDrawer(cab.sku || '', cab.width);
+    if (doors === 1) return computeHingeSide(list[i - 1], list[i + 1], i === 0, i === list.length - 1) === 'left' ? 'L' : 'R';
+    if (doors >= 2) return 'L/R';
+    return '\u2014';
+  };
+  const _noteFor = (cab) => {
+    if (isAppliance(cab)) return appLabel(cab.applianceType) || 'Appliance';
+    if (isREP(cab)) return 'Finished end panel';
+    if (isFiller(cab)) return 'Filler / scribe';
+    const { doors, drawers } = parseDoorDrawer(cab.sku || '', cab.width);
+    const mods = (cab.modifications || []).map(m => m.mod || m.type).filter(Boolean).join(', ');
+    const cfg = [drawers ? `${drawers} dwr` : '', doors ? `${doors} dr` : ''].filter(Boolean).join(' + ');
+    return [cfg, mods].filter(Boolean).join(' \u00b7 ');
+  };
+  const schedRows = [];
+  let _st = tagStart;
+  sortedTalls.forEach((c) => schedRows.push({ tag: _st++, sku: c.sku || '\u2014', w: c.width, h: _hsched(c), hinge: '\u2014', note: _noteFor(c) }));
+  sortedBases.forEach((c, i) => schedRows.push({ tag: _st++, sku: c.sku || (c.applianceType ? '[' + (appLabel(c.applianceType) || 'APPL') + ']' : '\u2014'), w: c.width, h: _hsched(c), hinge: _hingeLabel(sortedBases, i, c), note: _noteFor(c) }));
+  sortedUppers.forEach((c, i) => schedRows.push({ tag: _st++, sku: c.sku || '\u2014', w: c.width, h: _hsched(c), hinge: _hingeLabel(sortedUppers, i, c), note: _noteFor(c) }));
+  const schedRowH = 8.5;
+  const schedTableW = Math.max(wW, 360);
+  const schedH = schedRows.length > 0 ? 24 + (schedRows.length + 1) * schedRowH : 0;
+  const schedTopY = floorY + botDim - 6;
+
+  const _footerH = 66;
+  const totalH = cH + topMargin + botDim + 25 + schedH + _footerH;
+  const totalW = Math.max(wW + rightDim, schedTableW) + leftMargin + 10;
 
   return (
     <svg viewBox={`${-leftMargin} -25 ${totalW} ${totalH + 30}`} data-pdf="elevation"
@@ -1549,6 +1578,12 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         <text x={wW + 20} y={(tkTopY + baseTopY) / 2 + 1.5} fill={C.dimText}
           fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif">{fmt(BASE_BOX)}</text>
 
+        {/* Finished floor datum */}
+        <line x1={wW + 10} y1={floorY} x2={wW + 38} y2={floorY}
+          stroke={C.dimLine} strokeWidth={0.3} strokeDasharray="2,1.5" />
+        <text x={wW + 40} y={floorY + 1.5} fill={C.annotColor}
+          fontSize={3.4} fontFamily="Helvetica,Arial,sans-serif">0" FIN. FLR</text>
+
         {/* Counter height AFF callout */}
         <line x1={wW + 10} y1={ctrTopY} x2={wW + 38} y2={ctrTopY}
           stroke={C.dimLine} strokeWidth={0.3} strokeDasharray="2,1.5" />
@@ -1562,6 +1597,16 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               stroke={C.dimLine} strokeWidth={0.3} strokeDasharray="2,1.5" />
             <text x={wW + 40} y={upBotY + 1.5} fill={C.dimText}
               fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif" fontWeight="600">54" AFF</text>
+          </>
+        )}
+
+        {/* Upper top AFF callout */}
+        {validUppers.length > 0 && (
+          <>
+            <line x1={wW + 10} y1={upperTopY} x2={wW + 38} y2={upperTopY}
+              stroke={C.dimLine} strokeWidth={0.3} strokeDasharray="2,1.5" />
+            <text x={wW + 40} y={upperTopY + 1.5} fill={C.dimText}
+              fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif" fontWeight="600">{fmt(upperTopAFF)}" AFF</text>
           </>
         )}
 
@@ -1646,18 +1691,104 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             <line x1={-14} y1={upBotY} x2={-14} y2={upTopY} stroke={C.dimLine} strokeWidth={0.4} />
             <line x1={-16} y1={upTopY} x2={-12} y2={upTopY} stroke={C.dimLine} strokeWidth={0.4} />
             <text x={-20} y={(upBotY + upTopY) / 2 + 1.5} fill={C.dimText}
-              fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(validUppers[0]?.height || UPPER_H_DEF)}</text>
+              fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(upperTopAFF - 54)}</text>
 
             {/* Upper to ceiling */}
             <line x1={-14} y1={upTopY} x2={-14} y2={ceilY} stroke={C.dimLine} strokeWidth={0.4} />
             <line x1={-16} y1={ceilY} x2={-12} y2={ceilY} stroke={C.dimLine} strokeWidth={0.4} />
             <text x={-20} y={(upTopY + ceilY) / 2 + 1.5} fill={C.dimText}
               fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">
-              {fmt(ceilH - (TOEKICK + BASE_BOX + CTR_THICK + SPLASH_GAP + (validUppers[0]?.height || UPPER_H_DEF)))}
+              {fmt(ceilH - upperTopAFF)}
             </text>
           </>
         )}
+        {validUppers.length === 0 && (
+          <>
+            <line x1={-14} y1={ctrTopY} x2={-14} y2={ceilY} stroke={C.dimLine} strokeWidth={0.4} />
+            <line x1={-16} y1={ctrTopY} x2={-12} y2={ctrTopY} stroke={C.dimLine} strokeWidth={0.4} />
+            <line x1={-16} y1={ceilY} x2={-12} y2={ceilY} stroke={C.dimLine} strokeWidth={0.4} />
+            <text x={-20} y={(ctrTopY + ceilY) / 2 + 1.5} fill={C.dimText}
+              fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">{fmt(ceilH - 36)}</text>
+          </>
+        )}
       </g>
+
+      {/* ══════════ CABINET SCHEDULE (on the sheet) ══════════ */}
+      {schedRows.length > 0 && (() => {
+        const cols = [
+          { k: 'tag',   label: 'TAG',   x: 2,   w: 26, a: 'middle' },
+          { k: 'sku',   label: 'SKU',   x: 30,  w: 88, a: 'start' },
+          { k: 'w',     label: 'W',     x: 120, w: 26, a: 'middle', num: true },
+          { k: 'h',     label: 'H',     x: 148, w: 26, a: 'middle', num: true },
+          { k: 'hinge', label: 'HINGE', x: 176, w: 34, a: 'middle' },
+          { k: 'note',  label: 'NOTES', x: 214, w: schedTableW - 216, a: 'start' },
+        ];
+        const ty = schedTopY, rh = schedRowH, els = [];
+        els.push(<text key="st" x={0} y={ty} fill={C.dimText} fontSize={5} fontWeight="700"
+          fontFamily="Helvetica,Arial,sans-serif">{`CABINET SCHEDULE \u2014 WALL ${wallId}`}</text>);
+        els.push(<text key="sf" x={schedTableW} y={ty} fill={C.annotColor} fontSize={3.4} textAnchor="end"
+          fontFamily="Helvetica,Arial,sans-serif">{`Door: ${(DOOR_BY_CODE[doorStyle]?.l) || doorStyle || '\u2014'}${species ? '  \u00b7  ' + species : ''}${finishColor ? ' / ' + finishColor : ''}`}</text>);
+        const hy = ty + 5;
+        els.push(<rect key="hbg" x={0} y={hy} width={schedTableW} height={rh} fill="#ece9e4" stroke={C.line} strokeWidth={0.4} />);
+        cols.forEach(c => els.push(<text key={`h${c.k}`} x={c.a === 'middle' ? c.x + c.w / 2 : c.x} y={hy + rh - 2.6}
+          fill={C.dimText} fontSize={3.3} fontWeight="700" textAnchor={c.a} fontFamily="Helvetica,Arial,sans-serif">{c.label}</text>));
+        schedRows.forEach((r, i) => {
+          const ry = hy + rh * (i + 1);
+          els.push(<rect key={`rb${i}`} x={0} y={ry} width={schedTableW} height={rh} fill={i % 2 ? '#f7f5f2' : '#ffffff'} stroke={C.line} strokeWidth={0.25} />);
+          cols.forEach(c => {
+            let v = r[c.k];
+            v = c.num ? fmt(v) : (c.k === 'tag' ? 'KD' + v : String(v));
+            if (c.k === 'note' || c.k === 'sku') v = v.slice(0, c.k === 'note' ? 46 : 16);
+            els.push(<text key={`c${i}${c.k}`} x={c.a === 'middle' ? c.x + c.w / 2 : c.x} y={ry + rh - 2.6}
+              fill={C.dimText} fontSize={3.2} textAnchor={c.a} fontFamily="Helvetica,Arial,sans-serif">{v}</text>);
+          });
+        });
+        // vertical column separators
+        [30, 120, 148, 176, 214].forEach((cx, k) => els.push(
+          <line key={`vs${k}`} x1={cx} y1={hy} x2={cx} y2={hy + rh * (schedRows.length + 1)} stroke={C.line} strokeWidth={0.25} />));
+        return <g>{els}</g>;
+      })()}
+
+      {/* ══════════ SHEET FOOTER: scale bar · general notes · title block ══════════ */}
+      {(() => {
+        const fy = schedTopY + schedH - 8;            // footer top
+        const tbW = 214, tbH = 52, tbX = schedTableW - tbW, tbY = fy + 6;
+        const tb = {
+          project:  titleBlock.project  || 'Kitchen Project',
+          client:   titleBlock.client   || '',
+          designer: titleBlock.designer || 'Eclipse Kitchen Designer',
+          date:     titleBlock.date     || new Date().toLocaleDateString('en-US'),
+          scale:    titleBlock.scale    || '1/2" = 1\'-0"',
+          sheet:    sheetNo || ('A-' + wallId),
+        };
+        const els = [];
+        // General notes (left)
+        const notes = [
+          '1. Verify all dimensions in field before fabrication.',
+          '2. Dimensions to face of finished cabinet U.N.O.',
+          '3. Appliances & fixtures by others \u2014 confirm rough-ins / cut-outs.',
+          '4. GFCI receptacles & U/C lighting per local code.',
+        ];
+        els.push(<text key="ng" x={0} y={fy + 4} fill={C.dimText} fontSize={3.7} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">GENERAL NOTES</text>);
+        notes.forEach((n, i) => els.push(<text key={`n${i}`} x={0} y={fy + 10 + i * 4.8} fill={C.annotColor} fontSize={3.0} fontFamily="Helvetica,Arial,sans-serif">{n}</text>));
+        // Graphic scale bar (above title block)
+        const ft = 12 * S, sbX = tbX, sbY = fy - 1;
+        els.push(<text key="sl" x={sbX} y={sbY - 1.5} fill={C.dimText} fontSize={3} fontFamily="Helvetica,Arial,sans-serif">{`SCALE  ${tb.scale}`}</text>);
+        for (let k = 0; k < 3; k++) els.push(<rect key={`sb${k}`} x={sbX + k * ft} y={sbY} width={ft} height={2.4} fill={k % 2 ? '#ffffff' : C.line} stroke={C.line} strokeWidth={0.3} />);
+        els.push(<text key="s0" x={sbX} y={sbY + 6} fill={C.annotColor} fontSize={2.6} textAnchor="middle">0</text>);
+        els.push(<text key="s3" x={sbX + 3 * ft} y={sbY + 6} fill={C.annotColor} fontSize={2.6} textAnchor="middle">3'</text>);
+        // Title block (right)
+        els.push(<rect key="tbb" x={tbX} y={tbY} width={tbW} height={tbH} fill="#ffffff" stroke={C.line} strokeWidth={0.6} />);
+        els.push(<line key="tl1" x1={tbX} y1={tbY + 14} x2={tbX + tbW} y2={tbY + 14} stroke={C.line} strokeWidth={0.4} />);
+        els.push(<line key="tl2" x1={tbX} y1={tbY + 32} x2={tbX + tbW} y2={tbY + 32} stroke={C.line} strokeWidth={0.4} />);
+        els.push(<line key="tv"  x1={tbX + tbW * 0.62} y1={tbY + 32} x2={tbX + tbW * 0.62} y2={tbY + tbH} stroke={C.line} strokeWidth={0.4} />);
+        els.push(<text key="tp"  x={tbX + 4} y={tbY + 10} fill={C.dimText} fontSize={5.4} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">{tb.project}</text>);
+        els.push(<text key="td"  x={tbX + 4} y={tbY + 25} fill={C.annotColor} fontSize={3.4} fontFamily="Helvetica,Arial,sans-serif">{`${tb.designer}${tb.client ? '  \u00b7  ' + tb.client : ''}`}</text>);
+        els.push(<text key="ttl" x={tbX + 4} y={tbY + 45} fill={C.dimText} fontSize={4.8} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">{`WALL ${wallId} ELEVATION`}</text>);
+        els.push(<text key="tdt" x={tbX + tbW * 0.62 + 4} y={tbY + 40} fill={C.annotColor} fontSize={3.0} fontFamily="Helvetica,Arial,sans-serif">{tb.date}</text>);
+        els.push(<text key="tsh" x={tbX + tbW * 0.62 + 4} y={tbY + 48} fill={C.dimText} fontSize={4.6} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">{`SHEET ${tb.sheet}`}</text>);
+        return <g>{els}</g>;
+      })()}
 
       {/* ══════════ DEBUG OVERLAY ══════════ */}
       {debug && (
@@ -1704,7 +1835,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
-export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {} }) {
   const styleSpec = doorStyleSpec(doorStyle);
   const stone = classifyStone(countertopColor);
   if (!solverResult) return null;
@@ -1794,7 +1925,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
 
   return (
     <div>
-      {wallData.map(wd => {
+      {wallData.map((wd, _wi) => {
         const start = globalTag;
         const tallCount  = wd.talls.filter(t => typeof t.position === 'number' && t.width > 0).length;
         const baseCount  = wd.bases.filter(b => typeof b.position === 'number' && b.width > 0).length;
@@ -1820,6 +1951,9 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             stone={stone}
             finishColor={finishColor}
             grainHorizontal={grainHorizontal}
+            doorStyle={doorStyle}
+            titleBlock={titleBlock}
+            sheetNo={titleBlock.sheetPrefix ? `${titleBlock.sheetPrefix}${_wi + 1}` : `A-${_wi + 1}`}
           />
         );
       })}
