@@ -320,6 +320,42 @@ function doorStyleSpec(code) {
   return { panel: raised ? 'raised' : 'flat', topRail: archCrown ? 4.5 : 2.5, arch: archCrown };
 }
 
+// Draw the recessed panel + door-style marks for ONE face, honoring the
+// selected door style (slab = nothing). Shared by CabFront and the sink-base
+// branch of ApplianceSym so every front follows the chosen Eclipse door style.
+function pushStylePanel(els, key, fx, fy, fw, fh, styleSpec = { panel: 'flat', topRail: 2.5 }, isDoor = false) {
+  const REVEAL = 0.094 * S, RAIL = 2.5 * S;
+  const ax = fx + REVEAL, ay = fy + REVEAL, aw = fw - 2 * REVEAL, ah = fh - 2 * REVEAL;
+  const topRail = (isDoor ? (styleSpec.topRail || 2.5) : 2.5) * S;
+  const px = fx + RAIL, py = fy + topRail, pw = fw - 2 * RAIL, ph = fh - topRail - RAIL;
+  if (styleSpec.panel === 'slab' || pw <= 3 || ph <= 3) return;
+  const pt = styleSpec.panel;
+  els.push(<rect key={`${key}p`} x={px} y={py} width={pw} height={ph}
+    fill="none" stroke={C.thinLine} strokeWidth={0.22} opacity={0.4} rx={0.2} />);
+  if (pt === 'raised' && pw > 6 && ph > 6) {
+    const b = 1.1 * S;
+    els.push(<rect key={`${key}pr`} x={px + b} y={py + b} width={pw - 2 * b} height={ph - 2 * b}
+      fill="none" stroke={C.thinLine} strokeWidth={0.18} opacity={0.3} rx={0.2} />);
+  } else if (pt === 'mitered') {
+    [[ax, ay, px, py], [ax + aw, ay, px + pw, py],
+     [ax, ay + ah, px, py + ph], [ax + aw, ay + ah, px + pw, py + ph]]
+      .forEach(([x1, y1, x2, y2], k) => els.push(
+        <line key={`${key}mt${k}`} x1={x1} y1={y1} x2={x2} y2={y2}
+          stroke={C.thinLine} strokeWidth={0.18} opacity={0.45} />));
+  } else if (pt === 'applied' && pw > 5 && ph > 5) {
+    const m = 0.9 * S;
+    els.push(<rect key={`${key}am`} x={px + m} y={py + m} width={pw - 2 * m} height={ph - 2 * m}
+      fill="none" stroke={C.thinLine} strokeWidth={0.2} opacity={0.4} rx={0.15} />);
+  } else if (pt === 'reeded') {
+    const n = Math.max(3, Math.floor(pw / (1.6 * S)));
+    for (let i = 1; i < n; i++) {
+      const rx = px + (pw * i) / n;
+      els.push(<line key={`${key}rd${i}`} x1={rx} y1={py} x2={rx} y2={py + ph}
+        stroke={C.thinLine} strokeWidth={0.16} opacity={0.35} />);
+    }
+  }
+}
+
 function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
@@ -371,39 +407,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     if (aw <= 0 || ah <= 0) return;
     els.push(<rect key={key} x={ax} y={ay} width={aw} height={ah}
       fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
-    const topRail = (isDoor ? styleSpec.topRail : 2.5) * S;
-    const px = fx + RAIL, py = fy + topRail, pw = fw - 2 * RAIL, ph = fh - topRail - RAIL;
-    if (styleSpec.panel !== 'slab' && pw > 3 && ph > 3) {
-      const pt = styleSpec.panel;
-      // recessed panel opening
-      els.push(<rect key={`${key}p`} x={px} y={py} width={pw} height={ph}
-        fill="none" stroke={C.thinLine} strokeWidth={0.22} opacity={0.4} rx={0.2} />);
-      if (pt === 'raised' && pw > 6 && ph > 6) {
-        const b = 1.1 * S;   // bevel field for raised-panel doors
-        els.push(<rect key={`${key}pr`} x={px + b} y={py + b} width={pw - 2 * b} height={ph - 2 * b}
-          fill="none" stroke={C.thinLine} strokeWidth={0.18} opacity={0.3} rx={0.2} />);
-      } else if (pt === 'mitered') {
-        // 45° miter joints where the rails/stiles meet at each corner
-        [[ax, ay, px, py], [ax + aw, ay, px + pw, py],
-         [ax, ay + ah, px, py + ph], [ax + aw, ay + ah, px + pw, py + ph]]
-          .forEach(([x1, y1, x2, y2], k) => els.push(
-            <line key={`${key}mt${k}`} x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={C.thinLine} strokeWidth={0.18} opacity={0.45} />));
-      } else if (pt === 'applied' && pw > 5 && ph > 5) {
-        // applied molding: a second profiled frame just inside the panel opening
-        const m = 0.9 * S;
-        els.push(<rect key={`${key}am`} x={px + m} y={py + m} width={pw - 2 * m} height={ph - 2 * m}
-          fill="none" stroke={C.thinLine} strokeWidth={0.2} opacity={0.4} rx={0.15} />);
-      } else if (pt === 'reeded') {
-        // vertical reeds filling the panel
-        const n = Math.max(3, Math.floor(pw / (1.6 * S)));
-        for (let i = 1; i < n; i++) {
-          const rx = px + (pw * i) / n;
-          els.push(<line key={`${key}rd${i}`} x1={rx} y1={py} x2={rx} y2={py + ph}
-            stroke={C.thinLine} strokeWidth={0.16} opacity={0.35} />);
-        }
-      }
-    }
+    pushStylePanel(els, key, fx, fy, fw, fh, styleSpec, isDoor);
     if (pull === 'bar') {
       const pw2 = Math.min(aw * 0.28, 5 * S);
       els.push(<line key={`${key}h`} x1={ax + aw / 2 - pw2 / 2} y1={ay + ah / 2}
@@ -526,7 +530,7 @@ function REPPanel({ x, y, w, h }) {
 // COMPONENT: ApplianceSym — Appliance symbol in elevation
 // ═══════════════════════════════════════════════════════════════════════
 
-function ApplianceSym({ x, y, w, h, aType }) {
+function ApplianceSym({ x, y, w, h, aType, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
   const els = [];
   els.push(
     <rect key="bg" x={x} y={y} width={w} height={h}
@@ -679,6 +683,7 @@ function ApplianceSym({ x, y, w, h, aType }) {
       <rect key="ff" x={x + 1.5 * S} y={y + 1 * S} width={w - 3 * S} height={falseH}
         fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />
     );
+    pushStylePanel(els, "ff", x + 1.5 * S, y + 1 * S, w - 3 * S, falseH, styleSpec, false);
     // Two doors below
     const doorY = y + 1 * S + falseH + 1 * S;
     const doorH = (y + h - 1.5 * S) - doorY;
@@ -691,13 +696,7 @@ function ApplianceSym({ x, y, w, h, aType }) {
           <rect key={`d${i}`} x={dx} y={doorY} width={dw} height={doorH}
             fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />
         );
-        const ip = 2 * S;
-        if (dw > 2 * ip + 2 && doorH > 2 * ip + 2) {
-          els.push(
-            <rect key={`di${i}`} x={dx + ip} y={doorY + ip} width={dw - 2 * ip} height={doorH - 2 * ip}
-              fill="none" stroke={C.thinLine} strokeWidth={0.25} opacity={0.4} rx={0.2} />
-          );
-        }
+        pushStylePanel(els, `d${i}`, dx, doorY, dw, doorH, styleSpec, true);
         // Knob near the TOP inner corner (base doors)
         const knobX = i === 0 ? dx + dw - 2.5 * S : dx + 2.5 * S;
         els.push(
@@ -1037,7 +1036,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={h} label={cab.width <= FILLER_MIN ? '' : sku} />
             ) : isApp ? (
-              <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} />
+              <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
                 falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} />
@@ -1137,7 +1136,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             {isRepPanel ? (
               <REPPanel x={x} y={y} w={w} h={tH} />
             ) : isApp ? (
-              <ApplianceSym x={x} y={y} w={w} h={tH} aType={cab.applianceType || 'unknown'} />
+              <ApplianceSym x={x} y={y} w={w} h={tH} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} />
             ) : (() => {
               const upperSku = (cab.sku || '').toUpperCase();
               const isOven = /^O\d/.test(upperSku);
