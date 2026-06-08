@@ -181,7 +181,7 @@ function parseDoorDrawer(sku, width) {
   // (the -FHD full-height-door variant handled above has none).
   if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) return { doors: doorCount(width), drawers: 1, falseFront: true };
   // Roll-out tray, pull-out shelf: door only
-  if (/-RT/.test(s) || /^BPOS/.test(s)) return { doors: 1, drawers: 0 };
+  if (/-RT/.test(s) || /^BPOS/.test(s)) return { doors: doorCount(width), drawers: 0 };
   // Range top base: open frame
   if (/^RTB/.test(s)) return { doors: 0, drawers: 0 };
   // Blind base corner: 1 door, 1 drawer on exposed face
