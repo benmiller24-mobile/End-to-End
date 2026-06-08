@@ -785,8 +785,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
   const baseTopY = floorY - (TOEKICK + BASE_BOX) * S;               // top of base box
   const ctrTopY  = baseTopY - CTR_THICK * S;                        // top of countertop
   const upBotY   = floorY - (TOEKICK + BASE_BOX + CTR_THICK + SPLASH_GAP) * S; // bottom of uppers = 54" AFF
-  const upTopY   = upBotY - UPPER_H_DEF * S;                        // top of default uppers
   const ceilY    = topMargin;                                        // ceiling line
+  // upperTopY (the common top datum) is computed below, after talls are sorted.
 
   // ── FILTER VALID PLACEMENTS ──
   const validBases  = bases.filter(b => typeof b.position === 'number' && b.position >= 0 && b.width > 0);
@@ -799,6 +799,21 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
   const sortedBases  = snapRunFlush([...validBases].sort((a, b) => a.position - b.position));
   const sortedUppers = snapRunFlush([...validUppers].sort((a, b) => a.position - b.position));
   const sortedTalls  = snapRunFlush([...validTalls].sort((a, b) => a.position - b.position));
+
+  // ══════════ COMMON UPPER-TOP DATUM ══════════
+  // STRUCTURAL: every wall cabinet — and the tops of tall cabinets and refrigerator
+  // end panels — aligns to ONE top line, the way a real shop drawing reads. We
+  // anchor uppers by their TOP (not their bottom), so cabinets of differing heights
+  // (a standard upper, a short over-fridge cabinet, a tall pantry) share a top edge.
+  // The line sits at the tallest real CABINET top present (tall units / REP fridge
+  // surrounds), or the standard upper top (54" + default height) when there are none,
+  // capped at the ceiling. Over-appliance cabinets do NOT drive the line up — they
+  // clamp down to it — so a to-ceiling over-fridge cabinet can't stretch the whole
+  // run of wall cabinets to the ceiling; instead it aligns with them.
+  const _tallTops = sortedTalls.map(t => (t._elev?.height || t.height || TALL_H_DEF));
+  const upperTopAFF = Math.min(ceilH, Math.max(54 + UPPER_H_DEF, ..._tallTops));
+  const upperTopY = floorY - upperTopAFF * S;   // common top line (screen y)
+  const upTopY = upperTopY;                       // alias used by crown fallback
 
   // ── TAG NUMBERING (sequential: talls → bases → uppers) ──
   let tagNum = tagStart;
@@ -829,8 +844,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       }
       const cs = cab.position;
       const ce = cab.position + (cab.width || 0);
-      const uH = (parseSkuHeight(cab.sku) || cab.height || UPPER_H_DEF) * S;
-      const topY = upBotY - uH;   // actual top of this upper cabinet (screen y)
+      const topY = upperTopY;   // all run uppers share the common top datum
       if (segS === null) { segS = cs; segE = ce; segTopY = topY; }
       else if (cs <= segE + 0.5) { segE = Math.max(segE, ce); segTopY = Math.min(segTopY, topY); }
       else { segs.push({ s: segS, e: segE, topY: segTopY }); segS = cs; segE = ce; segTopY = topY; }
@@ -1036,17 +1050,17 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         // at their real AFF (e.g. 84"→ceiling), NOT at the standard upper band.
         const elev = cab._elev || {};
         const aboveTall = elev.zone === 'ABOVE_TALL' || (elev.yMount || 0) > 60;
+        // STRUCTURAL: every upper's TOP sits on the common datum (upperTopY).
+        //   • standard run upper → bottom at 54" AFF (upBotY)
+        //   • over-fridge upper  → bottom at the fridge top (yMount), so it tucks
+        //     between the fridge and the top line and the REP can't cross it.
         let uH, y;
+        y = upperTopY;
         if (aboveTall) {
-          const mountAFF = elev.yMount;
-          const topAFF = Math.min(elev.yTop || (mountAFF + (cab.height || 12)), ceilH);
-          uH = (topAFF - mountAFF) * S;
-          y = floorY - topAFF * S;
+          const mountAFF = elev.yMount || 0;
+          uH = Math.max(6 * S, (floorY - mountAFF * S) - upperTopY);
         } else {
-          // Parse height from SKU (W3630=30", W3642=42") or fall back to solver data or default
-          const skuH = parseSkuHeight(cab.sku);
-          uH = (skuH || cab.height || UPPER_H_DEF) * S;
-          y = upBotY - uH;
+          uH = upBotY - upperTopY;
         }
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);
@@ -1075,10 +1089,15 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         if (cab._elev?.zone === 'ABOVE_TALL' || (cab._elev?.yMount || 0) > 60) return null;
         const x = (cab.position || 0) * S;
         const w = (cab.width || 18) * S;
-        const tH = (cab._elev?.height || cab.height || TALL_H_DEF) * S;
-        const y = floorY - tH;
         const isApp = isAppliance(cab);
         const isRepPanel = isREP(cab);
+        // STRUCTURAL: tall cabinets and REP surrounds snap their TOP to the common
+        // datum (upperTopY) so they align with the wall cabinets. A tall APPLIANCE
+        // (fridge) keeps its real height, leaving the over-fridge cabinet its space.
+        const realTopAFF = (cab._elev?.height || cab.height || TALL_H_DEF);
+        const topAFF = isApp ? realTopAFF : upperTopAFF;
+        const tH = topAFF * S;
+        const y = floorY - tH;
         const doors = cab.width > 24 ? 2 : 1;
         const hinge = doors === 1
           ? computeHingeSide(sortedTalls[i - 1], sortedTalls[i + 1], i === 0, i === sortedTalls.length - 1)
@@ -1248,7 +1267,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const cx = (item.position || 0) * S + (item.width || 0) * S / 2;
         let cy;
         if (item._zone === 'tall') cy = floorY - (item._elev?.height || item.height || TALL_H_DEF) * S - 14;
-        else if (item._zone === 'upper') cy = upBotY - (item.height || UPPER_H_DEF) * S - 14;
+        else if (item._zone === 'upper') cy = upperTopY - 14;
         else cy = floorY + 46;
         return <CabTag key={`tag${i}`} cx={cx} cy={cy} num={item._tag} />;
       })}
@@ -1339,7 +1358,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           sortedUppers.forEach((cab, i) => {
             const lx = cab.position * S;
             const rx = (cab.position + cab.width) * S;
-            const uTop = upBotY - (cab.height || UPPER_H_DEF) * S;
+            const uTop = upperTopY;
             // Extension lines from upper cabinet tops to dim line
             els.push(
               <line key={`ueL${i}`} x1={lx} y1={uTop} x2={lx} y2={dimY + 3}
