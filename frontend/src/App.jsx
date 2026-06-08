@@ -944,7 +944,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {/* Elevations tab */}
       {tab === 'elevations' && (
         <div>
-          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} grainHorizontal={materials?.grainHorizontal} titleBlock={{ project: (selectedTemplate ? `${roomType||'Kitchen'} — ${layoutType||''}`.trim().replace(/\u2014 $/, '').trim() : 'Kitchen Project'), designer: 'Eclipse Kitchen Designer', date: new Date().toLocaleDateString('en-US'), scale: '1/2" = 1\'-0"' }} />
+          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} grainHorizontal={materials?.grainHorizontal} titleBlock={{ project: `${solverResult?.roomType || 'Kitchen'}${solverResult?.layoutType ? ' \u2014 ' + solverResult.layoutType : ''}`, designer: 'Eclipse Kitchen Designer', date: new Date().toLocaleDateString('en-US'), scale: '1/2" = 1\'-0"' }} />
           {/* Tag SVGs for PDF export */}
           <style>{`[data-pdf="elevation"] { /* marker */ }`}</style>
         </div>
