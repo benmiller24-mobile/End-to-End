@@ -368,7 +368,7 @@ function pushStylePanel(els, key, fx, fy, fw, fh, styleSpec = { panel: 'flat', t
   }
 }
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob' }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -421,10 +421,14 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
       fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
     pushStylePanel(els, key, fx, fy, fw, fh, styleSpec, isDoor);
     if (pull === 'bar') {
-      const pw2 = Math.min(aw * 0.28, 5 * S);
-      els.push(<line key={`${key}h`} x1={ax + aw / 2 - pw2 / 2} y1={ay + ah / 2}
-        x2={ax + aw / 2 + pw2 / 2} y2={ay + ah / 2}
-        stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />);
+      if (hardware === 'knob') {
+        els.push(<circle key={`${key}h`} cx={ax + aw / 2} cy={ay + ah / 2} r={0.9} fill={C.hwColor} stroke="none" />);
+      } else {
+        const pw2 = Math.min(aw * 0.28, 5 * S);
+        els.push(<line key={`${key}h`} x1={ax + aw / 2 - pw2 / 2} y1={ay + ah / 2}
+          x2={ax + aw / 2 + pw2 / 2} y2={ay + ah / 2}
+          stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />);
+      }
     }
   };
 
@@ -473,9 +477,14 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
         stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />);
       els.push(<line key={`sw2${i}`} x1={latchX} y1={iy + ih} x2={apexX} y2={apexY}
         stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />);
-      const knobX = hingeLeft ? ix + iw - 1.4 * S : ix + 1.4 * S;
-      const knobY = isUpper ? iy + ih - 3 * S : iy + 3 * S;
-      els.push(<circle key={`k${i}`} cx={knobX} cy={knobY} r={0.8} fill={C.hwColor} stroke="none" />);
+      const hwX = hingeLeft ? ix + iw - 1.4 * S : ix + 1.4 * S;
+      const hwY = isUpper ? iy + ih - 3 * S : iy + 3 * S;
+      if (hardware === 'bar' || hardware === 'pull') {
+        const ph = Math.min(ih * 0.32, 4.5 * S);
+        els.push(<line key={`k${i}`} x1={hwX} y1={hwY - ph / 2} x2={hwX} y2={hwY + ph / 2} stroke={C.hwColor} strokeWidth={0.85} strokeLinecap="round" />);
+      } else {
+        els.push(<circle key={`k${i}`} cx={hwX} cy={hwY} r={0.9} fill={C.hwColor} stroke="none" />);
+      }
     }
   }
 
@@ -807,7 +816,7 @@ function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel' }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -1099,7 +1108,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
@@ -1128,6 +1137,36 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               fontWeight="600">CL</text>
           </g>
         );
+      })}
+
+      {/* ══════════ PLUMBING ROUGH-INS (dashed; behind base cabinets) ══════════ */}
+      {!isIsland && sortedBases.filter(c => {
+        const at = (c.applianceType || '').toLowerCase();
+        return at === 'sink' || /^SB|^BSB|^DSB|^IWS/.test(c.sku || '');
+      }).map((cab, i) => {
+        const cx = (cab.position + cab.width / 2) * S;
+        const wY = floorY - 18 * S, sY = floorY - 21 * S, PB = '#2c7fb8', HOT = '#b5532e';
+        return (
+          <g key={`plm${i}`} opacity={0.9}>
+            <circle cx={cx} cy={wY} r={1.7} fill="none" stroke={PB} strokeWidth={0.4} strokeDasharray="1.4,1" />
+            <line x1={cx - 1.7} y1={wY} x2={cx + 1.7} y2={wY} stroke={PB} strokeWidth={0.3} />
+            <line x1={cx} y1={wY - 1.7} x2={cx} y2={wY + 1.7} stroke={PB} strokeWidth={0.3} />
+            <circle cx={cx - 7} cy={sY} r={1} fill="none" stroke={HOT} strokeWidth={0.4} />
+            <circle cx={cx + 7} cy={sY} r={1} fill="none" stroke={PB} strokeWidth={0.4} />
+            <text x={cx} y={wY - 3} fill={PB} fontSize={2.7} textAnchor="middle" fontFamily="Helvetica,Arial,sans-serif">{'1\u00bd" WASTE \u00b7 18" AFF'}</text>
+            <text x={cx} y={sY - 3} fill={C.annotColor} fontSize={2.5} textAnchor="middle" fontFamily="Helvetica,Arial,sans-serif">{'\u00bd" H/C SUPPLY \u00b7 21" AFF'}</text>
+          </g>
+        );
+      })}
+      {!isIsland && sortedBases.filter(c => (c.applianceType || '').toLowerCase() === 'dishwasher').map((cab, i) => {
+        const cx = (cab.position + cab.width / 2) * S;
+        return (<text key={`dwp${i}`} x={cx} y={floorY - 24 * S} fill={C.annotColor} fontSize={2.5} textAnchor="middle"
+          fontFamily="Helvetica,Arial,sans-serif">{'DW supply + drain at adj. sink'}</text>);
+      })}
+      {sortedBases.filter(c => { const at = (c.applianceType || '').toLowerCase(); return at === 'range' || at === 'cooktop'; }).map((cab, i) => {
+        const cx = (cab.position + cab.width / 2) * S;
+        return (<text key={`gas${i}`} x={cx} y={floorY - 9 * S} fill={C.annotColor} fontSize={2.5} textAnchor="middle"
+          fontFamily="Helvetica,Arial,sans-serif">{'GAS / 240V \u2014 verify fuel'}</text>);
       })}
 
       {/* ══════════ UPPER CABINETS ══════════ */}
@@ -1170,7 +1209,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} frontFill={frontFill} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />
+              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
             )}
           </g>
         );
@@ -1226,18 +1265,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                       x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
                       stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
                     {/* Door panel below */}
-                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />
+                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
                   </g>
                 );
               }
               if (isFHD) {
-                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />;
+                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />;
               }
               // Standard utility: show shelf lines
               const shelfCount = Math.floor(tH / (20 * S));
               return (
                 <g>
-                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />
+                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
                   {Array.from({ length: Math.min(shelfCount, 4) }, (_, si) => {
                     const sy = y + (si + 1) * tH / (Math.min(shelfCount, 4) + 1);
                     return (
@@ -1735,7 +1774,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         els.push(<text key="st" x={0} y={ty} fill={C.dimText} fontSize={5} fontWeight="700"
           fontFamily="Helvetica,Arial,sans-serif">{`CABINET SCHEDULE \u2014 WALL ${wallId}`}</text>);
         els.push(<text key="sf" x={schedTableW} y={ty} fill={C.annotColor} fontSize={3.4} textAnchor="end"
-          fontFamily="Helvetica,Arial,sans-serif">{`Door: ${(DOOR_BY_CODE[doorStyle]?.l) || doorStyle || '\u2014'}${species ? '  \u00b7  ' + species : ''}${finishColor ? ' / ' + finishColor : ''}`}</text>);
+          fontFamily="Helvetica,Arial,sans-serif">{`Door: ${(DOOR_BY_CODE[doorStyle]?.l) || doorStyle || '\u2014'}${species ? '  \u00b7  ' + species : ''}${finishColor ? ' / ' + finishColor : ''}${hardware ? '   \u00b7   HW: ' + (hardware === 'bar' ? 'Bar Pull' : 'Knob') + (hardwareFinish ? ' (' + hardwareFinish + ')' : '') : ''}`}</text>);
         const hy = ty + 5;
         els.push(<rect key="hbg" x={0} y={hy} width={schedTableW} height={rh} fill="#ece9e4" stroke={C.line} strokeWidth={0.4} />);
         cols.forEach(c => els.push(<text key={`h${c.k}`} x={c.a === 'middle' ? c.x + c.w / 2 : c.x} y={hy + rh - 2.6}
@@ -1843,7 +1882,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
-export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {} }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {}, hardware = 'knob', hardwareFinish = 'Brushed Nickel' }) {
   const styleSpec = doorStyleSpec(doorStyle);
   const stone = classifyStone(countertopColor);
   if (!solverResult) return null;
@@ -1974,6 +2013,8 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             finishColor={finishColor}
             grainHorizontal={grainHorizontal}
             doorStyle={doorStyle}
+            hardware={hardware}
+            hardwareFinish={hardwareFinish}
             isIsland={wd.isIsland}
             titleBlock={titleBlock}
             sheetNo={titleBlock.sheetPrefix ? `${titleBlock.sheetPrefix}${_wi + 1}` : `A-${_wi + 1}`}
