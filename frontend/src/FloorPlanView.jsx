@@ -35,8 +35,9 @@ import React, { useMemo } from 'react';
 
 // ─── DIMENSIONS (inches = SVG units, 1:1) ─────────────────────────────
 const WALL_T = 6;       // wall thickness
-const BASE_D = 24;      // base cabinet depth
-const UPPER_D = 13;     // upper cabinet depth
+const DOOR_BUMP = 0.875; // 7/8" door + bumper projection past the cabinet box
+const BASE_D = 24 + DOOR_BUMP;  // base run depth incl. door & bumper = 24.875"
+const UPPER_D = 13 + DOOR_BUMP; // wall run depth incl. door & bumper = 13.875"
 const AISLE = 42;       // NKBA min work aisle
 const OVERHANG = 1;     // countertop overhang past base face
 const TICK = 1.7;       // half-length of a 45° architectural tick
@@ -468,42 +469,56 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
                 const cornerSku = norm(cab.sku);
                 const isLazySusan = cornerSku.includes('BL') && cornerSku.includes('SS');
                 const isBBC = cornerSku.includes('BBC');
+                // Door-aware corner depth = the run depth (box + door/bumper). The corner
+                // abuts the perpendicular wall at the run's far end, so inset that end by
+                // half the wall thickness — the unit stops at the inner face, not the
+                // wall centerline, and forms a clean L with the adjoining run.
+                const cd = Math.max(BASE_D, cab.depth || 0);
+                const atFarEnd = (x + w) >= length - 0.6;
+                const rightInset = atFarEnd ? WALL_T / 2 : 0;
+                const innerW = w - rightInset;
+
                 if (isLazySusan) {
+                  const sq = Math.min(w, innerW);
                   return (
                     <>
-                      <rect x={x} y={WALL_T / 2} width={w} height={w}
+                      <rect x={x} y={WALL_T / 2} width={innerW} height={sq}
                         fill={C.cabFill} stroke={C.cabStroke} strokeWidth={W.cab} />
-                      <circle cx={x + w / 2} cy={WALL_T / 2 + w / 2} r={w * 0.4}
+                      <circle cx={x + innerW / 2} cy={WALL_T / 2 + sq / 2} r={Math.min(innerW, sq) * 0.42}
                         fill="none" stroke={C.cabStroke} strokeWidth={W.cabThin}
-                        strokeDasharray={DASH.hidden} opacity={0.5} />
+                        strokeDasharray={DASH.hidden} opacity={0.6} />
                     </>
                   );
                 }
                 if (isBBC) {
-                  const accessW = Math.min(24, w * 0.55);
-                  const blindW = w - accessW;
+                  // Blind (in-corner) portion sized to the perpendicular run depth so the
+                  // adjoining run butts cleanly against it; access door on the near side.
+                  const blindW = Math.min(Math.max(cd, 12), innerW - 9);
+                  const accessW = innerW - blindW;
                   return (
                     <>
-                      <rect x={x} y={WALL_T / 2} width={accessW} height={24}
+                      <rect x={x} y={WALL_T / 2} width={accessW} height={cd}
                         fill={C.cabFill} stroke={C.cabStroke} strokeWidth={W.cab} />
-                      <rect x={x + accessW} y={WALL_T / 2} width={blindW} height={24}
+                      <DoorSwing x={x} y={WALL_T / 2} w={accessW} d={cd} hingeSide="L" sku="" />
+                      <rect x={x + accessW} y={WALL_T / 2} width={blindW} height={cd}
                         fill={C.blindFill} stroke={C.cabStroke} strokeWidth={W.cabThin} />
                       {Array.from({ length: Math.ceil(blindW / 4) }, (_, hi) => {
                         const hx = x + accessW + hi * 4;
                         return (
                           <line key={`bh${hi}`} x1={hx} y1={WALL_T / 2}
-                            x2={Math.min(hx + w, x + w)} y2={WALL_T / 2 + Math.min(24, (x + w - hx))}
+                            x2={Math.min(hx + cd, x + accessW + blindW)} y2={WALL_T / 2 + Math.min(cd, x + accessW + blindW - hx)}
                             stroke={C.cabStroke} strokeWidth={W.light} opacity={0.5} />
                         );
                       })}
                     </>
                   );
                 }
+                // Diagonal corner unit (depth-aware square, chamfered front).
                 return (
                   <>
-                    <rect x={x} y={WALL_T / 2} width={w} height={w}
+                    <rect x={x} y={WALL_T / 2} width={innerW} height={cd}
                       fill={C.cabFill} stroke={C.cabStroke} strokeWidth={W.cab} />
-                    <line x1={x} y1={WALL_T / 2 + w} x2={x + w} y2={WALL_T / 2}
+                    <line x1={x} y1={WALL_T / 2 + cd} x2={x + innerW} y2={WALL_T / 2}
                       stroke={C.cabStroke} strokeWidth={W.light} opacity={0.4} />
                   </>
                 );
@@ -527,12 +542,12 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
 
             {/* SKU / width labels */}
             {w >= 12 && (
-              <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? w : d) / 2 + 1.2} fill={C.dimText}
+              <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? BASE_D : d) / 2 + 1.2} fill={C.dimText}
                 fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
                 textAnchor="middle" fontWeight="500">{cab.sku ? `${cab.sku}` : `${w}"`}</text>
             )}
             {cab.sku && w >= 20 && (
-              <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? w : d) / 2 + 4.8} fill="#5c6370"
+              <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? BASE_D : d) / 2 + 4.8} fill="#5c6370"
                 fontSize={2.5} fontFamily="Helvetica,Arial,sans-serif"
                 textAnchor="middle" fontWeight="400" opacity={0.65}>{w}"</text>
             )}
