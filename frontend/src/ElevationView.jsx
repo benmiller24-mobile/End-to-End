@@ -807,7 +807,7 @@ function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '' }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -945,7 +945,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       <g>
         <text x={wW / 2} y={-8} fill={C.dimText} fontSize={10} fontWeight="700"
           fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
-          WALL {wallId} — ELEVATION
+          {isIsland ? wallId : `WALL ${wallId}`} — ELEVATION
         </text>
         <line x1={0} y1={totalH + 16} x2={Math.min(wW, 200)} y2={totalH + 16}
           stroke={C.line} strokeWidth={0.6} />
@@ -960,15 +960,19 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       </g>
 
       {/* ══════════ STRUCTURAL LINES ══════════ */}
-      {/* Ceiling (dashed) */}
-      <line x1={-8} y1={ceilY} x2={wW + 8} y2={ceilY}
-        stroke={C.dimLine} strokeWidth={0.5} strokeDasharray="5,2.5" />
-      <text x={-12} y={ceilY + 1.5} fill={C.annotColor} fontSize={3}
-        fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">CLG</text>
+      {/* Ceiling (dashed) — wall surfaces only */}
+      {!isIsland && (<>
+        <line x1={-8} y1={ceilY} x2={wW + 8} y2={ceilY}
+          stroke={C.dimLine} strokeWidth={0.5} strokeDasharray="5,2.5" />
+        <text x={-12} y={ceilY + 1.5} fill={C.annotColor} fontSize={3}
+          fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">CLG</text>
+      </>)}
 
-      {/* Backsplash zone fill (stone tint if a countertop is selected) */}
-      <rect x={0} y={upBotY} width={wW} height={ctrTopY - upBotY}
-        fill={stone ? ctrPat : C.backsplash} stroke="none" opacity={stone ? 0.5 : 0.2} />
+      {/* Backsplash zone fill (stone tint if a countertop is selected) — wall only */}
+      {!isIsland && (
+        <rect x={0} y={upBotY} width={wW} height={ctrTopY - upBotY}
+          fill={stone ? ctrPat : C.backsplash} stroke="none" opacity={stone ? 0.5 : 0.2} />
+      )}
 
       {/* Floor line (heavy) */}
       <line x1={-30} y1={floorY} x2={wW + 30} y2={floorY}
@@ -1641,13 +1645,16 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           );
         })()}
 
-        {/* Ceiling height callout */}
+        {/* Ceiling height callout — wall only */}
+        {!isIsland && (<>
         <line x1={wW + 10} y1={ceilY} x2={wW + 38} y2={ceilY}
           stroke={C.dimLine} strokeWidth={0.3} strokeDasharray="2,1.5" />
         <text x={wW + 40} y={ceilY + 1.5} fill={C.dimText}
           fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif" fontWeight="600">{fmt(ceilH)} CLG</text>
+        </>)}
 
-        {/* Full floor-to-ceiling dim (far right) */}
+        {/* Full floor-to-ceiling dim (far right) — wall only */}
+        {!isIsland && (<>
         <line x1={wW + 50} y1={floorY} x2={wW + 50} y2={ceilY}
           stroke={C.dimLine} strokeWidth={0.5} />
         <line x1={wW + 48} y1={floorY} x2={wW + 52} y2={floorY}
@@ -1656,6 +1663,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           stroke={C.dimLine} strokeWidth={0.45} />
         <text x={wW + 56} y={(floorY + ceilY) / 2 + 1.5} fill={C.dimText}
           fontSize={4.2} fontFamily="Helvetica,Arial,sans-serif" fontWeight="700">{fmt(ceilH)}</text>
+        </>)}
       </g>
 
       {/* ══════════ LEFT-SIDE VERTICAL DIMENSIONS ══════════ */}
@@ -1702,7 +1710,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             </text>
           </>
         )}
-        {validUppers.length === 0 && (
+        {validUppers.length === 0 && !isIsland && (
           <>
             <line x1={-14} y1={ctrTopY} x2={-14} y2={ceilY} stroke={C.dimLine} strokeWidth={0.4} />
             <line x1={-16} y1={ctrTopY} x2={-12} y2={ctrTopY} stroke={C.dimLine} strokeWidth={0.4} />
@@ -1784,7 +1792,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         els.push(<line key="tv"  x1={tbX + tbW * 0.62} y1={tbY + 32} x2={tbX + tbW * 0.62} y2={tbY + tbH} stroke={C.line} strokeWidth={0.4} />);
         els.push(<text key="tp"  x={tbX + 4} y={tbY + 10} fill={C.dimText} fontSize={5.4} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">{tb.project}</text>);
         els.push(<text key="td"  x={tbX + 4} y={tbY + 25} fill={C.annotColor} fontSize={3.4} fontFamily="Helvetica,Arial,sans-serif">{`${tb.designer}${tb.client ? '  \u00b7  ' + tb.client : ''}`}</text>);
-        els.push(<text key="ttl" x={tbX + 4} y={tbY + 45} fill={C.dimText} fontSize={4.8} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">{`WALL ${wallId} ELEVATION`}</text>);
+        els.push(<text key="ttl" x={tbX + 4} y={tbY + 45} fill={C.dimText} fontSize={4.8} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">{`${isIsland ? wallId : "WALL " + wallId} ELEVATION`}</text>);
         els.push(<text key="tdt" x={tbX + tbW * 0.62 + 4} y={tbY + 40} fill={C.annotColor} fontSize={3.0} fontFamily="Helvetica,Arial,sans-serif">{tb.date}</text>);
         els.push(<text key="tsh" x={tbX + tbW * 0.62 + 4} y={tbY + 48} fill={C.dimText} fontSize={4.6} fontWeight="700" fontFamily="Helvetica,Arial,sans-serif">{`SHEET ${tb.sheet}`}</text>);
         return <g>{els}</g>;
@@ -1917,8 +1925,22 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
       });
     });
 
+    // ── ISLAND / PENINSULA surfaces (base-only elevations) ──
+    const baseElev = (c) => c._elev || { zone: 'BASE' };
+    const mkRun = (arr) => (arr || []).filter(c => (c.width || 0) > 0).map(c => ({ ...c, _elev: baseElev(c) }));
+    const isl = solverResult.island;
+    if (isl) {
+      if (isl.backSide?.length) data['__ISL_BACK'] = { id: 'ISLAND \u2014 BACK', length: isl.length || 0, ceilingHeight: 45, openings: [], bases: mkRun(isl.backSide), uppers: [], talls: [], hood: null, isIsland: true };
+      if (isl.workSide?.length) data['__ISL_WORK'] = { id: 'ISLAND \u2014 WORK', length: isl.length || 0, ceilingHeight: 45, openings: [], bases: mkRun(isl.workSide), uppers: [], talls: [], hood: null, isIsland: true };
+    }
+    const pen = solverResult.peninsula;
+    if (pen) {
+      const pc = pen.cabinets || pen.workSide || [];
+      if (pc.length) data['__PEN'] = { id: 'PENINSULA', length: pen.length || 0, ceilingHeight: 45, openings: [], bases: mkRun(pc), uppers: [], talls: [], hood: null, isIsland: true };
+    }
+
     return Object.values(data);
-  }, [wallLayouts, upperLayouts, tallCabs, corners, inputWalls]);
+  }, [wallLayouts, upperLayouts, tallCabs, corners, inputWalls, solverResult.island, solverResult.peninsula]);
 
   // Sequential tag numbers across all walls
   let globalTag = 1;
@@ -1952,6 +1974,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             finishColor={finishColor}
             grainHorizontal={grainHorizontal}
             doorStyle={doorStyle}
+            isIsland={wd.isIsland}
             titleBlock={titleBlock}
             sheetNo={titleBlock.sheetPrefix ? `${titleBlock.sheetPrefix}${_wi + 1}` : `A-${_wi + 1}`}
           />

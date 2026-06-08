@@ -5021,6 +5021,30 @@ function generateOverhangData(length, seatingStyle = "bar", bracketStyle = "SS")
 
 // ─── ISLAND SOLVER ──────────────────────────────────────────────────────────
 
+// Symmetric cabinet widths for a run (palindrome that fills `total` exactly).
+// Pro convention: a balanced bank reads symmetric about the centerline — equal
+// flanking cabinets, an optional centered unit absorbing the remainder. Used for
+// the island back/seating side. (Research: 36" center flanked by equal ends, or
+// equal-width bank; objects either side proportionally symmetric.)
+function symmetricWidths(total) {
+  const r8 = (x) => Math.round(x * 8) / 8;
+  let n = Math.max(1, Math.round(total / 33));        // aim ~30-36" per cabinet
+  while (total / n > 44 && n < 8) n++;
+  while (total / n < 22.5 && n > 1) n--;
+  if (n <= 1) return [r8(total)];
+  if (n % 2 === 1) {                                   // odd: equal flanks + center
+    const flank = r8(total / n);
+    const half = Array((n - 1) / 2).fill(flank);
+    const center = r8(total - 2 * half.reduce((a, b) => a + b, 0));
+    return [...half, center, ...half];
+  }
+  const outer = r8(total / n), arr = Array(n).fill(outer);   // even: mirrored pairs
+  const diff = r8(total - outer * n);
+  arr[n / 2 - 1] = r8(arr[n / 2 - 1] + diff / 2);
+  arr[n / 2]     = r8(arr[n / 2]     + diff / 2);
+  return arr;
+}
+
 function solveIsland(island, appliances, prefs, golaPrefix) {
   const { length, depth } = island;
   const _warnings = [];
@@ -5165,8 +5189,8 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
   const backCabs = [];
   if (prefs.islandBackStyle === "fhd_seating") {
     // FHD at 13" depth — most common pattern (Imai Robin, OC Design, Kline Piazza)
-    const fillResult = fillSegment(length, STD_BASE_WIDTHS.filter(w => w >= 22.5 && w <= 42));
-    for (const w of fillResult.cabinets) {
+    // Symmetric bank: equal flanking cabinets (+ centered unit) about the centerline.
+    for (const w of symmetricWidths(length)) {
       backCabs.push({
         sku: `${golaPrefix}B${w}-FHD`,
         width: w,
