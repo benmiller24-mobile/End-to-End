@@ -371,7 +371,40 @@ function pushStylePanel(els, key, fx, fy, fw, fh, styleSpec = { panel: 'flat', t
   }
 }
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob' }) {
+// Classify a specialty front from the cabinet's mods / sku / role.
+function frontTypeOf(cab, styleSpec) {
+  const mods = (cab.modifications || []).map(m => (m.mod || m.type || '').toUpperCase());
+  const sku = (cab.sku || '').toUpperCase();
+  const role = (cab.role || '').toLowerCase();
+  const type = (cab.type || '').toLowerCase();
+  if (/WINE|^WR\d|WRK/.test(sku) || (cab.applianceType || '').toLowerCase() === 'wine' || role.includes('wine')) return 'wine';
+  if (/^SFLS|^OS\d|OPEN/.test(sku) || type.includes('shelf') || type.includes('floating') || role.includes('open')) return 'open';
+  if (mods.some(m => /^MD$|MULL/.test(m)) || (styleSpec && styleSpec.panel === 'mullion')) return 'mullion';
+  if (mods.some(m => /GFD|GLASS/.test(m)) || /GFD|GLASS/.test(sku)) return 'glass';
+  return 'solid';
+}
+
+// Glass / mullion door panel: glass field, interior shelf lines, optional muntins.
+function drawGlassPanel(els, key, fx, fy, fw, fh, mullion) {
+  const RAIL = 2.5 * S;
+  const px = fx + RAIL, py = fy + RAIL, pw = fw - 2 * RAIL, ph = fh - 2 * RAIL;
+  if (pw <= 2 || ph <= 2) return;
+  els.push(<rect key={`${key}gl`} x={px} y={py} width={pw} height={ph} fill="#cdd9e4" opacity={0.5} stroke={C.thinLine} strokeWidth={0.3} />);
+  // interior shelves visible through the glass
+  const shelves = Math.max(2, Math.floor(ph / (12 * S)));
+  for (let i = 1; i < shelves; i++) {
+    const sy = py + (ph * i) / shelves;
+    els.push(<line key={`${key}sh${i}`} x1={px} y1={sy} x2={px + pw} y2={sy} stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />);
+  }
+  if (mullion) {
+    const cols = Math.max(2, Math.round(pw / (8 * S))), rows = Math.max(2, Math.round(ph / (9 * S)));
+    for (let c = 1; c < cols; c++) { const mx = px + (pw * c) / cols; els.push(<line key={`${key}mv${c}`} x1={mx} y1={py} x2={mx} y2={py + ph} stroke="#ffffff" strokeWidth={0.6} />); }
+    for (let r = 1; r < rows; r++) { const my = py + (ph * r) / rows; els.push(<line key={`${key}mh${r}`} x1={px} y1={my} x2={px + pw} y2={my} stroke="#ffffff" strokeWidth={0.6} />); }
+  }
+  els.push(<line key={`${key}rf`} x1={px + pw * 0.22} y1={py + 1.5} x2={px + pw * 0.05} y2={py + ph * 0.6} stroke="#ffffff" strokeWidth={0.5} opacity={0.4} strokeLinecap="round" />);
+}
+
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid' }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -422,7 +455,11 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     if (aw <= 0 || ah <= 0) return;
     els.push(<rect key={key} x={ax} y={ay} width={aw} height={ah}
       fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
-    pushStylePanel(els, key, fx, fy, fw, fh, styleSpec, isDoor);
+    if (isDoor && (frontType === 'glass' || frontType === 'mullion')) {
+      drawGlassPanel(els, key, fx, fy, fw, fh, frontType === 'mullion');
+    } else {
+      pushStylePanel(els, key, fx, fy, fw, fh, styleSpec, isDoor);
+    }
     if (pull === 'bar') {
       if (hardware === 'knob') {
         els.push(<circle key={`${key}h`} cx={ax + aw / 2} cy={ay + ah / 2} r={0.9} fill={C.hwColor} stroke="none" />);
@@ -461,7 +498,23 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
   // DOORS — fill remaining height below the drawer band
   const doorY = cursorY;
   const doorH = (y + h) - cursorY;
-  if (doors > 0 && doorH > 3 * S) {
+  if (frontType === 'open' && doorH > 3 * S) {
+    // OPEN SHELVING — recessed interior + horizontal shelf lines (no door)
+    const ix = x + REVEAL, iw = w - 2 * REVEAL;
+    els.push(<rect key="oint" x={ix} y={doorY} width={iw} height={doorH} fill="#00000014" stroke={C.thinLine} strokeWidth={0.4} />);
+    const n = Math.max(2, Math.floor(doorH / (13 * S)));
+    for (let i = 1; i < n; i++) { const sy = doorY + (doorH * i) / n; els.push(<line key={`osh${i}`} x1={ix} y1={sy} x2={ix + iw} y2={sy} stroke={C.line} strokeWidth={0.7} />); }
+  } else if (frontType === 'wine' && doorH > 3 * S) {
+    // WINE — X-lattice bottle storage
+    const ix = x + 2 * S, iw = w - 4 * S;
+    els.push(<rect key="wint" x={ix} y={doorY} width={iw} height={doorH} fill="#1f140c" opacity={0.16} stroke={C.thinLine} strokeWidth={0.4} />);
+    const n = Math.max(3, Math.round(iw / (7 * S)));
+    for (let i = 0; i <= n; i++) {
+      const gx = ix + (iw * i) / n;
+      els.push(<line key={`wlx${i}`} x1={gx} y1={doorY} x2={gx + doorH * 0.5} y2={doorY + doorH} stroke={C.thinLine} strokeWidth={0.35} opacity={0.6} />);
+      els.push(<line key={`wrx${i}`} x1={gx} y1={doorY} x2={gx - doorH * 0.5} y2={doorY + doorH} stroke={C.thinLine} strokeWidth={0.35} opacity={0.6} />);
+    }
+  } else if (doors > 0 && doorH > 3 * S) {
     const dc = doors;
     const dw = w / dc;
     for (let i = 0; i < dc; i++) {
@@ -1153,7 +1206,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
@@ -1254,7 +1307,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} frontFill={frontFill} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
+              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
             )}
           </g>
         );
@@ -1310,18 +1363,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                       x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
                       stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
                     {/* Door panel below */}
-                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
+                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
                   </g>
                 );
               }
               if (isFHD) {
-                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />;
+                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />;
               }
               // Standard utility: show shelf lines
               const shelfCount = Math.floor(tH / (20 * S));
               return (
                 <g>
-                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} />
+                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
                   {Array.from({ length: Math.min(shelfCount, 4) }, (_, si) => {
                     const sy = y + (si + 1) * tH / (Math.min(shelfCount, 4) + 1);
                     return (
