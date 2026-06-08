@@ -37,6 +37,7 @@ import {
 // ── Output view imports ──
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
+import ApplianceRecommendationPanel from './ApplianceRecommendationPanel.jsx';
 import LeonardoRenderer from './LeonardoRenderer.jsx';
 import { exportPDF } from './pdfExport.js';
 
@@ -832,8 +833,11 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
 
       {/* Floor Plan tab */}
       {tab === 'floorplan' && (
-        <div data-pdf="floorplan">
-          <FloorPlanView solverResult={solverResult} inputWalls={solverResult._inputWalls} debug={debugOverlay} />
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div data-pdf="floorplan" style={{ flex: '1 1 520px', minWidth: 0 }}>
+            <FloorPlanView solverResult={solverResult} inputWalls={solverResult._inputWalls} debug={debugOverlay} />
+          </div>
+          <ApplianceRecommendationPanel solverResult={solverResult} style={{ flex: '0 0 340px', maxWidth: 360 }} />
         </div>
       )}
 

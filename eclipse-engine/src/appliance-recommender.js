@@ -44,6 +44,7 @@ function pick(type, brandIds, { width, fuel, subtype } = {}) {
     if (fuel && a.fuel && a.fuel !== fuel) s += 5;                 // wrong fuel: soft penalty
     if (fuel && !a.fuel) s += 2;
     if (subtype && a.subtype !== subtype) s += 3;
+    s += (a.msrp || 0) * 0.0003;  // tiny price tiebreak: at equal width, prefer the lower MSRP
     return s;
   };
   const a = pool.slice().sort((x, y) => score(x) - score(y))[0];
