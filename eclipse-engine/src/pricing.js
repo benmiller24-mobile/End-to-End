@@ -3,11 +3,15 @@
  * ==============================================
  * Calculates project pricing using the Eclipse C3 formula:
  *
- *   cabinetPrice = stockPrice × (1 + speciesPct/100) × (1 + constructionPct/100)
- *   doorGroupCharge = doorGroupRate × numDoorsInGroup
- *   lineItemTotal = cabinetPrice + doorGroupCharge + modificationCharges
- *   specTotal = Σ lineItemTotals for that material spec
- *   projectTotal = Σ specTotals
+ *   stockBase       = listPrice × (1 + speciesPct/100)            // species-adjusted box
+ *   doorGroupCharge = doorGroupRate × numDoorsInGroup            // C3 group: A=$0 B=$44 C=$88 D=$150
+ *   prePly          = stockBase + doorGroupCharge + drawerCharge + guideCharge + modCharge
+ *   lineItemTotal   = prePly × (1 + constructionPct/100)          // cp(): plywood multiplies base+charges
+ *   specTotal       = Σ lineItemTotals for that material spec
+ *   projectTotal    = Σ specTotals
+ *
+ *   (Baseline species = White Oak at 0%. The plywood/construction upcharge applies to the whole
+ *    cabinet incl. door & drawer charges, per the Eclipse Estimator cp() function — not the box alone.)
  *
  * Sources:
  *   - 30 training projects with real Eclipse pricing data
@@ -65,7 +69,7 @@ export const SPECIES_UPCHARGE = {
   "Rustic Alder":           { pct: 17,  tier: "ultra",    note: "Rustic character Alder." },
   "Paint (Std SW)":         { pct: 18,  tier: "ultra",    note: "Standard Sherwin-Williams paint finish." },
   "Paint (Trend)":          { pct: 18,  tier: "ultra",    note: "Trend paint colors (Sherwin-Williams)." },
-  "Rift White Oak":         { pct: 19,  tier: "ultra",    note: "Rift Cut White Oak — premium linear grain." },
+  "Rift Cut White Oak":     { pct: 19,  tier: "ultra",    note: "Rift Cut White Oak — premium linear grain." },
   "Walnut":                 { pct: 20,  tier: "ultra",    note: "Walnut — premium dark hardwood." },
   "Rustic Walnut":          { pct: 25,  tier: "ultra",    note: "Rustic character Walnut." },
   "Custom Paint (SW)":      { pct: 28,  tier: "ultra",    note: "Custom Sherwin-Williams color match — most expensive." },

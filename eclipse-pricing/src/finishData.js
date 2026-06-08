@@ -12,7 +12,7 @@ export const SPECIES_PCT = {
   "Rustic White Oak": 5, "Rustic Red Oak": 3, "Alder": 12, "Rustic Alder": 17, "Maple": 8,
   "Select Poplar": 8, "Paint (Std SW)": 18, "Paint (Trend)": 18,
   "Cherry": 10, "Rustic Maple": 13, "Rustic Cherry": 15,
-  "QS White Oak": 16, "Rift White Oak": 19, "Walnut": 20,
+  "QS White Oak": 16, "Rift Cut White Oak": 19, "Walnut": 20,
   "Custom Paint (SW)": 28, "Rustic Walnut": 25,
 };
 
@@ -48,7 +48,7 @@ export const FINISH_COLORS = (() => {
   o["Custom Paint (SW)"] = ["Custom"];
   o["Red Oak"] = o["Rustic Red Oak"] = ["Natural","Aqua","Autumn","Braun","Cadet","Espresso","Harbor","Harvest","Hudson","Medium","Moss","Silas","Sterling","Thyme","Wiley",...NE,...OW];
   o["QS White Oak"] = [...oakS,...NE];
-  o["Rift White Oak"] = [...oakS,...NE];
+  o["Rift Cut White Oak"] = [...oakS,...NE];
   o["White Oak"] = o["Rustic White Oak"] = [...oakS,...NE,...OW];
   o["Select Poplar"] = ["Carbon","Heatherstone","River Rock","Seagull"];
   o["American Poplar"] = ["Cadet","Harbor","Hudson","Moss","Sky","Sterling","Stratus","Thyme"];

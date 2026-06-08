@@ -33,7 +33,7 @@ console.log("\n═══ Pricing data exports ═══");
 
 assert(typeof SPECIES_UPCHARGE === "object" && Object.keys(SPECIES_UPCHARGE).length >= 10,
   `SPECIES_UPCHARGE has ${Object.keys(SPECIES_UPCHARGE).length} species (≥10)`);
-assert(SPECIES_UPCHARGE["Maple"].pct === 0, "Maple is baseline (0% upcharge)");
+assert(SPECIES_UPCHARGE["White Oak"].pct === 0, "White Oak is baseline (0% upcharge)");
 assert(SPECIES_UPCHARGE["Walnut"].pct > 0, "Walnut has positive upcharge");
 assert(SPECIES_UPCHARGE["TFL"].pct < 0, "TFL has negative upcharge (discount)");
 
@@ -72,9 +72,9 @@ console.log("\n═══ priceLineItem: basic ═══");
 
 const basic = priceLineItem({ listPrice: 600 });
 assert(basic.listPrice === 600, "Preserves listPrice");
-assert(basic.speciesUpcharge === 0, "Default species is Maple (0%)");
+assert(basic.speciesUpcharge === 0, "Default species is White Oak (0%)");
 assert(basic.constructionUpcharge === 0, "Default construction is Standard (0%)");
-assert(basic.cabinetPrice === 600, "Cabinet price equals list price with no upcharges");
+assert(basic.stockBase === 600, "Stock base equals list price with no upcharges");
 assert(basic.doorGroupCharge === 0, "No door group charge with no doors");
 assert(basic.totalPrice === 600, "Total equals list price for basic item");
 
@@ -89,18 +89,18 @@ const walnutPly = priceLineItem({
   listPrice: 1000,
   species: "Walnut",
   construction: "Plywood",
-  doorStyle: "Napa VG FP",
+  doorStyle: "NAPA-V",
   numDoors: 2,
 });
 
 // 1000 × 1.25 (Walnut) × 1.10 (Plywood) = 1375
-assert(walnutPly.speciesUpcharge === 25, "Walnut is 25% upcharge");
+assert(walnutPly.speciesUpcharge === 20, "Walnut is 20% upcharge");
 assert(walnutPly.constructionUpcharge === 10, "Plywood is 10% upcharge");
-assert(approx(walnutPly.cabinetPrice, 1375), `Cabinet price is $1375 (got $${walnutPly.cabinetPrice})`);
+assert(approx(walnutPly.stockBase, 1200), `Stock base is $1200 = 1000x1.20 (got $${walnutPly.stockBase})`);
 
 // Door: Napa VG FP = $3/door × 2 doors = $6
-assert(approx(walnutPly.doorGroupCharge, 6), `Door group charge is $6 (got $${walnutPly.doorGroupCharge})`);
-assert(approx(walnutPly.totalPrice, 1381), `Total is $1381 (got $${walnutPly.totalPrice})`);
+assert(approx(walnutPly.doorGroupCharge, 0), `Napa VG (group A) has no door charge (got $${walnutPly.doorGroupCharge})`);
+assert(approx(walnutPly.totalPrice, 1320), `Total is $1320 = 1200x1.10 (got $${walnutPly.totalPrice})`);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -111,9 +111,9 @@ console.log("\n═══ priceLineItem: TFL discount ═══");
 
 const tfl = priceLineItem({ listPrice: 500, species: "TFL" });
 // 500 × 0.85 = 425
-assert(tfl.speciesUpcharge === -15, "TFL is -15% (discount)");
-assert(approx(tfl.cabinetPrice, 425), `TFL cabinet price is $425 (got $${tfl.cabinetPrice})`);
-assert(approx(tfl.totalPrice, 425), `TFL total is $425 (got $${tfl.totalPrice})`);
+assert(tfl.speciesUpcharge === -25, "TFL is -25% (discount)");
+assert(approx(tfl.stockBase, 375), `TFL stock base is $375 (got $${tfl.stockBase})`);
+assert(approx(tfl.totalPrice, 375), `TFL total is $375 (got $${tfl.totalPrice})`);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -125,16 +125,16 @@ console.log("\n═══ priceLineItem: drawer upgrades ═══");
 const drawers = priceLineItem({
   listPrice: 600,
   species: "Maple",
-  drawerType: "5/8\" Hdwd Dovetail",
+  drawerType: "3/4\" Hdwd Dovetail",
   drawerGuide: "Blum Edge Guide",
   numDrawers: 3,
 });
 
 // Drawer: $15/drawer × 3 = $45
 // Guide: $5/drawer × 3 = $15
-assert(drawers.drawerCharge === 45, `Drawer charge $45 (got $${drawers.drawerCharge})`);
+assert(drawers.drawerCharge === 171, `Drawer charge $171 = 3/4 dovetail $57x3 (got $${drawers.drawerCharge})`);
 assert(drawers.guideCharge === 15, `Guide charge $15 (got $${drawers.guideCharge})`);
-assert(approx(drawers.totalPrice, 660), `Total $660 (got $${drawers.totalPrice})`);
+assert(approx(drawers.totalPrice, 834), `Total $834 = (648 + 171 + 15) (got $${drawers.totalPrice})`);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -168,7 +168,7 @@ const specResult = priceSpec({
   specId: "walnut_main",
   species: "Walnut",
   construction: "Standard",
-  doorStyle: "Hartford FP",
+  doorStyle: "HTFD",
   lineItems: [
     { sku: "B3D21", listPrice: 621, line: "w-1", numDoors: 0, numDrawers: 3 },
     { sku: "B3D18", listPrice: 561, line: "w-2", numDoors: 0, numDrawers: 3 },
@@ -185,10 +185,10 @@ assert(specResult.pricedItems.length === 3, "3 priced items returned");
 // Item 2: 561 × 1.25 = 701.25
 // Item 3: 761 × 1.25 = 951.25
 // Total: 2428.75
-assert(approx(specResult.pricedItems[0].cabinetPrice, 776.25),
-  `First item: $776.25 (got $${specResult.pricedItems[0].cabinetPrice})`);
-assert(approx(specResult.subtotal, 2428.75),
-  `Spec subtotal: $2428.75 (got $${specResult.subtotal})`);
+assert(approx(specResult.pricedItems[0].totalPrice, 745.2),
+  `First item: $745.20 = 621x1.20 (got $${specResult.pricedItems[0].totalPrice})`);
+assert(approx(specResult.subtotal, 2331.6),
+  `Spec subtotal: $2331.60 (got $${specResult.subtotal})`);
 assert(specResult.widthModWarning === null,
   "No width mod warning with no modifications");
 
@@ -234,12 +234,12 @@ assert(projectResult.specs.length === 2, "2 specs in project");
 // Walnut: 681 × 1.25 × 2 = 1702.50
 // Maple:  420 × 1.00 × 2 = 840.00
 // Spec subtotal: 2542.50
-assert(approx(projectResult.specs[0].subtotal, 1702.50),
-  `Walnut spec: $1702.50 (got $${projectResult.specs[0].subtotal})`);
-assert(approx(projectResult.specs[1].subtotal, 840),
-  `Maple spec: $840 (got $${projectResult.specs[1].subtotal})`);
-assert(approx(projectResult.specSubtotal, 2542.50),
-  `Spec subtotal: $2542.50 (got $${projectResult.specSubtotal})`);
+assert(approx(projectResult.specs[0].subtotal, 1634.4),
+  `Walnut spec: $1634.40 = 681x1.20x2 (got $${projectResult.specs[0].subtotal})`);
+assert(approx(projectResult.specs[1].subtotal, 907.2),
+  `Maple spec: $907.20 = 420x1.08x2 (got $${projectResult.specs[1].subtotal})`);
+assert(approx(projectResult.specSubtotal, 2541.6),
+  `Spec subtotal: $2541.60 (got $${projectResult.specSubtotal})`);
 
 // Accessories: (180 × 2) + (35 × 1) = 395
 assert(approx(projectResult.accessoryTotal, 395),
@@ -250,8 +250,8 @@ assert(approx(projectResult.touchUpCost, 35),
   `Touch-up: $35 (got $${projectResult.touchUpCost})`);
 
 // Project total: 2542.50 + 395 + 35 = 2972.50
-assert(approx(projectResult.projectTotal, 2972.50),
-  `Project total: $2972.50 (got $${projectResult.projectTotal})`);
+assert(approx(projectResult.projectTotal, 2971.6),
+  `Project total: $2971.60 (got $${projectResult.projectTotal})`);
 
 assert(projectResult.warnings.length === 0, "No warnings for clean project");
 
@@ -313,10 +313,10 @@ const riftOak = priceLineItem({
 });
 
 // 1200 × 1.20 × 1.00 = 1440 + (5.00 × 2) = 1450
-assert(riftOak.speciesUpcharge === 20, "Rift Cut White Oak is 20% upcharge");
-assert(approx(riftOak.cabinetPrice, 1440), `Rift Oak cabinet: $1440 (got $${riftOak.cabinetPrice})`);
-assert(approx(riftOak.doorGroupCharge, 10), `Reeded Panel door charge: $10 (got $${riftOak.doorGroupCharge})`);
-assert(approx(riftOak.totalPrice, 1450), `Total: $1450 (got $${riftOak.totalPrice})`);
+assert(riftOak.speciesUpcharge === 19, "Rift Cut White Oak is 19% upcharge");
+assert(approx(riftOak.stockBase, 1428), `Rift Oak stock base: $1428 = 1200x1.19 (got $${riftOak.stockBase})`);
+assert(approx(riftOak.doorGroupCharge, 88), `Reeded Malibu (group B) $44x2 = $88 (got $${riftOak.doorGroupCharge})`);
+assert(approx(riftOak.totalPrice, 1516), `Total: $1516 = (1428 + 88) (got $${riftOak.totalPrice})`);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -329,7 +329,7 @@ const fullStack = priceLineItem({
   listPrice: 969,
   species: "Walnut",
   construction: "Plywood",
-  doorStyle: "Ward FP",
+  doorStyle: "WARD",
   numDoors: 1,
   drawerType: "3/4\" Hdwd Dovetail",
   drawerGuide: "Blum Edge Guide",
@@ -346,18 +346,18 @@ const fullStack = priceLineItem({
 // Guide: 5 × 2 = 10
 // Mods: 45 + 35 = 80
 // Total: 1332.375 + 3.50 + 44 + 10 + 80 = 1469.875 → 1469.88
-assert(approx(fullStack.cabinetPrice, 1332.38, 0.02),
-  `Full stack cabinet: $1332.38 (got $${fullStack.cabinetPrice})`);
-assert(approx(fullStack.doorGroupCharge, 3.50),
-  `Door charge: $3.50 (got $${fullStack.doorGroupCharge})`);
-assert(approx(fullStack.drawerCharge, 44),
-  `Drawer charge: $44 (got $${fullStack.drawerCharge})`);
+assert(approx(fullStack.stockBase, 1162.8, 0.02),
+  `Full stack stock base: $1162.80 = 969x1.20 (got $${fullStack.stockBase})`);
+assert(approx(fullStack.doorGroupCharge, 0),
+  `Ward (group A) has no door charge (got $${fullStack.doorGroupCharge})`);
+assert(approx(fullStack.drawerCharge, 114),
+  `Drawer charge: $57x2 = $114 (got $${fullStack.drawerCharge})`);
 assert(approx(fullStack.guideCharge, 10),
   `Guide charge: $10 (got $${fullStack.guideCharge})`);
 assert(approx(fullStack.modCharge, 80),
   `Mod charge: $80 (got $${fullStack.modCharge})`);
-assert(approx(fullStack.totalPrice, 1469.88, 0.02),
-  `Full stack total: $1469.88 (got $${fullStack.totalPrice})`);
+assert(approx(fullStack.totalPrice, 1503.48, 0.02),
+  `Full stack total: $1503.48 = (1162.8 + 114 + 10 + 80) x1.10 (got $${fullStack.totalPrice})`);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -425,7 +425,7 @@ const bolliniEstimate = estimateProject({
   cabinetCount: 39,
   species: "Walnut",
   construction: "Standard",
-  doorStyle: "Hartford FP",
+  doorStyle: "HTFD",
 });
 
 assert(bolliniEstimate.midEstimate > loftonEstimate.midEstimate,
@@ -531,9 +531,9 @@ assert(finIntEntry.cost === 40, "FINISHED INT cost is $40");
 
 // Total price: base × species × construction + door charge + mod charge
 // 350 × 1.25 × 1.10 = 481.25 + 0 (door charge) + 60 (mods) = 541.25
-const expectedBase = 350 * 1.25 * 1.10;
-assert(Math.abs(displayCabPrice.totalPrice - (expectedBase + 60)) < 0.01,
-  `Total price correct: $${(expectedBase + 60).toFixed(2)} (got $${displayCabPrice.totalPrice})`);
+const expectedTotal = (350 * 1.20 + 60) * 1.10;   // cp(): (base x species + mods) x plywood
+assert(Math.abs(displayCabPrice.totalPrice - expectedTotal) < 0.01,
+  `Total price correct: $${expectedTotal.toFixed(2)} (got $${displayCabPrice.totalPrice})`);
 
 // SA corner cab with GFD + FINISHED INT + PWL (stacked wall angle at very_high)
 const saPrice = priceLineItem({
@@ -588,8 +588,8 @@ assert(totalModsInSpec === 75,
 const item1Price = specWithMods.pricedItems[0].totalPrice;
 const item2Price = specWithMods.pricedItems[1].totalPrice;
 assert(item2Price > item1Price, `GFD cab ($${item2Price}) costs more than plain cab ($${item1Price})`);
-assert(Math.abs(item2Price - item1Price - 60) < 0.01,
-  `Price difference is exactly $60 (mods) (got $${(item2Price - item1Price).toFixed(2)})`);
+assert(Math.abs(item2Price - item1Price - 66) < 0.01,
+  `Price difference is $66 = $60 mods x 1.10 plywood (got $${(item2Price - item1Price).toFixed(2)})`);
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -692,8 +692,8 @@ assert(totalCatsCount > 0, `Categories have items (total count: ${totalCatsCount
 // Test: species surcharge reflects Walnut
 assert(summary.speciesSurcharge.species === "Walnut",
   `Species surcharge shows Walnut (got ${summary.speciesSurcharge.species})`);
-assert(summary.speciesSurcharge.pct === 25,
-  `Walnut upcharge is 25% (got ${summary.speciesSurcharge.pct}%)`);
+assert(summary.speciesSurcharge.pct === 20,
+  `Walnut upcharge is 20% (got ${summary.speciesSurcharge.pct}%)`);
 
 // Test: construction surcharge reflects Plywood
 assert(summary.constructionSurcharge.construction === "Plywood",
