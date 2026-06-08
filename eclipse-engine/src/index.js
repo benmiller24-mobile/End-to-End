@@ -42,6 +42,7 @@
  */
 
 // Core solver + pattern selection + comparison quotes
+export { recommendAppliances } from './appliance-recommender.js';
 export { solve, selectTallPattern, selectUpperPattern, selectGlassStyle, selectMullionPattern, resolveTwoTone, applyDrawerUpgrades, scoreCornerEfficiency, scoreAesthetics, generateComparisonQuotes, scoreAgainstTraining } from './solver.js';
 
 // Constraints — Layer 1 (NKBA) and Layer 2 (Eclipse catalog rules)

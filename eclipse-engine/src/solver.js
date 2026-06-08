@@ -125,6 +125,7 @@ import {
   calculateIslandClearances,
   ISLAND_CONSTANTS,
 } from './island-solver.js';
+import { recommendAppliances } from './appliance-recommender.js';
 
 import {
   calculateSeatingLayout,
@@ -1612,6 +1613,7 @@ export function solve(input) {
   return {
     layoutType,
     roomType,
+    applianceRecommendation: recommendAppliances({ layoutType, walls, island: islandLayout }),
     _inputWalls: walls,
     _spatialModel: spatialModel,     // expose for renderer
     _3dModel,                        // OCP solid geometry validation
