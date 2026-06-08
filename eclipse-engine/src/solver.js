@@ -125,7 +125,7 @@ import {
   calculateIslandClearances,
   ISLAND_CONSTANTS,
 } from './island-solver.js';
-import { recommendAppliances } from './appliance-recommender.js';
+import { recommendAppliances, applyRecommendation } from './appliance-recommender.js';
 
 import {
   calculateSeatingLayout,
@@ -360,6 +360,11 @@ const PRO_DESIGN = {
 export function solve(input) {
   const { walls, island, peninsula, appliances = [], prefs = {} } = input;
   const layoutType = input.layoutType || inferLayoutType(walls, !!peninsula, !!island);
+  // Opt-in: snap cooking-appliance widths to the layout recommendation (default off).
+  let _applianceApplied = [];
+  if (input.applyApplianceRec || (prefs && prefs.applyApplianceRec)) {
+    _applianceApplied = applyRecommendation(appliances, walls, recommendAppliances({ layoutType, walls, island }));
+  }
   const roomType = input.roomType || "kitchen";
   const roomDef = ROOM_TYPES[roomType] || ROOM_TYPES.kitchen;
   const golaPrefix = prefs.golaChannel ? "FC-" : "";
@@ -1613,7 +1618,7 @@ export function solve(input) {
   return {
     layoutType,
     roomType,
-    applianceRecommendation: recommendAppliances({ layoutType, walls, island: islandLayout }),
+    applianceRecommendation: (() => { const _r = recommendAppliances({ layoutType, walls, island: islandLayout }); _r.applied = _applianceApplied; return _r; })(),
     _inputWalls: walls,
     _spatialModel: spatialModel,     // expose for renderer
     _3dModel,                        // OCP solid geometry validation

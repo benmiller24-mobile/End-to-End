@@ -181,4 +181,38 @@ export function recommendAppliances(ctx = {}) {
   };
 }
 
+/**
+ * Opt-in: snap the cooking appliance's WIDTH to the recommendation, but only when the
+ * host wall can hold it with 9" of flanking each side (NKBA). Mutates appliance.width
+ * in place (the caller passes the solver's working appliance list) and returns the list
+ * of changes. Never changes appliance TYPE — only the width — and never makes an
+ * appliance that already fits worse. Default-off; called only behind `applyApplianceRec`.
+ *
+ * @param {Array} appliances  [{type, width, wall, ...}]
+ * @param {Array} walls       [{id, length}]
+ * @param {Object} rec        output of recommendAppliances()
+ * @returns {Array} changes   [{type, wall, from, to}]
+ */
+export function applyRecommendation(appliances, walls, rec) {
+  if (!rec || !Array.isArray(appliances)) return [];
+  const target = rec.cooking && rec.cooking.type === 'range' ? (rec.cooking.width || 36) : 36;
+  const wallLen = (id) => {
+    const w = (walls || []).find(x => x.id === id);
+    return w ? (w.length || 0) : Infinity; // unknown wall → don't block
+  };
+  const changes = [];
+  for (const a of appliances) {
+    if (a.type !== 'range' && a.type !== 'cooktop') continue;
+    const len = wallLen(a.wall);
+    const fits = (w) => len >= w + 18; // 9" flanking each side
+    let newW = a.width;
+    if (fits(target)) newW = target;
+    else if (!fits(a.width)) {
+      for (const w of [48, 36, 30, 24]) { if (fits(w)) { newW = w; break; } } // step down to fit
+    }
+    if (newW !== a.width) { changes.push({ type: a.type, wall: a.wall, from: a.width, to: newW }); a.width = newW; }
+  }
+  return changes;
+}
+
 export default recommendAppliances;
