@@ -17,7 +17,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { solve, scoreAgainstTraining } from '../../eclipse-engine/src/solver.js';
 import {
   findSku, searchSkus, calculateLayoutPrice, formatCurrency,
-  SPECIES_PCT, CONSTRUCTION_PCT, DOORS, DRAWER_FRONTS, DRAWER_BOXES,
+  SPECIES_PCT, CONSTRUCTION_PCT, DOORS, DRAWER_FRONTS, DRAWER_BOXES, FINISH_COLORS,
   guessDoors, guessDrawerCount, guessBuiltInROT,
 } from '../../eclipse-pricing/src/index.js';
 
@@ -944,7 +944,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {/* Elevations tab */}
       {tab === 'elevations' && (
         <div>
-          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} />
+          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} />
           {/* Tag SVGs for PDF export */}
           <style>{`[data-pdf="elevation"] { /* marker */ }`}</style>
         </div>
@@ -1387,7 +1387,7 @@ export default function App() {
 
   // Materials
   const [materials, setMaterials] = useState({
-    species: 'Maple', door: 'MET-V', construction: 'Standard', islandSpecies: '',
+    species: 'Maple', door: 'MET-V', construction: 'Standard', islandSpecies: '', finishColor: 'Natural',
   });
 
   // Appliance selections
@@ -1557,13 +1557,22 @@ export default function App() {
 
                   <div style={{ marginBottom: 10 }}>
                     <label style={labelStyle}>Species {speciesPct !== 0 && <span style={{ color: speciesPct > 0 ? C.warn : C.accent }}>({speciesPct > 0 ? '+' : ''}{speciesPct}%)</span>}</label>
-                    <select value={materials.species} onChange={e => setMaterials(m => ({ ...m, species: e.target.value }))} style={inputStyle}>
+                    <select value={materials.species} onChange={e => { const sp = e.target.value; const cols = FINISH_COLORS[sp] || []; setMaterials(m => ({ ...m, species: sp, finishColor: cols.includes(m.finishColor) ? m.finishColor : (cols[0] || '') })); }} style={inputStyle}>
                       {speciesNames.map(s => {
                         const pct = SPECIES_PCT[s];
                         return <option key={s} value={s}>{s}{pct !== 0 ? ` (${pct > 0 ? '+' : ''}${pct}%)` : ''}</option>;
                       })}
                     </select>
                   </div>
+
+                  {(FINISH_COLORS[materials.species] || []).length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={labelStyle}>Finish Color</label>
+                    <select value={materials.finishColor || ''} onChange={e => setMaterials(m => ({ ...m, finishColor: e.target.value }))} style={inputStyle}>
+                      {(FINISH_COLORS[materials.species] || []).map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  )}
 
                   <div style={{ marginBottom: 10 }}>
                     <label style={labelStyle}>Door Style {doorInfo && <span style={{ color: C.dim }}>(Group {doorInfo.g})</span>}</label>

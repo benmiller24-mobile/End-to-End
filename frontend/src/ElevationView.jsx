@@ -814,7 +814,7 @@ function LightRailSegment({ x1, x2, y }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -911,7 +911,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       style={{ width: '100%', height: 'auto', maxHeight: 620, background: C.bg, borderRadius: 4, marginBottom: 20 }}
       xmlns="http://www.w3.org/2000/svg">
 
-      <MaterialDefs sfx={sfx} species={species} stone={stone} />
+      <MaterialDefs sfx={sfx} species={species} stone={stone} finishColor={finishColor} />
 
       {/* ══════════ TITLE BLOCK (NKBA Ch.2 Fig 2.2 style) ══════════ */}
       <g>
@@ -1273,6 +1273,20 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           </g>
         );
       })()}
+
+      {/* ══════════ AMBIENT OCCLUSION (soft contact shadows) ══════════ */}
+      {validBases.length > 0 && (() => {
+        const minX = Math.min(...sortedBases.map(b => b.position));
+        const maxX = Math.max(...sortedBases.map(b => b.position + b.width));
+        return (
+          <rect x={minX * S} y={baseTopY} width={(maxX - minX) * S} height={3.5 * S}
+            fill={`url(#aoDown-${sfx})`} opacity={0.16} pointerEvents="none" />
+        );
+      })()}
+      {railSegs.map((seg, i) => (
+        <rect key={`aoU${i}`} x={seg.s * S} y={upBotY} width={(seg.e - seg.s) * S} height={5 * S}
+          fill={`url(#aoDown-${sfx})`} opacity={0.13} pointerEvents="none" />
+      ))}
 
       {/* ══════════ CEILING TREATMENT ══════════ */}
       {/* Three strategies (research: DreamLine / Toulmin / Main Line Kitchen Design):
@@ -1685,7 +1699,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
-export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null }) {
   const styleSpec = doorStyleSpec(doorStyle);
   const stone = classifyStone(countertopColor);
   if (!solverResult) return null;
@@ -1799,6 +1813,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             styleSpec={styleSpec}
             species={species}
             stone={stone}
+            finishColor={finishColor}
           />
         );
       })}

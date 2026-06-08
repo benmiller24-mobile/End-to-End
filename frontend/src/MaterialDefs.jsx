@@ -1,4 +1,16 @@
 import React from 'react';
+import textureManifest from './textureManifest.json';
+
+// Real Cyncly finish photo for a species + finish color (else null → procedural).
+const _cn = (x) => (x || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+export function textureURL(species, finishColor) {
+  const sp = textureManifest[species];
+  if (!sp) return null;
+  const k = _cn(finishColor);
+  if (k && sp[k]) return '/textures/' + sp[k];
+  const first = Object.values(sp)[0];          // representative swatch for the species
+  return first ? '/textures/' + first : null;
+}
 
 // ════════════════════════════════════════════════════════════════════════
 // MaterialDefs — rich (PRONORM-style) SVG <pattern>/<gradient> fills for
@@ -122,56 +134,69 @@ function WoodPattern({ sfx, tone }) {
 
 // ── Stone <pattern> per type ────────────────────────────────────────────
 function StonePattern({ sfx, stone }) {
-  const W = 120, H = 120;
+  const W = 160, H = 160;
   const base = stone.base, type = stone.type;
-  const r = rng(hashStr(sfx + base) || 11);
-  const marks = [];
-  if (type === 'marble') {
-    const vein = lum(base) > 0.6 ? '#b9b3a8' : shade(base, 0.35);
-    const gold = '#c9b079';
-    for (let v = 0; v < 4; v++) {
-      const y0 = r() * H; let d = `M ${-5} ${y0.toFixed(1)}`;
-      let x = -5, y = y0;
-      for (let k = 0; k < 5; k++) { x += W / 4 + (r() - 0.5) * 16; y += (r() - 0.5) * 34; d += ` Q ${(x - 12).toFixed(1)} ${(y - 10).toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`; }
-      marks.push(<path key={`v${v}`} d={d} fill="none" stroke={v === 1 ? gold : vein} strokeWidth={(0.6 + r() * 1.1).toFixed(2)} opacity={(0.22 + r() * 0.2).toFixed(2)} />);
-      // hairline branches
-      marks.push(<path key={`v${v}b`} d={d} fill="none" stroke={vein} strokeWidth={0.3} opacity={0.12} transform={`translate(${(r()*8-4).toFixed(1)},${(r()*8-4).toFixed(1)})`} />);
-    }
-  } else if (type === 'quartz') {
-    const dk = shade(base, -0.18), lt = shade(base, 0.28);
-    for (let i = 0; i < 170; i++) {
-      const cx = r() * W, cy = r() * H, rr = 0.3 + r() * 0.9;
-      marks.push(<circle key={`s${i}`} cx={cx.toFixed(1)} cy={cy.toFixed(1)} r={rr.toFixed(2)} fill={r() > 0.5 ? dk : lt} opacity={(0.12 + r() * 0.18).toFixed(2)} />);
-    }
-  } else { // concrete / dark / solid
-    const dk = shade(base, -0.12), lt = shade(base, 0.12);
-    for (let i = 0; i < 8; i++) {
-      const cx = r() * W, cy = r() * H, rx = 14 + r() * 30, ry = 10 + r() * 22;
-      marks.push(<ellipse key={`m${i}`} cx={cx.toFixed(1)} cy={cy.toFixed(1)} rx={rx.toFixed(1)} ry={ry.toFixed(1)} fill={r() > 0.5 ? dk : lt} opacity={0.1} />);
-    }
-  }
+  const seed = (hashStr(sfx + base) % 90) + 1;
+  // Per-type feTurbulence params: [baseFreqX, baseFreqY, octaves, alphaSlope, opacity]
+  const P = {
+    marble:   [0.015, 0.022, 5, -2.4, 0.55],
+    quartz:   [0.085, 0.085, 3, -3.2, 0.45],
+    concrete: [0.012, 0.012, 4, -1.4, 0.35],
+    dark:     [0.020, 0.026, 5, -2.0, 0.45],
+    solid:    [0.010, 0.010, 3, -1.2, 0.25],
+  }[type] || [0.05, 0.05, 3, -2.5, 0.4];
+  const [bfx, bfy, oct, slope, op] = P;
+  const veinColor = type === 'marble'
+    ? (lum(base) > 0.6 ? shade(base, -0.32) : shade(base, 0.4))
+    : shade(base, lum(base) > 0.5 ? -0.22 : 0.25);
+  const fxId = `stonefx-${sfx}`;
   return (
-    <pattern id={`stone-${sfx}`} patternUnits="userSpaceOnUse" width={W} height={H}>
-      <rect x="0" y="0" width={W} height={H} fill={`url(#stonegrad-${sfx})`} />
-      {marks}
-    </pattern>
+    <>
+      <filter id={fxId} x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency={`${bfx} ${bfy}`} numOctaves={oct} seed={seed} result="n" />
+        <feColorMatrix in="n" type="matrix"
+          values={`0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${slope} 1.05`} result="a" />
+        <feFlood floodColor={veinColor} result="c" />
+        <feComposite in="c" in2="a" operator="in" />
+      </filter>
+      <pattern id={`stone-${sfx}`} patternUnits="userSpaceOnUse" width={W} height={H}>
+        <rect x="0" y="0" width={W} height={H} fill={`url(#stonegrad-${sfx})`} />
+        <rect x="0" y="0" width={W} height={H} filter={`url(#${fxId})`} opacity={op} />
+      </pattern>
+    </>
   );
 }
 
-export function MaterialDefs({ sfx, species, stone }) {
+export function MaterialDefs({ sfx, species, stone, finishColor }) {
   const tone = speciesTone(species);
   const st = stone || { type: 'quartz', base: '#e9e6e1' };
   const sBaseLt = shade(st.base, 0.06), sBaseDk = shade(st.base, -0.08);
   return (
     <defs>
-      {/* wood vertical sheen */}
-      <linearGradient id={`woodgrad-${sfx}`} x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stopColor={tone.dark} />
-        <stop offset="0.35" stopColor={tone.base} />
-        <stop offset="0.6" stopColor={tone.light} />
-        <stop offset="1" stopColor={tone.base} />
-      </linearGradient>
-      <WoodPattern sfx={sfx} tone={tone} />
+      {/* wood: real Cyncly finish photo when available, else procedural grain */}
+      {(() => {
+        const tex = textureURL(species, finishColor);
+        if (tex) {
+          // square swatch tiled at ~36" so a door shows most of one photo
+          const T = 80;
+          return (
+            <pattern id={`wood-${sfx}`} patternUnits="userSpaceOnUse" width={T} height={T}>
+              <image href={tex} x="0" y="0" width={T} height={T} preserveAspectRatio="xMidYMid slice" />
+            </pattern>
+          );
+        }
+        return (
+          <>
+            <linearGradient id={`woodgrad-${sfx}`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stopColor={tone.dark} />
+              <stop offset="0.35" stopColor={tone.base} />
+              <stop offset="0.6" stopColor={tone.light} />
+              <stop offset="1" stopColor={tone.base} />
+            </linearGradient>
+            <WoodPattern sfx={sfx} tone={tone} />
+          </>
+        );
+      })()}
       {/* stone base sheen */}
       <linearGradient id={`stonegrad-${sfx}`} x1="0" y1="0" x2="0.4" y2="1">
         <stop offset="0" stopColor={sBaseLt} />
@@ -179,6 +204,11 @@ export function MaterialDefs({ sfx, species, stone }) {
         <stop offset="1" stopColor={sBaseDk} />
       </linearGradient>
       <StonePattern sfx={sfx} stone={st} />
+      {/* ambient-occlusion gradient: dark at an edge → transparent (light from top) */}
+      <linearGradient id={`aoDown-${sfx}`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#000000" stopOpacity="0.55" />
+        <stop offset="1" stopColor="#000000" stopOpacity="0" />
+      </linearGradient>
       {/* brushed stainless */}
       <linearGradient id={`steel-${sfx}`} x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stopColor="#c4c8cc" />
