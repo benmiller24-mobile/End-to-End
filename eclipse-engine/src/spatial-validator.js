@@ -154,7 +154,8 @@ export function validateCornerAnchoring(wallLayouts, corners) {
     if (wallA) {
       const cornerEdgeA = wallA.wallLength - corner.wallAConsumption;
       const wallACabs = (wallA.cabinets || [])
-        .filter(c => typeof c.position === 'number' && c.type !== 'end_panel')
+        .filter(c => typeof c.position === 'number' && c.type !== 'end_panel'
+          && c.type !== 'appliance' && c.role !== 'corner-filler')
         .sort((a, b) => a.position - b.position);
 
       // Find the cabinet closest to the corner edge
@@ -196,7 +197,8 @@ export function validateCornerAnchoring(wallLayouts, corners) {
     if (wallB) {
       const cornerEdgeB = corner.wallBConsumption;
       const wallBCabs = (wallB.cabinets || [])
-        .filter(c => typeof c.position === 'number' && c.type !== 'end_panel')
+        .filter(c => typeof c.position === 'number' && c.type !== 'end_panel'
+          && c.type !== 'appliance' && c.role !== 'corner-filler')
         .sort((a, b) => a.position - b.position);
 
       if (wallBCabs.length > 0) {

@@ -2253,13 +2253,10 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
       curr.position_start = prevEnd;
       curr.position_end = prevEnd + (curr.width || 0);
     }
-    // Gap 1-6": insert a filler to close
-    else if (delta > 1 && delta <= 6) {
-      const fillerSku = delta <= 3
-        ? 'OVF3'
-        : `F${Math.ceil(delta)}30`;
+    // Gap 1-3": insert a standard 3"-max filler to close.
+    else if (delta > 1 && delta <= 3) {
       cabinets.splice(i, 0, {
-        sku: fillerSku,
+        sku: 'OVF3',
         width: delta,
         type: "filler",
         role: "chain_filler",
@@ -2269,6 +2266,32 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
         _chainEnforced: true,
       });
       i++; // skip inserted filler
+    }
+    // Gap 3-6": exceeds the 3" max single filler width. There is no >3" filler in the
+    // catalog, so absorb the gap into an adjacent made-to-order cabinet via a MOD WIDTH
+    // (prefer the previous real cabinet, else the next). Keeps run length identical
+    // (no overflow) and avoids fabricating an invalid wide filler (e.g. the old F630).
+    else if (delta > 3 && delta <= 6) {
+      const isModifiable = (c) => c && c.sku && c.type !== 'filler' &&
+        c.type !== 'end_panel' && c.type !== 'appliance' && c.role !== 'corner-filler';
+      if (isModifiable(prev)) {
+        prev.width = (prev.width || 0) + delta;
+        prev.position_end = prevEnd + delta;
+        prev._modWidth = (prev._modWidth || 0) + delta;
+      } else if (isModifiable(curr)) {
+        curr.width = (curr.width || 0) + delta;
+        curr.position = prevEnd;
+        curr.position_start = prevEnd;
+        curr.position_end = prevEnd + (curr.width || 0);
+        curr._modWidth = (curr._modWidth || 0) + delta;
+      } else {
+        cabinets.splice(i, 0, {
+          sku: 'OVF3', width: Math.min(delta, 3), type: "filler", role: "chain_filler",
+          position: prevEnd, position_start: prevEnd, position_end: prevEnd + Math.min(delta, 3),
+          _chainEnforced: true,
+        });
+        i++;
+      }
     }
     // Gap > 6": this is an appliance segment boundary — leave it but log
   }

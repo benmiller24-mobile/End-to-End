@@ -317,59 +317,57 @@ export function enforceFillerRule(wallLayout, golaPrefix = '') {
   const { cabinets } = wallLayout;
   const warnings = [];
 
+  // Any base-run/wall cabinet can absorb a width MOD — not just type==='base'.
+  const isAbsorbable = (c) => c && c.sku && c.type !== 'filler' &&
+    c.type !== 'end_panel' && c.type !== 'appliance' && c.role !== 'corner-filler' &&
+    c.role !== 'blind_corner' && typeof c.width === 'number';
+  const widen = (adj, addW) => {
+    const oldW = adj.width || 0;
+    const take = Math.min(addW, MAX_CAB_WIDTH - oldW);
+    if (take <= 0.01) return 0;
+    const newW = oldW + take;
+    const pctChange = take / oldW;
+    adj.width = newW;
+    adj.sku = rebuildSku(adj.sku, newW, golaPrefix);
+    adj.position_end = (adj.position_start || adj.position || 0) + newW;
+    adj.modified = { type: pctChange <= MOD_FREE_PCT ? 'MOD WIDTH N/C' : 'MOD/SQ30', original: oldW, modified: newW };
+    return take;
+  };
+
   for (let i = 0; i < cabinets.length; i++) {
     const cab = cabinets[i];
     if (cab.type !== 'filler' || cab.width <= MAX_FILLER) continue;
 
-    // Found an oversized filler — try to absorb into adjacent base cabinets
+    // Oversized filler (>3" — no such piece exists in the catalog). Absorb the excess
+    // into the nearest modifiable cabinet(s) scanning outward in both directions.
     const gap = cab.width;
-    const left = i > 0 ? cabinets[i - 1] : null;
-    const right = i < cabinets.length - 1 ? cabinets[i + 1] : null;
+    let li = i - 1; while (li >= 0 && !isAbsorbable(cabinets[li])) li--;
+    let ri = i + 1; while (ri < cabinets.length && !isAbsorbable(cabinets[ri])) ri++;
+    const left = li >= 0 ? cabinets[li] : null;
+    const right = ri < cabinets.length ? cabinets[ri] : null;
 
-    const leftIsBase = left && left.type === 'base';
-    const rightIsBase = right && right.type === 'base';
+    let absorbed = 0;
+    if (left && right) {
+      absorbed += widen(left, Math.ceil(gap / 2));
+      absorbed += widen(right, gap - absorbed);
+    } else if (left || right) {
+      absorbed += widen(left || right, gap);
+    }
 
-    if (leftIsBase && rightIsBase) {
-      // Split between two adjacent cabinets
-      const halfGap = gap / 2;
-      for (const [adj, addW] of [[left, Math.ceil(halfGap)], [right, Math.floor(halfGap)]]) {
-        const oldW = adj.width;
-        const newW = oldW + addW;
-        if (newW <= MAX_CAB_WIDTH) {
-          const pctChange = addW / oldW;
-          adj.width = newW;
-          adj.sku = rebuildSku(adj.sku, newW, golaPrefix);
-          adj.position_end = (adj.position_start || adj.position || 0) + newW;
-          adj.modified = {
-            type: pctChange <= MOD_FREE_PCT ? 'MOD WIDTH N/C' : 'MOD/SQ30',
-            original: oldW, modified: newW,
-          };
-        }
-      }
-      // Remove the filler
-      cabinets.splice(i, 1);
-      i--; // re-check from same index
-      warnings.push(`Absorbed ${gap}" filler into adjacent cabinets (split)`);
-    } else if (leftIsBase || rightIsBase) {
-      // Absorb into one adjacent cabinet
-      const adj = leftIsBase ? left : right;
-      const oldW = adj.width;
-      const newW = oldW + gap;
-      if (newW <= MAX_CAB_WIDTH) {
-        const pctChange = gap / oldW;
-        adj.width = newW;
-        adj.sku = rebuildSku(adj.sku, newW, golaPrefix);
-        adj.position_end = (adj.position_start || adj.position || 0) + newW;
-        adj.modified = {
-          type: pctChange <= MOD_FREE_PCT ? 'MOD WIDTH N/C' : 'MOD/SQ30',
-          original: oldW, modified: newW,
-        };
-        cabinets.splice(i, 1);
-        i--;
-        warnings.push(`Absorbed ${gap}" filler into ${oldW}" cab → ${newW}" (${adj.modified.type})`);
-      }
+    const remaining = +(gap - absorbed).toFixed(2);
+    if (remaining <= 0.5) {
+      cabinets.splice(i, 1); i--; // fully absorbed — drop the filler
+      warnings.push(`Absorbed ${gap}" filler into adjacent cabinet(s)`);
+    } else if (remaining <= MAX_FILLER) {
+      cab.width = remaining; cab.sku = 'OVF3'; // residual fits a standard 3"-max filler
+      cab.position_end = (cab.position_start || cab.position || 0) + remaining;
+      warnings.push(`Absorbed ${absorbed}" of ${gap}" filler; ${remaining}" OVF3 remains`);
     } else {
-      warnings.push(`Cannot absorb ${gap}" filler — no adjacent base cabinets`);
+      // No adjacent cabinet capacity (e.g. between two appliances): never emit an
+      // invalid >3" filler — clamp to the 3" max and flag the residual gap.
+      cab.width = MAX_FILLER; cab.sku = 'OVF3';
+      cab.position_end = (cab.position_start || cab.position || 0) + MAX_FILLER;
+      warnings.push(`Clamped ${gap}" filler to ${MAX_FILLER}" — insufficient adjacent cabinet capacity`);
     }
   }
 
