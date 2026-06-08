@@ -1215,18 +1215,67 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         );
       })()}
 
-      {/* ══════════ CROWN MOLDING ══════════ */}
-      {/* Sits on the ACTUAL top of each upper run; capped so it stops ~1/4" below
-          the ceiling (NKBA: crown never touches the ceiling). Omitted for slab/
-          modern door styles, which take a clean straight fill to the ceiling. */}
-      {trim.crown && styleSpec.panel !== 'slab' && upperSegs.map((seg, i) => {
-        const ceilGapY = ceilY + 0.25 * S;                 // 1/4" below the ceiling line
-        const crownBotY = seg.topY != null ? seg.topY : (upTopY);   // upper top
-        const crownTopY = Math.max(ceilGapY, crownBotY - CROWN_H * S);
-        const h = crownBotY - crownTopY;
-        if (h < 1) return null;
-        return <CrownSegment key={`cr${i}`} x1={seg.s * S} x2={seg.e * S} y={crownTopY} height={h} />;
-      })}
+      {/* ══════════ CEILING TREATMENT ══════════ */}
+      {/* Three strategies (research: DreamLine / Toulmin / Main Line Kitchen Design):
+          • 'crown'  — crown molding on the cabinet top, stopping ~1/4" below the
+                       ceiling (NKBA: crown never touches the ceiling). Omitted for
+                       slab/modern door styles.
+          • 'fitted' — cabinets FITTED to the ceiling: a flat riser/filler panel
+                       bridges the gap from the cabinet top up to the ceiling, with a
+                       thin scribe at the ceiling line to absorb out-of-level. No gap.
+          • 'open'   — UNFITTED: open reveal above the cabinets (storage/display gap),
+                       no crown, no panel. */}
+      {(() => {
+        const fit = trim.ceilingFit || (trim.crown ? 'crown' : 'open');
+
+        if (fit === 'crown' && styleSpec.panel !== 'slab') {
+          return upperSegs.map((seg, i) => {
+            const ceilGapY = ceilY + 0.25 * S;                 // 1/4" below the ceiling line
+            const crownBotY = seg.topY != null ? seg.topY : (upTopY);
+            const crownTopY = Math.max(ceilGapY, crownBotY - CROWN_H * S);
+            const h = crownBotY - crownTopY;
+            if (h < 1) return null;
+            return <CrownSegment key={`cr${i}`} x1={seg.s * S} x2={seg.e * S} y={crownTopY} height={h} />;
+          });
+        }
+
+        if (fit === 'fitted') {
+          return upperSegs.map((seg, i) => {
+            const panelBotY = seg.topY != null ? seg.topY : upTopY;  // cabinet top
+            const panelTopY = ceilY;                                  // up to the ceiling
+            const h = panelBotY - panelTopY;
+            if (h < 2) return null;
+            const x = seg.s * S, w = (seg.e - seg.s) * S;
+            return (
+              <g key={`fit${i}`}>
+                {/* flat riser / filler panel to the ceiling */}
+                <rect x={x} y={panelTopY} width={w} height={h}
+                  fill={C.fillerFill} stroke={C.line} strokeWidth={0.5} />
+                {/* scribe line tight to the ceiling (absorbs out-of-level) */}
+                <line x1={x} y1={panelTopY + 0.5} x2={x + w} y2={panelTopY + 0.5}
+                  stroke={C.scribeColor} strokeWidth={0.4} strokeDasharray="2,1" opacity={0.7} />
+                {w > 26 && (
+                  <text x={x + w / 2} y={(panelTopY + panelBotY) / 2 + 1.2} fill={C.annotColor}
+                    fontSize={3} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle"
+                    fontStyle="italic" opacity={0.75}>FILLER PANEL TO CLG</text>
+                )}
+              </g>
+            );
+          });
+        }
+
+        // 'open' (unfitted): a faint reveal line above each run; no panel, no crown.
+        return upperSegs.map((seg, i) => {
+          const topY = seg.topY != null ? seg.topY : upTopY;
+          const x = seg.s * S, w = (seg.e - seg.s) * S;
+          if (w < 20) return null;
+          return (
+            <text key={`open${i}`} x={x + w / 2} y={topY - 2} fill={C.annotColor}
+              fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle"
+              fontStyle="italic" opacity={0.55}>OPEN ABOVE</text>
+          );
+        });
+      })()}
 
       {/* ══════════ LIGHT RAIL (skips hoods) ══════════ */}
       {trim.lightRail && upperSegs.map((seg, i) => (

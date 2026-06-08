@@ -695,8 +695,37 @@ function TrimPicker({ selections, onChange }) {
         </div>
       ))}
 
+      {/* Ceiling fit selector — how the uppers meet the ceiling */}
+      <div style={{ marginTop: 8, padding: '8px 10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
+        <label style={{ ...labelStyle, marginBottom: 6 }}>Ceiling Fit — how uppers meet the ceiling</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { v: 'crown', label: 'Crown', desc: 'Crown molding with a 1/4" reveal to the ceiling' },
+            { v: 'fitted', label: 'Fitted to ceiling', desc: 'Flat riser/filler panel + scribe to the ceiling — no gap' },
+            { v: 'open', label: 'Open above', desc: 'Unfitted: open reveal/storage space above the cabinets' },
+          ].map(o => {
+            const active = (selections.ceilingFit || 'crown') === o.v;
+            return (
+              <button key={o.v} onClick={() => setField('ceilingFit', o.v)} title={o.desc}
+                style={{ flex: 1, padding: '6px 4px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  border: `1px solid ${active ? C.primary : C.border}`,
+                  background: active ? '#1e3a5f20' : 'transparent', color: active ? C.text : C.muted }}>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>
+          {(selections.ceilingFit || 'crown') === 'fitted'
+            ? 'Cabinets fitted to the ceiling: a flat filler/riser panel bridges to the ceiling with a scribe to absorb out-of-level. Adds a riser-filler line to the quote.'
+            : (selections.ceilingFit || 'crown') === 'open'
+              ? 'Unfitted: the space above the cabinets is left open (display/seasonal storage). No crown, no panel.'
+              : 'Crown molding sits on the cabinet tops and stops ~1/4" below the ceiling (it should never touch the ceiling).'}
+        </div>
+      </div>
+
       {/* Crown profile sub-option */}
-      {selections.crown && (
+      {selections.crown && (selections.ceilingFit || 'crown') === 'crown' && (
         <div style={{ marginTop: 8, padding: '8px 10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
           <label style={{ ...labelStyle, marginBottom: 6 }}>Crown Profile</label>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -1229,6 +1258,10 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                     { sku: 'TK-N/C', desc: 'Toe Kick (included)', qty: Math.max(1, Math.ceil((cabinetRows.reduce((s, r) => s + (r.width || 0), 0)) / 96)) },
                     { sku: 'TUK-STAIN', desc: 'Touch-Up Kit', qty: 1 },
                     ...(trimSelections?.lightRail ? [{ sku: '1 3/4 UCA', desc: 'Light Rail', qty: Math.max(1, Math.ceil((cabinetRows.filter(r => r.desc === 'Wall Cabinet').reduce((s, r) => s + (r.width || 0), 0)) / 96)) }] : []),
+                    ...(trimSelections?.ceilingFit === 'fitted' ? [
+                      { sku: 'WFC3(12-42)-15', desc: 'Riser / Filler Panel to Ceiling', qty: Math.max(1, Math.ceil((cabinetRows.filter(r => r.desc === 'Wall Cabinet').reduce((s, r) => s + (r.width || 0), 0)) / 96)) },
+                      { sku: '3SRM3F', desc: 'Ceiling Scribe Molding', qty: Math.max(1, Math.ceil((cabinetRows.filter(r => r.desc === 'Wall Cabinet').reduce((s, r) => s + (r.width || 0), 0)) / 120)) },
+                    ] : []),
                   ].map((item, i) => (
                     <tr key={`np-${i}`} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff' }}>
                       <td style={{ ...tdStyle, color: '#1e293b' }}>*</td>
@@ -1371,6 +1404,7 @@ export default function App() {
     lightRail: true,     // 1 3/4 UCA
     traditionalTrim: false,  // 7/8TD -8'
     countertopEdge: true,
+    ceilingFit: 'crown', // 'crown' | 'fitted' (riser panel to ceiling) | 'open' (unfitted gap)
   });
 
   // Results
