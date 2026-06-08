@@ -1029,6 +1029,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const x = cab.position * S;
         const w = cab.width * S;
         const isApp = isAppliance(cab);
+        const isSinkBase = isApp && (cab.applianceType || '').toLowerCase() === 'sink';
         const sku = cab.sku || '';
         const isCornerCab = cab.type === 'corner';
         const isFill = isFiller(cab);
@@ -1045,7 +1046,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           y = tkTopY - h;
         }
 
-        const { doors, drawers, falseFront } = parseDoorDrawer(sku, cab.width);
+        let { doors, drawers, falseFront } = parseDoorDrawer(sku, cab.width);
+        // Sink base is a real cabinet: render it via CabFront (full-overlay
+        // reveals + door style + wood), not the appliance glyph, so it matches
+        // the rest of the run. Tilt-out false front on top, doors below.
+        if (isSinkBase) { falseFront = true; drawers = Math.max(drawers, 1); if (!doors) doors = cab.width > 24 ? 2 : 1; }
         const hinge = doors === 1
           ? computeHingeSide(sortedBases[i - 1], sortedBases[i + 1], i === 0, i === sortedBases.length - 1)
           : 'left';
@@ -1056,7 +1061,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <REPPanel x={x} y={y} w={w} h={h} />
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={h} label={cab.width <= FILLER_MIN ? '' : sku} />
-            ) : isApp ? (
+            ) : (isApp && !isSinkBase) ? (
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
