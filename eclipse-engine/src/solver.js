@@ -3548,7 +3548,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   for (const app of wallAppliances) {
     if (app.type === "range" || app.type === "cooktop") {
       // Hood overhang: 3" each side at high/very_high, 0" at standard
-      const hoodOH = (soph === "very_high" || soph === "high") ? 3 : 0;
+      const hoodOH = 3 /* IRC/best-practice: canopy hood overhangs the range 3" each side, at every sophistication */;
       const hoodStart = app.position - hoodOH;
       const hoodEnd = app.position + app.width + hoodOH;
       skipZones.push({ start: hoodStart, end: hoodEnd, reason: "range_hood", _hoodOverhang: hoodOH });
@@ -3767,7 +3767,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     const rangeApp = wallAppliances.find(a => a.type === "range" || a.type === "cooktop");
     if (rangeApp) {
       const soph = effectivePrefs.sophistication || "high";
-      const hoodOverhang = (soph === "very_high" || soph === "high") ? 3 : 0;
+      const hoodOverhang = 3 /* IRC/best-practice: canopy hood overhangs the range 3" each side, at every sophistication */;
       const hoodW = rangeApp.width + hoodOverhang * 2;
       const hoodPos = rangeApp.position - hoodOverhang;
       // RANGE HOOD DESIGN GUIDE: mounting height
@@ -4126,7 +4126,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   const rangeApp = wallAppliances.find(a => a.type === "range" || a.type === "cooktop");
   if (rangeApp) {
     // Hood overhang: 3" each side at high/very_high soph, 0" at standard
-    const hoodOverhang = (soph === "very_high" || soph === "high") ? 3 : 0;
+    const hoodOverhang = 3 /* IRC/best-practice: canopy hood overhangs the range 3" each side, at every sophistication */;
     const hoodW = rangeApp.width + hoodOverhang * 2;
     const hoodPos = rangeApp.position - hoodOverhang; // center over range
 
