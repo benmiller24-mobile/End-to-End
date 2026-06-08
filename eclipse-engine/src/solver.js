@@ -571,6 +571,12 @@ export function solve(input) {
     }
   }
 
+  // Phase 4a: Close holes in each upper run. A base that starts inside the hood
+  // overhang zone but extends past it (e.g. a 42" waste next to the range) has its
+  // base-aligned upper skipped, leaving a gap; fill any real gap with a wall cabinet
+  // (never over a window opening or a tall/fridge).
+  closeUpperGaps(upperLayouts, wallLayouts, walls);
+
   // Phase 4b: Generate upper corner cabinets (WSC pairs + SA angle transitions)
   const upperCorners = pf.upperApproach !== "none" ? solveUpperCorners(corners, upperLayouts, pf, walls) : [];
 
@@ -3458,6 +3464,45 @@ export function selectMullionPattern(prefs) {
 }
 
 // ─── UPPER CABINET SOLVER ───────────────────────────────────────────────────
+
+function closeUpperGaps(upperLayouts, wallLayouts, walls) {
+  const GAP_MIN = 6;
+  const STD = [9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 42];
+  for (const ul of upperLayouts) {
+    if (!ul || !Array.isArray(ul.cabinets)) continue;
+    const wallDef = (walls || []).find(w => w.id === ul.wallId);
+    const wl = (wallLayouts || []).find(w => w.wallId === ul.wallId);
+    if (!wl) continue;
+    const wins = ((wallDef && wallDef.openings) || []).filter(o => (o.type || "window") === "window" && o.width > 0);
+    const tallBases = (wl.cabinets || []).filter(c =>
+      c.type === "tall" || /refriger|freezer/i.test(c.applianceType || ""));
+    const cabs = ul.cabinets
+      .filter(c => c.width > 0 && typeof c.position === "number")
+      .sort((a, b) => a.position - b.position);
+    if (cabs.length < 2) continue;
+    const sample = cabs.find(c => /^W\d/.test(c.sku || "")) || cabs[0];
+    const hgt = sample.height || 42;
+    const hsuf = ((sample.sku || "").match(/(\d{2})$/) || [])[1] || String(hgt);
+    const adds = [];
+    for (let i = 0; i < cabs.length - 1; i++) {
+      const a = cabs[i], b = cabs[i + 1];
+      const gStart = a.position + a.width, gEnd = b.position, gap = gEnd - gStart;
+      if (gap < GAP_MIN) continue;
+      const overlaps = (s, e) => Math.min(gEnd, e) - Math.max(gStart, s) > gap * 0.5;
+      if (wins.some(o => overlaps(o.posFromLeft || 0, (o.posFromLeft || 0) + (o.width || 0)))) continue;
+      if (tallBases.some(t => overlaps(t.position, t.position + t.width))) continue;
+      const std = STD.reduce((p, c) => Math.abs(c - gap) < Math.abs(p - gap) ? c : p, STD[0]);
+      const fillW = Math.abs(std - gap) <= 0.5 ? std : Math.round(gap * 100) / 100;
+      adds.push({
+        sku: `W${Math.round(fillW)}${hsuf}`, width: fillW,
+        depth: sample.depth || 13.875, height: hgt,
+        position: gStart, role: "gap-fill", _gapFill: true,
+        _elev: sample._elev ? { ...sample._elev } : undefined,
+      });
+    }
+    if (adds.length) ul.cabinets.push(...adds);
+  }
+}
 
 function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   if (prefs.upperApproach === "none") return { wallId: wallDef.id, cabinets: [], patternId: null };
