@@ -3813,8 +3813,14 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
   const stackedWallHeight = 63;
   const stackedWallDepth = 21;
 
-  // Stacked uppers (W + W_stacked pairs) for tall ceilings at high soph
-  const isStacked = !useStackedWalls && (patternId === "stacked_uppers" || patternId === "stacked_wall_deep");
+  // Stacked uppers (W + W_stacked pairs). EXPLICIT opt-in only: the auto pattern
+  // selector returns "stacked_uppers" for tall ceilings, but the two-tier mount
+  // is only correct when the user asks for it (upperApproach "stacked"). Without
+  // opt-in, tall ceilings get a single ceiling-adaptive upper (selectUpperHeight),
+  // which fills the wall cleanly instead of overlapping a mis-mounted top tier.
+  const isStacked = !useStackedWalls
+    && effectivePrefs.upperApproach === "stacked"
+    && (patternId === "stacked_uppers" || patternId === "stacked_wall_deep");
   const stackedTopH = ceilingH >= 120 ? 21 : 15;
 
   // ── Glass front display mods (GFD + FINISHED INT + PWL) ──
@@ -4301,22 +4307,24 @@ function selectUpperHeight(ceilingH, prefs) {
 
   const aboveUpper = ceilingH - effectiveUpperBottom;
 
-  // ── Phase 2 UPPER_SIZING_RULES — training-data-driven height selection ──
-  // Training frequencies: 39" (3×), 36" (2×), 48" (2×), 63" (2×)
   const soph = prefs.sophistication || "high";
 
-  // Floor-to-ceiling: 63" uppers for very_high sophistication + tall ceilings (Bollini pattern)
+  // Very tall ceilings use stacked / floor-to-ceiling patterns (also handled
+  // by the stacked-wall logic that adds the upper tier).
   if (soph === "very_high" && ceilingH >= 120) return UPPER_SIZING_RULES.heightsByContext.floorToCeiling.height; // 63"
+  if (ceilingH >= 120) return UPPER_SIZING_RULES.heightsByContext.stacked.height;       // 48" + stacked tier
 
-  // Stacked: 48" for stacked pattern on tall ceilings (Helmer Mitchell pattern)
-  if (ceilingH >= 120) return UPPER_SIZING_RULES.heightsByContext.stacked.height; // 48"
-  if (ceilingH >= 108) return 42; // 9ft ceiling
-
-  // Standard vs tall: 39" is most common in training (Diehl, Eddies, Kline — 3×)
-  // 36" used with 8' ceilings (Gable — 2×)
-  if (aboveUpper >= 39) return UPPER_SIZING_RULES.heightsByContext.tall.height; // 39"
-  if (aboveUpper >= 36) return UPPER_SIZING_RULES.heightsByContext.standard.height; // 36"
-  return 30;
+  // ── Ceiling-adaptive height ──────────────────────────────────────────────
+  // Fill the wall: pick the largest standard wall-cabinet height that fits the
+  // space above the counter, leaving a reveal sized for the ceiling treatment
+  // (crown needs a few inches; fitted bridges to the ceiling with a filler;
+  // open leaves a deliberate gap). Capped at 48" for a single (non-stacked) box.
+  // Scales smoothly: 96"→39", 102"→45", 105"→48", 108"→48".
+  const fit = prefs.ceilingTreatment || prefs.ceilingFit || "crown";
+  const reserve = fit === "fitted" ? 2 : fit === "open" ? 10 : 3;
+  const target = Math.min(aboveUpper - reserve, 48);
+  const fits = STD_UPPER_HEIGHTS.filter(h => h >= 30 && h <= target);
+  return fits.length ? Math.max(...fits) : 30;
 }
 
 
