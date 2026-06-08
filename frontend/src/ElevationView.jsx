@@ -603,23 +603,18 @@ function ApplianceSym({ x, y, w, h, aType }) {
     els.push(<line key="sp1" x1={x + w * 0.44} y1={y + h - 4 * S} x2={x + w * 0.44} y2={y + h - 2.5 * S} stroke={C.line} strokeWidth={0.5} />);
     els.push(<line key="sp2" x1={x + w * 0.56} y1={y + h - 4 * S} x2={x + w * 0.56} y2={y + h - 2.5 * S} stroke={C.line} strokeWidth={0.5} />);
   } else if (aType === 'dishwasher') {
-    // Top control panel line
+    // Handle bar — at the TOP only (just below the counter). Dishwashers have a
+    // single top-mounted handle / control strip; there is no handle at the bottom.
     els.push(
-      <line key="ctrl" x1={x + 2 * S} y1={y + 3 * S}
-        x2={x + w - 2 * S} y2={y + 3 * S}
-        stroke={C.line} strokeWidth={0.35} />
+      <line key="hdl" x1={x + w * 0.18} y1={y + 2.2 * S}
+        x2={x + w * 0.82} y2={y + 2.2 * S}
+        stroke={C.line} strokeWidth={0.6} strokeLinecap="round" />
     );
-    // Door panel (recessed)
+    // Recessed door panel below the handle, down to the toe kick.
     els.push(
-      <rect key="door" x={x + 2.5 * S} y={y + 4.5 * S}
-        width={w - 5 * S} height={h - 6.5 * S}
+      <rect key="door" x={x + 2.5 * S} y={y + 4 * S}
+        width={w - 5 * S} height={h - 5.5 * S}
         fill="none" stroke={C.thinLine} strokeWidth={0.35} rx={0.3} />
-    );
-    // Handle bar
-    els.push(
-      <line key="hdl" x1={x + w * 0.28} y1={y + h - 2.5 * S}
-        x2={x + w * 0.72} y2={y + h - 2.5 * S}
-        stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
     );
   } else if (aType === 'wallOven' || aType === 'speedOven' || aType === 'steamOven') {
     const d = 2 * S;
