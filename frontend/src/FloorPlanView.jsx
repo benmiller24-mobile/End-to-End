@@ -90,6 +90,15 @@ const norm = (s) => (s || '').toUpperCase().replace(/^FC-/, '');
 const openPos = (o) => (typeof o.posFromLeft === 'number' ? o.posFromLeft
   : typeof o.position === 'number' ? o.position : 0);
 
+// Architectural depth label, e.g. 24.875 → 24⅞"
+const EIGHTHS = ['', '⅛', '¼', '⅜', '½', '⅝', '¾', '⅞'];
+function fmtDepth(v) {
+  let whole = Math.floor(v + 1e-6);
+  let e = Math.round((v - whole) * 8);
+  if (e === 8) { whole += 1; e = 0; }
+  return `${whole}${EIGHTHS[e] || ''}"`;
+}
+
 // NKBA island clearances (Guideline 5 Traffic / Guideline 6 Work Aisle).
 const ISL = {
   workAisle: 42,   // ≥42" between island work face and an opposing run/appliance (1 cook)
@@ -601,6 +610,44 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
         );
       })}
 
+      {/* ── RUN DEPTH CALLOUTS ── base run (24⅞") room-side, wall run (13⅞") wall-side ── */}
+      {bases.length > 0 && (() => {
+        const bx = bases[0].position - 7;     // just left of the run start
+        const y0 = WALL_T / 2, y1 = WALL_T / 2 + BASE_D;
+        const my = (y0 + y1) / 2;
+        return (
+          <g>
+            <line x1={bx} y1={y0} x2={bx} y2={y1} stroke={C.dimLine} strokeWidth={W.dim} />
+            <VTick x={bx} y={y0} /><VTick x={bx} y={y1} />
+            <line x1={bx} y1={y0} x2={bases[0].position} y2={y0} stroke={C.dimLine}
+              strokeWidth={W.ext} strokeDasharray={DASH.ext} opacity={0.45} />
+            <line x1={bx} y1={y1} x2={bases[0].position} y2={y1} stroke={C.dimLine}
+              strokeWidth={W.ext} strokeDasharray={DASH.ext} opacity={0.45} />
+            <text x={bx - 2.5} y={my} fill={C.dimText} fontSize={3.6}
+              fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="600"
+              transform={`rotate(-90, ${bx - 2.5}, ${my})`}>{fmtDepth(BASE_D)}</text>
+          </g>
+        );
+      })()}
+      {uppers.length > 0 && (() => {
+        const ux = uppers[0].position - 7;
+        const uTop = -WALL_T / 2 - UPPER_D - 2, uBot = -WALL_T / 2 - 2;
+        const my = (uTop + uBot) / 2;
+        return (
+          <g>
+            <line x1={ux} y1={uTop} x2={ux} y2={uBot} stroke={C.dimLine} strokeWidth={W.dim} />
+            <VTick x={ux} y={uTop} /><VTick x={ux} y={uBot} />
+            <line x1={ux} y1={uTop} x2={uppers[0].position} y2={uTop} stroke={C.dimLine}
+              strokeWidth={W.ext} strokeDasharray={DASH.ext} opacity={0.45} />
+            <line x1={ux} y1={uBot} x2={uppers[0].position} y2={uBot} stroke={C.dimLine}
+              strokeWidth={W.ext} strokeDasharray={DASH.ext} opacity={0.45} />
+            <text x={ux - 2.5} y={my} fill={C.dimText} fontSize={3.4}
+              fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="600"
+              transform={`rotate(-90, ${ux - 2.5}, ${my})`}>{fmtDepth(UPPER_D)}</text>
+          </g>
+        );
+      })()}
+
       {/* ── OVERALL WALL DIMENSION ── outermost, above ── */}
       <HDim x1={0} x2={length} y={overallY} label={`${length}"`} above={true} />
 
@@ -803,7 +850,7 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
       <text x="14" y="18" fill={C.dimText} fontSize={11} fontWeight="700"
         fontFamily="Helvetica,Arial,sans-serif" letterSpacing="1">KITCHEN FLOOR PLAN</text>
       <text x="14" y="28" fill="#666" fontSize={5} fontFamily="Helvetica,Arial,sans-serif">
-        {layoutType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Layout  |  Scale: 1/2" = 1'-0"  |  NKBA Drawing Standards
+        {layoutType.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Layout  |  Scale: 1/2" = 1'-0"  |  Base run {fmtDepth(BASE_D)} deep · Wall run {fmtDepth(UPPER_D)} deep  |  NKBA Drawing Standards
       </text>
 
       {/* ── WALLS + CABINETS + OPENINGS ── */}
