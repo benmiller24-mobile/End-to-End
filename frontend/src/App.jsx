@@ -1443,18 +1443,21 @@ export default function App() {
     setError(null);
 
     try {
-      const input = { layoutType, roomType, walls, appliances, prefs };
+      // Ceiling height lives in prefs; the solver + elevation read it per-wall,
+      // so inject it onto each wall before solving (else it defaults to 96").
+      const ceilH = Number(prefs.ceilingHeight) || 96;
+      const wallsC = walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || ceilH }));
+      const input = { layoutType, roomType, walls: wallsC, appliances, prefs };
       if (island) input.island = island;
       if (peninsula) input.peninsula = peninsula;
 
       const result = solve(input);
 
-      // Bridge: ensure _inputWalls exists for FloorPlanView/ElevationView
-      // The solver may not include _inputWalls, so build it from the input walls
-      // or from result.walls (which uses wallId/wallLength instead of id/length)
-      if (!result._inputWalls) {
-        result._inputWalls = walls.map(w => ({ id: w.id, length: w.length }));
-      }
+      // Ensure _inputWalls carries id/length AND ceilingHeight for the views
+      // (FloorPlanView / ElevationView CLG line).
+      result._inputWalls = (result._inputWalls || wallsC).map(w => ({
+        ...w, id: w.id, length: w.length, ceilingHeight: w.ceilingHeight || ceilH,
+      }));
       // Also ensure result.walls items have .id and .length aliases for views
       if (result.walls && result.walls[0] && !result.walls[0].id) {
         result.walls.forEach(w => {
