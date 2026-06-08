@@ -851,7 +851,13 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
   // clamp down to it — so a to-ceiling over-fridge cabinet can't stretch the whole
   // run of wall cabinets to the ceiling; instead it aligns with them.
   const _tallTops = sortedTalls.map(t => (t._elev?.height || t.height || TALL_H_DEF));
-  const upperTopAFF = Math.min(ceilH, Math.max(54 + UPPER_H_DEF, ..._tallTops));
+  // Uppers anchor by their TRUE top (yMount + height), so ceiling-adaptive and
+  // stacked uppers reach the right line. Over-fridge cabs (ABOVE_TALL) clamp
+  // DOWN to the line — they don't drive it up.
+  const _upperTops = sortedUppers
+    .filter(u => u._elev?.zone !== 'ABOVE_TALL')
+    .map(u => (u._elev?.yMount ?? 54) + (u._elev?.height || u.height || UPPER_H_DEF));
+  const upperTopAFF = Math.min(ceilH, Math.max(54 + UPPER_H_DEF, ..._upperTops, ..._tallTops));
   const upperTopY = floorY - upperTopAFF * S;   // common top line (screen y)
   const upTopY = upperTopY;                       // alias used by crown fallback
 
@@ -1099,17 +1105,23 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         // at their real AFF (e.g. 84"→ceiling), NOT at the standard upper band.
         const elev = cab._elev || {};
         const aboveTall = elev.zone === 'ABOVE_TALL' || (elev.yMount || 0) > 60;
-        // STRUCTURAL: every upper's TOP sits on the common datum (upperTopY).
-        //   • standard run upper → bottom at 54" AFF (upBotY)
-        //   • over-fridge upper  → bottom at the fridge top (yMount), so it tucks
-        //     between the fridge and the top line and the REP can't cross it.
+        const isStackMain = cab.role === 'stacked_main';
+        // STRUCTURAL: uppers' TOP sits on the common datum (upperTopY), EXCEPT
+        // the lower cabinet of a stacked pair, which tops out where its stacked
+        // partner begins (its own true height).
         let uH, y;
-        y = upperTopY;
-        if (aboveTall) {
-          const mountAFF = elev.yMount || 0;
-          uH = Math.max(6 * S, (floorY - mountAFF * S) - upperTopY);
+        if (isStackMain) {
+          const topAFF = (elev.yMount ?? 54) + (elev.height || UPPER_H_DEF);
+          y = floorY - topAFF * S;
+          uH = (elev.height || UPPER_H_DEF) * S;
         } else {
-          uH = upBotY - upperTopY;
+          y = upperTopY;
+          if (aboveTall) {
+            const mountAFF = elev.yMount || 0;
+            uH = Math.max(6 * S, (floorY - mountAFF * S) - upperTopY);
+          } else {
+            uH = upBotY - upperTopY;
+          }
         }
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);

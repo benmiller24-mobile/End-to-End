@@ -3822,6 +3822,10 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     && effectivePrefs.upperApproach === "stacked"
     && (patternId === "stacked_uppers" || patternId === "stacked_wall_deep");
   const stackedTopH = ceilingH >= 120 ? 21 : 15;
+  // Main (lower) cabinet height so main + top tier + a small reveal fills the wall.
+  const _stackReserve = (effectivePrefs.ceilingTreatment || effectivePrefs.ceilingFit || "crown") === "fitted" ? 1 : 3;
+  const _stackMainTarget = ceilingH - DIMS.upperBottom - stackedTopH - _stackReserve;
+  const stackMainH = STD_UPPER_HEIGHTS.filter(h => h >= 24 && h <= _stackMainTarget).pop() || 30;
 
   // ── Glass front display mods (GFD + FINISHED INT + PWL) ──
   // Applied to select uppers at very_high or high sophistication with premium aesthetic
@@ -3974,13 +3978,14 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
         }
       }
       uppers.push({
-        sku: `W${upperW}${upperH}`,
+        sku: `W${upperW}${stackMainH}`,
         width: upperW,
-        height: upperH,
+        height: stackMainH,
         type: "wall",
         position: base.position,
         wall: wallDef.id,
         alignedWithBase: base.sku,
+        role: "stacked_main",
         patternId,
         ...(mods.length > 0 ? { modifications: mods } : {}),
       });
@@ -3992,6 +3997,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
         position: base.position,
         wall: wallDef.id,
         role: "stacked_top",
+        _stackBaseH: stackMainH,   // mounts on TOP of the main cabinet
         patternId,
         ...(mods.length > 0 ? { modifications: mods } : {}),
       });
@@ -7279,7 +7285,10 @@ function assignElevToSourceObjects(wallLayouts, upperLayouts, talls, appliances,
         const isSW = sku.startsWith('SW');
         cab._elev = {
           zone: isSW ? 'TALL' : 'UPPER',
-          yMount: isSW ? VERTICAL_ZONES.TOE_KICK.yMax : VERTICAL_ZONES.UPPER.yMin,  // SW at 4.5", standard at 54"
+          yMount: isSW ? VERTICAL_ZONES.TOE_KICK.yMax
+                  : (cab.role === 'stacked_top'
+                      ? VERTICAL_ZONES.UPPER.yMin + (cab._stackBaseH || 0)   // sits on top of the main
+                      : VERTICAL_ZONES.UPPER.yMin),
           height: upperH,
           depth: sku.startsWith('RW') ? 27 : DEPTH_TIERS.UPPER_FRONT,
           depthSetback: sku.startsWith('RW') ? 0 : (DEPTH_TIERS.BASE_FRONT - DEPTH_TIERS.UPPER_FRONT),
