@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { DOORS } from '../../eclipse-pricing/src/doorData.js';
+import { MaterialDefs, classifyStone, woodFill, stoneFill, steelFill } from './MaterialDefs.jsx';
 
 // Eclipse 8.8 catalog door geometry by code (panel type + rail width from paf.xml).
 const DOOR_BY_CODE = Object.fromEntries(DOORS.map(d => [d.v, d]));
@@ -331,11 +332,16 @@ function pushStylePanel(els, key, fx, fy, fw, fh, styleSpec = { panel: 'flat', t
   if (styleSpec.panel === 'slab' || pw <= 3 || ph <= 3) return;
   const pt = styleSpec.panel;
   els.push(<rect key={`${key}p`} x={px} y={py} width={pw} height={ph}
-    fill="none" stroke={C.thinLine} strokeWidth={0.22} opacity={0.4} rx={0.2} />);
+    fill="#000000" fillOpacity={0.06} stroke={C.thinLine} strokeOpacity={0.45} strokeWidth={0.22} rx={0.2} />);
+  // soft inner shadow (top/left) + highlight (bottom/right) for recess depth
+  els.push(<line key={`${key}sh`} x1={px} y1={py} x2={px + pw} y2={py} stroke="#000" strokeWidth={0.3} opacity={0.12} />);
+  els.push(<line key={`${key}hl`} x1={px} y1={py + ph} x2={px + pw} y2={py + ph} stroke="#fff" strokeWidth={0.3} opacity={0.18} />);
   if (pt === 'raised' && pw > 6 && ph > 6) {
     const b = 1.1 * S;
+    // raised field: lighter than the recess, with a bevel highlight on top/left
     els.push(<rect key={`${key}pr`} x={px + b} y={py + b} width={pw - 2 * b} height={ph - 2 * b}
-      fill="none" stroke={C.thinLine} strokeWidth={0.18} opacity={0.3} rx={0.2} />);
+      fill="#ffffff" fillOpacity={0.10} stroke={C.thinLine} strokeOpacity={0.35} strokeWidth={0.18} rx={0.2} />);
+    els.push(<line key={`${key}bv`} x1={px + b} y1={py + ph - b} x2={px + pw - b} y2={py + ph - b} stroke="#000" strokeWidth={0.25} opacity={0.12} />);
   } else if (pt === 'mitered') {
     [[ax, ay, px, py], [ax + aw, ay, px + pw, py],
      [ax, ay + ah, px, py + ph], [ax + aw, ay + ah, px + pw, py + ph]]
@@ -356,14 +362,14 @@ function pushStylePanel(els, key, fx, fy, fw, fh, styleSpec = { panel: 'flat', t
   }
 }
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
   // Outer cabinet box
   els.push(
     <rect key="box" x={x} y={y} width={w} height={h}
-      fill={C.fill} stroke={C.line} strokeWidth={0.7} />
+      fill={frontFill} stroke={C.line} strokeWidth={0.7} />
   );
 
   // For corner cabinets in elevation, draw diagonal line indicating corner angle
@@ -530,11 +536,14 @@ function REPPanel({ x, y, w, h }) {
 // COMPONENT: ApplianceSym — Appliance symbol in elevation
 // ═══════════════════════════════════════════════════════════════════════
 
-function ApplianceSym({ x, y, w, h, aType, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
+function ApplianceSym({ x, y, w, h, aType, styleSpec = { panel: 'flat', topRail: 2.5 }, steelFill = '#e9ecef', frontFill = C.applFill }) {
   const els = [];
+  const STEEL = new Set(['range','refrigerator','freezer','dishwasher','wallOven','speedOven','steamOven','warmingDrawer','microwave','coffee','wine']);
+  const WOODCAB = new Set(['sink','cooktop']);
+  const faceFill = WOODCAB.has(aType) ? frontFill : (STEEL.has(aType) ? steelFill : C.applFill);
   els.push(
     <rect key="bg" x={x} y={y} width={w} height={h}
-      fill={C.applFill} stroke={C.line} strokeWidth={0.6} />
+      fill={faceFill} stroke={C.line} strokeWidth={0.6} />
   );
 
   const m = 3 * S;
@@ -567,7 +576,13 @@ function ApplianceSym({ x, y, w, h, aType, styleSpec = { panel: 'flat', topRail:
     els.push(
       <rect key="win" x={x + 3.5 * S} y={doorY + 3.5 * S}
         width={w - 7 * S} height={Math.max(0, doorH - 6 * S)}
-        fill="#e8e8e8" stroke={C.line} strokeWidth={0.3} rx={0.4} />
+        fill="#33383d" stroke={C.line} strokeWidth={0.3} rx={0.4} />
+    );
+    // glass reflection streak
+    els.push(
+      <line key="refl" x1={x + 4.5 * S} y1={doorY + 4.5 * S}
+        x2={x + 4.5 * S} y2={doorY + Math.max(0, doorH - 3 * S)}
+        stroke="#ffffff" strokeWidth={0.5} opacity={0.18} strokeLinecap="round" />
     );
   } else if (aType === 'cooktop') {
     // A cooktop drops into the counter, so the FRONT shows the base cabinet
@@ -799,7 +814,11 @@ function LightRailSegment({ x1, x2, y }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null }) {
+  const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
+  const frontFill = woodFill(sfx);
+  const steel = steelFill(sfx);
+  const ctrPat = stone ? stoneFill(sfx) : C.ctrFill;
   const wW = wallLen * S;
   const cH = ceilH * S;
   const topMargin = 45;         // space above ceiling for dims
@@ -890,6 +909,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       style={{ width: '100%', height: 'auto', maxHeight: 620, background: C.bg, borderRadius: 4, marginBottom: 20 }}
       xmlns="http://www.w3.org/2000/svg">
 
+      <MaterialDefs sfx={sfx} species={species} stone={stone} />
+
       {/* ══════════ TITLE BLOCK (NKBA Ch.2 Fig 2.2 style) ══════════ */}
       <g>
         <text x={wW / 2} y={-8} fill={C.dimText} fontSize={10} fontWeight="700"
@@ -915,9 +936,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       <text x={-12} y={ceilY + 1.5} fill={C.annotColor} fontSize={3}
         fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">CLG</text>
 
-      {/* Backsplash zone fill */}
+      {/* Backsplash zone fill (stone tint if a countertop is selected) */}
       <rect x={0} y={upBotY} width={wW} height={ctrTopY - upBotY}
-        fill={C.backsplash} stroke="none" opacity={0.2} />
+        fill={stone ? ctrPat : C.backsplash} stroke="none" opacity={stone ? 0.5 : 0.2} />
 
       {/* Floor line (heavy) */}
       <line x1={-30} y1={floorY} x2={wW + 30} y2={floorY}
@@ -995,7 +1016,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         return (
           <g>
             <rect x={minX * S} y={ctrTopY} width={(maxX - minX) * S} height={CTR_THICK * S}
-              fill={C.ctrFill} stroke={C.line} strokeWidth={0.5} />
+              fill={ctrPat} stroke={C.line} strokeWidth={0.5} />
             {/* Countertop edge detail */}
             <line x1={minX * S} y1={baseTopY} x2={(maxX) * S} y2={baseTopY}
               stroke={C.line} strokeWidth={0.6} />
@@ -1036,10 +1057,10 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={h} label={cab.width <= FILLER_MIN ? '' : sku} />
             ) : isApp ? (
-              <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} />
+              <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
@@ -1104,7 +1125,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} />
+              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />
             )}
           </g>
         );
@@ -1136,7 +1157,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             {isRepPanel ? (
               <REPPanel x={x} y={y} w={w} h={tH} />
             ) : isApp ? (
-              <ApplianceSym x={x} y={y} w={w} h={tH} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} />
+              <ApplianceSym x={x} y={y} w={w} h={tH} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (() => {
               const upperSku = (cab.sku || '').toUpperCase();
               const isOven = /^O\d/.test(upperSku);
@@ -1160,18 +1181,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                       x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
                       stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
                     {/* Door panel below */}
-                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} />
+                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />
                   </g>
                 );
               }
               if (isFHD) {
-                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} />;
+                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />;
               }
               // Standard utility: show shelf lines
               const shelfCount = Math.floor(tH / (20 * S));
               return (
                 <g>
-                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} />
+                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />
                   {Array.from({ length: Math.min(shelfCount, 4) }, (_, si) => {
                     const sy = y + (si + 1) * tH / (Math.min(shelfCount, 4) + 1);
                     return (
@@ -1222,11 +1243,14 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           <g>
             {/* Flue / chimney from the canopy top up to the ceiling */}
             <rect x={x + w / 2 - flueW / 2} y={flueTopY} width={flueW} height={yTop - flueTopY}
-              fill={C.hoodFill} stroke={C.line} strokeWidth={0.5} />
+              fill={steel} stroke={C.line} strokeWidth={0.5} />
             {/* Canopy body (wide at the bottom over the cooktop, tapering up) */}
             <polygon
               points={`${x},${yBottom} ${x + taper},${yTop} ${x + w - taper},${yTop} ${x + w},${yBottom}`}
-              fill={C.hoodFill} stroke={C.line} strokeWidth={0.7} />
+              fill={steel} stroke={C.line} strokeWidth={0.7} />
+            {/* brushed-steel highlight streak on the canopy */}
+            <line x1={x + taper + 1.5} y1={yTop + 1.5} x2={x + 3} y2={yBottom - 1.5}
+              stroke="#ffffff" strokeWidth={0.6} opacity={0.25} strokeLinecap="round" />
             {/* Capture-rail line along the bottom edge */}
             <line x1={x} y1={yBottom} x2={x + w} y2={yBottom} stroke={C.line} strokeWidth={0.8} />
             {/* VENT HOOD label */}
@@ -1644,8 +1668,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
-export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V' }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null }) {
   const styleSpec = doorStyleSpec(doorStyle);
+  const stone = classifyStone(countertopColor);
   if (!solverResult) return null;
 
   const wallLayouts  = solverResult.walls || [];
@@ -1755,6 +1780,8 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             tagStart={start}
             debug={debug}
             styleSpec={styleSpec}
+            species={species}
+            stone={stone}
           />
         );
       })}
