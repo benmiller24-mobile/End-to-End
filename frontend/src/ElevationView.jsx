@@ -161,19 +161,25 @@ function parseSkuHeight(sku) {
   return null;
 }
 
+/** Door count so NO single door exceeds 24" — a wider cabinet splits into 2 (or 3). */
+function doorCount(width) {
+  const w = width || 0;
+  return w <= 24.5 ? 1 : Math.ceil(w / 24);
+}
+
 /** Parse door/drawer count from SKU pattern */
 function parseDoorDrawer(sku, width) {
-  if (!sku) return { doors: width > 24 ? 2 : 1, drawers: 1 };
+  if (!sku) return { doors: doorCount(width), drawers: 1 };
   const s = sku.toUpperCase().replace(/^FC-/, '');
   // Full-height door variant: tall single panel, no drawer/false front (check first)
-  if (/-FHD/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 0 };
+  if (/-FHD/.test(s)) return { doors: doorCount(width), drawers: 0 };
   // All-drawer bases (catalog: B3D = 3-drawer, B4D = 4-drawer, B2TD = 2 tiered drawers)
   if (/^B3D/.test(s)) return { doors: 0, drawers: 3 };
   if (/^B4D/.test(s)) return { doors: 0, drawers: 4 };
   if (/^B2TD/.test(s)) return { doors: 0, drawers: 2 };
   // Sink bases: catalog SB cabinets have a FALSE drawer front on top + doors below
   // (the -FHD full-height-door variant handled above has none).
-  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 1, falseFront: true };
+  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) return { doors: doorCount(width), drawers: 1, falseFront: true };
   // Roll-out tray, pull-out shelf: door only
   if (/-RT/.test(s) || /^BPOS/.test(s)) return { doors: 1, drawers: 0 };
   // Range top base: open frame
@@ -183,15 +189,15 @@ function parseDoorDrawer(sku, width) {
   // Lazy Susan: 2 bi-fold doors, no drawer
   if (/^BL\d/.test(s)) return { doors: 2, drawers: 0 };
   // Tray base
-  if (/^BTR/.test(s)) return { doors: width > 24 ? 2 : 1, drawers: 1 };
+  if (/^BTR/.test(s)) return { doors: doorCount(width), drawers: 1 };
   // Legacy drawer base format
   const dbMatch = s.match(/B(\d?)DB/);
   if (dbMatch) return { doors: 0, drawers: parseInt(dbMatch[1] || '3') };
   // Fillers, panels — no doors or drawers
   if (/^F\d|^OVF|^BEP|^WEP|^REP|^DP$/.test(s)) return { doors: 0, drawers: 0 };
   // Standard base cabinets
-  if (width >= 39) return { doors: 2, drawers: 2 };
-  if (width > 24) return { doors: 2, drawers: 1 };
+  if (width >= 39) return { doors: doorCount(width), drawers: 2 };
+  if (width > 24) return { doors: doorCount(width), drawers: 1 };
   return { doors: 1, drawers: 1 };
 }
 
@@ -454,6 +460,9 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     for (let i = 0; i < dc; i++) {
       const dx = x + i * dw;
       drawFront(`d${i}`, dx, doorY, dw, doorH, null, true);
+      // visible center mullion / reveal between adjacent doors (full-overlay gap)
+      if (i > 0) els.push(<line key={`mul${i}`} x1={dx} y1={doorY} x2={dx} y2={doorY + doorH}
+        stroke={C.line} strokeWidth={0.6} opacity={0.85} />);
       // door-swing notation over the visible (full-overlay) door panel
       const ix = dx + REVEAL, iw = dw - 2 * REVEAL, iy = doorY + REVEAL, ih = doorH - 2 * REVEAL;
       const hingeLeft = dc === 2 ? (i === 0) : (hinge !== 'right');
@@ -1104,7 +1113,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         }
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);
-        const doors = cab.width > 24 ? 2 : 1;
+        const doors = doorCount(cab.width);
         const hinge = doors === 1
           ? computeHingeSide(sortedUppers[i - 1], sortedUppers[i + 1], i === 0, i === sortedUppers.length - 1)
           : 'left';
@@ -1138,7 +1147,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const topAFF = isApp ? realTopAFF : upperTopAFF;
         const tH = topAFF * S;
         const y = floorY - tH;
-        const doors = cab.width > 24 ? 2 : 1;
+        const doors = doorCount(cab.width);
         const hinge = doors === 1
           ? computeHingeSide(sortedTalls[i - 1], sortedTalls[i + 1], i === 0, i === sortedTalls.length - 1)
           : 'left';
