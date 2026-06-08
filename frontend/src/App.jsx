@@ -205,10 +205,10 @@ const doorOptions = DOORS.map(d => ({ value: d.v, label: d.l || d.v, group: d.g 
 const constructionOptions = ['Standard', 'Plywood'];
 
 const COMPARE_COMBOS = [
-  { name: 'TFL Budget', species: 'TFL', construction: 'Standard', door: 'HNVR-FP' },
+  { name: 'TFL Budget', species: 'TFL', construction: 'Standard', door: 'HNVR' },
   { name: 'Maple Stock', species: 'Maple', construction: 'Standard', door: 'MET-V' },
   { name: 'Walnut Premium', species: 'Walnut', construction: 'Plywood', door: 'MET-V' },
-  { name: 'White Oak Ultra', species: 'White Oak', construction: 'Plywood', door: 'ESX-M' },
+  { name: 'White Oak Ultra', species: 'White Oak', construction: 'Plywood', door: 'ESSX' },
 ];
 
 // Category display config
