@@ -92,6 +92,11 @@ export const DOOR_STYLE_CHARGE = {
   // Group A — $0/door (flat panels, raised panels, slab)
   "METRO":     { group: "A", groupRate: 0,   label: "Metropolitan (Slab)" },
   "HNVR":      { group: "A", groupRate: 0,   label: "Hanover Flat Panel" },
+  "CNCD-H":      { group: "A", groupRate: 0, label: "Concord Horiz Grain" },
+  "CNCD-V":      { group: "A", groupRate: 0, label: "Concord Vert Grain" },
+  "MET-MDF":     { group: "A", groupRate: 0, label: "Metropolitan Painted M1" },
+  "MET-H":       { group: "A", groupRate: 0, label: "Metropolitan Horizontal Grain" },
+  "MET-V":       { group: "A", groupRate: 0, label: "Metropolitan Vertical Grain" },
   "HTFD":      { group: "A", groupRate: 0,   label: "Hartford Flat Panel" },
   "SCDL":      { group: "A", groupRate: 0,   label: "Scottsdale Flat Panel" },
   "MLBU":      { group: "A", groupRate: 0,   label: "Malibu Flat Panel" },

@@ -1,4 +1,8 @@
 import React, { useMemo } from 'react';
+import { DOORS } from '../../eclipse-pricing/src/doorData.js';
+
+// Eclipse 8.8 catalog door geometry by code (panel type + rail width from paf.xml).
+const DOOR_BY_CODE = Object.fromEntries(DOORS.map(d => [d.v, d]));
 
 /**
  * ElevationView — Professional Architectural Kitchen Elevation (NKBA Ch.12)
@@ -301,11 +305,19 @@ function CabTag({ cx, cy, num, prefix = 'KD' }) {
 //  raised (Arch/Crown Raised Panel): panel with a bevel field
 //  Arch/Crown styles carry a 4 1/2" top rail (others 2 1/2")
 function doorStyleSpec(code) {
+  // Catalog-driven: look the style up in the Eclipse 8.8 door table for its real
+  // panel type (flat | raised | slab | mitered | applied | reeded | mullion) and
+  // rail width. Falls back to a heuristic for any unknown code.
+  const d = DOOR_BY_CODE[code] || DOOR_BY_CODE[(code || '').toUpperCase()];
+  if (d && d.panel) {
+    const arch = /^A(FP|RP)/.test(d.v) || /Arch/i.test(d.l || '');
+    return { panel: d.panel, topRail: d.rail || 2.5, arch };
+  }
   const c = (code || '').toUpperCase();
   if (/MET|SLAB/.test(c)) return { panel: 'slab', topRail: 2.5 };
-  const archCrown = /^(A|C)(FP|RP|GFD)/.test(c) || /ARCH|CROWN|^AFP|^ARP|^CFP|^CRP/.test(c);
+  const archCrown = /^(A|C)(FP|RP|GFD)/.test(c) || /ARCH|CROWN/.test(c);
   const raised = /RP/.test(c) && !/FP/.test(c);
-  return { panel: raised ? 'raised' : 'flat', topRail: archCrown ? 4.5 : 2.5 };
+  return { panel: raised ? 'raised' : 'flat', topRail: archCrown ? 4.5 : 2.5, arch: archCrown };
 }
 
 function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 } }) {
@@ -362,12 +374,34 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     const topRail = (isDoor ? styleSpec.topRail : 2.5) * S;
     const px = fx + RAIL, py = fy + topRail, pw = fw - 2 * RAIL, ph = fh - topRail - RAIL;
     if (styleSpec.panel !== 'slab' && pw > 3 && ph > 3) {
+      const pt = styleSpec.panel;
+      // recessed panel opening
       els.push(<rect key={`${key}p`} x={px} y={py} width={pw} height={ph}
         fill="none" stroke={C.thinLine} strokeWidth={0.22} opacity={0.4} rx={0.2} />);
-      if (styleSpec.panel === 'raised' && pw > 6 && ph > 6) {
+      if (pt === 'raised' && pw > 6 && ph > 6) {
         const b = 1.1 * S;   // bevel field for raised-panel doors
         els.push(<rect key={`${key}pr`} x={px + b} y={py + b} width={pw - 2 * b} height={ph - 2 * b}
           fill="none" stroke={C.thinLine} strokeWidth={0.18} opacity={0.3} rx={0.2} />);
+      } else if (pt === 'mitered') {
+        // 45° miter joints where the rails/stiles meet at each corner
+        [[ax, ay, px, py], [ax + aw, ay, px + pw, py],
+         [ax, ay + ah, px, py + ph], [ax + aw, ay + ah, px + pw, py + ph]]
+          .forEach(([x1, y1, x2, y2], k) => els.push(
+            <line key={`${key}mt${k}`} x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={C.thinLine} strokeWidth={0.18} opacity={0.45} />));
+      } else if (pt === 'applied' && pw > 5 && ph > 5) {
+        // applied molding: a second profiled frame just inside the panel opening
+        const m = 0.9 * S;
+        els.push(<rect key={`${key}am`} x={px + m} y={py + m} width={pw - 2 * m} height={ph - 2 * m}
+          fill="none" stroke={C.thinLine} strokeWidth={0.2} opacity={0.4} rx={0.15} />);
+      } else if (pt === 'reeded') {
+        // vertical reeds filling the panel
+        const n = Math.max(3, Math.floor(pw / (1.6 * S)));
+        for (let i = 1; i < n; i++) {
+          const rx = px + (pw * i) / n;
+          els.push(<line key={`${key}rd${i}`} x1={rx} y1={py} x2={rx} y2={py + ph}
+            stroke={C.thinLine} strokeWidth={0.16} opacity={0.35} />);
+        }
       }
     }
     if (pull === 'bar') {

@@ -116,6 +116,69 @@ export const DRAWER_BOXES = [
   { v: "3/4-PREM-FE", l: '3/4" Premium Dovetail / Blum Full Ext (+$129/drw)', price: 129 },
 ];
 
+const DOOR_GEOM = {
+  'AFP': { panel: 'flat', rail: 2.5, g: 'A' },
+  'ARP': { panel: 'raised', rail: 2.5, g: 'A' },
+  'ASPN': { panel: 'flat', rail: 2.5, g: 'A' },
+  'BRST': { panel: 'flat', rail: 3.25, g: 'A' },
+  'CFP': { panel: 'flat', rail: 2.5, g: 'A' },
+  'CRP': { panel: 'raised', rail: 2.5, g: 'A' },
+  'CNCD-H': { panel: 'flat', rail: 2.5, g: 'A' },
+  'CNCD-V': { panel: 'flat', rail: 2.5, g: 'A' },
+  'GRNS': { panel: 'flat', rail: 2.5, g: 'A' },
+  'HMLN': { panel: 'raised', rail: 2.5, g: 'A' },
+  'HNVR': { panel: 'flat', rail: 2.5, g: 'A' },
+  'HTFD': { panel: 'flat', rail: 3.25, g: 'A' },
+  'HRTG': { panel: 'flat', rail: 2.5, g: 'A' },
+  'LNCR': { panel: 'flat', rail: 2.5, g: 'A' },
+  'MET-MDF': { panel: 'slab', rail: 2.5, g: 'A' },
+  'MET-H': { panel: 'slab', rail: 2.5, g: 'A' },
+  'MET-V': { panel: 'slab', rail: 2.5, g: 'A' },
+  'NHVN': { panel: 'flat', rail: 2.5, g: 'A' },
+  'OXRP': { panel: 'flat', rail: 2.5, g: 'A' },
+  'RCMD': { panel: 'raised', rail: 2.5, g: 'A' },
+  'SCDL': { panel: 'flat', rail: 2.5, g: 'A' },
+  'SFP': { panel: 'flat', rail: 2.5, g: 'A' },
+  'SMST': { panel: 'flat', rail: 2.5, g: 'A' },
+  'SRP': { panel: 'raised', rail: 2.5, g: 'A' },
+  'STSVL': { panel: 'flat', rail: 2.5, g: 'A' },
+  'SUMT': { panel: 'raised', rail: 2.5, g: 'A' },
+  'TAHOE': { panel: 'flat', rail: 2.5, g: 'A' },
+  'WARD': { panel: 'flat', rail: 2.5, g: 'A' },
+  'WMTN': { panel: 'flat', rail: 2.5, g: 'A' },
+  'MLBU': { panel: 'flat', rail: 1.5, g: 'A' },
+  'NAPA-H': { panel: 'flat', rail: 0.75, g: 'A' },
+  'NAPA-V': { panel: 'flat', rail: 0.75, g: 'A' },
+  'ASVL': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'BCP': { panel: 'applied', rail: 2.5, g: 'B' },
+  'BDFD': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'CHRS': { panel: 'applied', rail: 2.5, g: 'B' },
+  'DLTN': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'ESSX': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'GLBK': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'KNDL': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'LNDS': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'MNTG': { panel: 'applied', rail: 2.5, g: 'B' },
+  'MNCH': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'PTLN': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'RMLB': { panel: 'reeded', rail: 2.5, g: 'B' },
+  'SHBY': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'SVNH': { panel: 'mitered', rail: 2.5, g: 'B' },
+  'WNSR': { panel: 'mitered', rail: 2.5, g: 'B' },
+};
+
+// Enrich each door with panel type + rail width from the Eclipse 8.8 catalog
+// (paf.xml). Catalog panel doors get their authoritative panel/rail/group;
+// glass & mullion doors are tagged 'mullion'; anything else defaults to flat.
+DOORS.forEach(d => {
+  const gm = DOOR_GEOM[d.v];
+  if (gm) { d.panel = gm.panel; d.rail = gm.rail; d.g = gm.g; }
+  else {
+    d.panel = (/Mullion|Glass|Pane|GFD|MD$|CTD$/i.test(d.v) || /Mullion|Glass|Pane/i.test(d.l)) ? 'mullion' : (d.panel || 'flat');
+    d.rail = d.rail || 2.5;
+  }
+});
+
 export function findDoor(code) { return DOORS.find(d => d.v === code); }
 export function findDrawerFront(code) { return DRAWER_FRONTS.find(d => d.v === code); }
 export function findDrawerBox(code) { return DRAWER_BOXES.find(d => d.v === code); }

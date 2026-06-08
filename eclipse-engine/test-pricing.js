@@ -46,9 +46,9 @@ assert(CONSTRUCTION_UPCHARGE["Plywood"].pct === 10,
 
 assert(typeof DOOR_STYLE_CHARGE === "object" && Object.keys(DOOR_STYLE_CHARGE).length >= 7,
   `DOOR_STYLE_CHARGE has ${Object.keys(DOOR_STYLE_CHARGE).length} styles (≥7)`);
-assert(DOOR_STYLE_CHARGE["Hanover FP"].groupRate === 0,
+assert(DOOR_STYLE_CHARGE["HNVR"].groupRate === 0,
   "Hanover FP has no door group charge");
-assert(DOOR_STYLE_CHARGE["Malibu Reeded Panel"].groupRate > 0,
+assert(DOOR_STYLE_CHARGE["RMLB"].groupRate > 0,
   "Malibu Reeded Panel has premium door group charge");
 
 assert(typeof DRAWER_UPGRADES === "object", "DRAWER_UPGRADES exported");
@@ -205,7 +205,7 @@ const projectResult = priceProject({
       specId: "walnut_bases",
       species: "Walnut",
       construction: "Standard",
-      doorStyle: "Hanover FP",
+      doorStyle: "HNVR",
       lineItems: [
         { sku: "B3D24", listPrice: 681, line: 1 },
         { sku: "B3D24", listPrice: 681, line: 2 },
@@ -215,7 +215,7 @@ const projectResult = priceProject({
       specId: "maple_uppers",
       species: "Maple",
       construction: "Standard",
-      doorStyle: "Hanover FP",
+      doorStyle: "HNVR",
       lineItems: [
         { sku: "W3630", listPrice: 420, line: 3 },
         { sku: "W3630", listPrice: 420, line: 4 },
@@ -308,7 +308,7 @@ const riftOak = priceLineItem({
   listPrice: 1200,
   species: "Rift Cut White Oak",
   construction: "Standard",
-  doorStyle: "Malibu Reeded Panel",
+  doorStyle: "RMLB",
   numDoors: 2,
 });
 
@@ -499,7 +499,7 @@ const displayCabPrice = priceLineItem({
   listPrice: 350,
   species: "Walnut",
   construction: "Plywood",
-  doorStyle: "Hanover FP",
+  doorStyle: "HNVR",
   numDoors: 2,
   numDrawers: 0,
   modifications: [
@@ -561,7 +561,7 @@ console.log("\n═══ priceSpec with mods across line items ═══");
 const specWithMods = priceSpec({
   species: "Walnut",
   construction: "Plywood",
-  doorStyle: "Hanover FP",
+  doorStyle: "HNVR",
   drawerType: "Standard",
   drawerGuide: "Standard",
   lineItems: [
@@ -615,7 +615,7 @@ const modQuote = configureProject({
   materials: {
     species: "Walnut",
     construction: "Plywood",
-    doorStyle: "Hanover FP",
+    doorStyle: "HNVR",
   },
 });
 
@@ -664,7 +664,7 @@ const testQuote = configureProject({
   materials: {
     species: "Walnut",
     construction: "Plywood",
-    doorStyle: "Hanover FP",
+    doorStyle: "HNVR",
   },
 });
 
