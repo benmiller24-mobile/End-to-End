@@ -100,7 +100,10 @@ function isFiller(cab) {
 /** Detect if cabinet is a REP (Refrigerator End Panel) */
 function isREP(cab) {
   const sku = (cab.sku || '').toUpperCase();
-  return sku.startsWith('REP') || (cab.role || '') === 'rep';
+  const role = (cab.role || '').toLowerCase();
+  return sku.startsWith('REP') || sku.startsWith('FWEP') || sku.startsWith('FBEP')
+    || sku.startsWith('BEP') || sku.startsWith('WEP') || sku.startsWith('DEP')
+    || role === 'rep' || role.includes('end-panel') || role.includes('finished_end') || role.includes('finishedend');
 }
 
 /** Detect if cabinet is an appliance */
@@ -474,9 +477,9 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
       const latchX = hingeLeft ? ix + iw : ix;
       const apexY = iy + ih / 2;
       els.push(<line key={`sw1${i}`} x1={latchX} y1={iy} x2={apexX} y2={apexY}
-        stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />);
+        stroke={C.thinLine} strokeWidth={0.22} opacity={0.32} strokeDasharray="2,1.6" />);
       els.push(<line key={`sw2${i}`} x1={latchX} y1={iy + ih} x2={apexX} y2={apexY}
-        stroke={C.thinLine} strokeWidth={0.3} opacity={0.55} />);
+        stroke={C.thinLine} strokeWidth={0.22} opacity={0.32} strokeDasharray="2,1.6" />);
       const hwX = hingeLeft ? ix + iw - 1.4 * S : ix + 1.4 * S;
       const hwY = isUpper ? iy + ih - 3 * S : iy + 3 * S;
       if (hardware === 'bar' || hardware === 'pull') {
@@ -816,7 +819,7 @@ function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel' }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [] }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -920,8 +923,15 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
     if (doors >= 2) return 'L/R';
     return '\u2014';
   };
+  const _applUtil = { range: 'Gas/240V', cooktop: 'Gas/240V', wallOven: '240V', speedOven: '240V', steamOven: '120V+water', refrigerator: '120V', freezer: '120V', dishwasher: '120V+water+drain', sink: 'water+drain', microwave: '120V', hood: '120V+duct', wine: '120V', warmingDrawer: '120V' };
   const _noteFor = (cab) => {
-    if (isAppliance(cab)) return appLabel(cab.applianceType) || 'Appliance';
+    if (isAppliance(cab)) {
+      const at = (cab.applianceType || '').toLowerCase();
+      const m = (appliances || []).find(a => (a.type || '').toLowerCase() === at);
+      const model = m ? `${m.brand ? m.brand + ' ' : ''}${m.model || ''}`.trim() : '';
+      const util = Object.entries(_applUtil).find(([k]) => k.toLowerCase() === at)?.[1] || '';
+      return [model || (appLabel(cab.applianceType) || 'Appliance'), util ? 'util: ' + util : ''].filter(Boolean).join('  \u00b7  ');
+    }
     if (isREP(cab)) return 'Finished end panel';
     if (isFiller(cab)) return 'Filler / scribe';
     const { doors, drawers } = parseDoorDrawer(cab.sku || '', cab.width);
@@ -983,6 +993,32 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           fill={stone ? ctrPat : C.backsplash} stroke="none" opacity={stone ? 0.5 : 0.2} />
       )}
 
+      {/* ══════════ ELECTRICAL: backsplash receptacles (GFCI) ══════════ */}
+      {!isIsland && validBases.length > 0 && (() => {
+        const minX = Math.min(...sortedBases.map(b => b.position));
+        const maxX = Math.max(...sortedBases.map(b => b.position + b.width));
+        const span = maxX - minX;
+        if (span < 24) return null;
+        const recY = floorY - 44 * S;                 // ~44" AFF, mid-backsplash
+        const n = Math.max(2, Math.ceil(span / 42));  // <=48" o.c.
+        const els = [];
+        for (let k = 0; k < n; k++) {
+          const rx = (minX + span * (k + 0.5) / n) * S;
+          els.push(
+            <g key={`rc${k}`}>
+              <rect x={rx - 1.7} y={recY - 2.5} width={3.4} height={5} fill="#ffffff" stroke={C.line} strokeWidth={0.35} rx={0.5} />
+              <circle cx={rx} cy={recY - 1.2} r={0.5} fill="none" stroke={C.line} strokeWidth={0.3} />
+              <circle cx={rx} cy={recY + 1.2} r={0.5} fill="none" stroke={C.line} strokeWidth={0.3} />
+            </g>
+          );
+        }
+        els.push(
+          <text key="erx" x={minX * S} y={recY - 4} fill={C.annotColor} fontSize={2.7}
+            fontFamily="Helvetica,Arial,sans-serif">{'GFCI recept. @ 44" AFF \u00b7 \u226448" o.c.'}</text>
+        );
+        return <g opacity={0.92}>{els}</g>;
+      })()}
+
       {/* Floor line (heavy) */}
       <line x1={-30} y1={floorY} x2={wW + 30} y2={floorY}
         stroke={C.floor} strokeWidth={2} />
@@ -1038,6 +1074,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ))}
             {/* Sill */}
             <rect x={ox - 1.5} y={yBot} width={ow + 3} height={1.6} fill={C.ctrFill} stroke={C.line} strokeWidth={0.4} />
+            {/* sill + head AFF dims */}
+            <text x={ox + ow + 3} y={yBot + 1} fill={C.annotColor} fontSize={2.7}
+              fontFamily="Helvetica,Arial,sans-serif">{`${fmt(sillAFF)} sill`}</text>
+            <text x={ox + ow + 3} y={yTop + 1} fill={C.annotColor} fontSize={2.7}
+              fontFamily="Helvetica,Arial,sans-serif">{`${fmt(headAFF)} head`}</text>
           </g>
         );
       })}
@@ -1063,6 +1104,10 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             {/* Countertop edge detail */}
             <line x1={minX * S} y1={baseTopY} x2={(maxX) * S} y2={baseTopY}
               stroke={C.line} strokeWidth={0.6} />
+            <text x={(minX + (maxX - minX) / 2) * S} y={ctrTopY - 2} fill={C.annotColor}
+              fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
+              {`CT: ${stone?.name || (stone?.type ? stone.type : 'Quartz')} \u00b7 1\u00bc\" \u00b7 eased edge \u00b7 1\u00bd\" OH`}
+            </text>
           </g>
         );
       })()}
@@ -1346,6 +1391,15 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               fill={C.annotColor} fontSize={3}
               fontFamily="Helvetica,Arial,sans-serif" textAnchor="start">
               {fmt(bottomAFF - COUNTER_AFF)} over counter
+            </text>
+            {/* Ventilation spec */}
+            <text x={x + w / 2} y={(yTop + yBottom) / 2 + 6} fill={C.annotColor}
+              fontSize={2.7} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
+              {`${hood.cfm || 600} CFM \u00b7 ${hood.duct || '8\" RND'} duct`}
+            </text>
+            <text x={x + w / 2} y={(yTop + yBottom) / 2 + 9.5} fill={C.annotColor}
+              fontSize={2.5} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
+              {(hood.cfm || 600) >= 400 ? 'makeup air req\u2019d' : 'duct to exterior'}
             </text>
           </g>
         );
@@ -1882,7 +1936,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
-export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {}, hardware = 'knob', hardwareFinish = 'Brushed Nickel' }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {}, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [] }) {
   const styleSpec = doorStyleSpec(doorStyle);
   const stone = classifyStone(countertopColor);
   if (!solverResult) return null;
@@ -2015,6 +2069,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             doorStyle={doorStyle}
             hardware={hardware}
             hardwareFinish={hardwareFinish}
+            appliances={appliances}
             isIsland={wd.isIsland}
             titleBlock={titleBlock}
             sheetNo={titleBlock.sheetPrefix ? `${titleBlock.sheetPrefix}${_wi + 1}` : `A-${_wi + 1}`}
