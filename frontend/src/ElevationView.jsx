@@ -870,7 +870,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
   sortedUppers.forEach(c => taggedItems.push({ ...c, _tag: tagNum++, _zone: 'upper' }));
 
   // ── BUILD UPPER SEGMENTS (for crown/light rail that skip hoods) ──
-  function buildUpperSegments() {
+  function buildUpperSegments(skipAboveTall = true) {
     const allU = [...validUppers];
     if (hood) allU.push({ ...hood, _isHood: true });
     const sorted = allU
@@ -880,11 +880,12 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
     const segs = [];
     let segS = null, segE = null, segTopY = null;
     for (const cab of sorted) {
+      const isAboveTall = cab._elev?.zone === 'ABOVE_TALL' || (cab._elev?.yMount || 0) > 60;
+      // The under-cabinet LIGHT RAIL must not cross the over-fridge cabinet, but
+      // the TOP line / crown SHOULD — so over-fridge is skipped only when asked.
       const skip = cab._isHood || cab.role === 'range_hood' || cab.type === 'rangeHood'
         || (cab.applianceType || '') === 'microwave'
-        // Over-tall cabinets (above the fridge) mount near the ceiling — the
-        // light rail / crown band must NOT run across them.
-        || cab._elev?.zone === 'ABOVE_TALL' || (cab._elev?.yMount || 0) > 60;
+        || (skipAboveTall && isAboveTall);
       if (skip) {
         if (segS !== null) { segs.push({ s: segS, e: segE, topY: segTopY }); segS = null; }
         continue;
@@ -900,7 +901,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
     return segs;
   }
 
-  const upperSegs = buildUpperSegments();
+  const topSegs  = buildUpperSegments(false);  // crown / top line — spans over-fridge
+  const railSegs = buildUpperSegments(true);   // light rail — skips the over-fridge cab
   const totalH = cH + topMargin + botDim + 25;
   const totalW = wW + rightDim + leftMargin + 10;
 
@@ -1285,8 +1287,16 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       {(() => {
         const fit = trim.ceilingFit || (trim.crown ? 'crown' : 'open');
 
+        // Continuous cabinetry TOP line across the whole run, for EVERY door
+        // style (slab included). Reads as one line end-to-end; breaks only at
+        // the hood. Over-fridge is part of this run (topSegs).
+        const topLine = topSegs.map((seg, i) => (
+          <line key={`topln${i}`} x1={seg.s * S} y1={seg.topY} x2={seg.e * S} y2={seg.topY}
+            stroke={C.line} strokeWidth={1} />
+        ));
+
         if (fit === 'crown' && styleSpec.panel !== 'slab') {
-          return upperSegs.map((seg, i) => {
+          const crowns = topSegs.map((seg, i) => {
             const ceilGapY = ceilY + 0.25 * S;                 // 1/4" below the ceiling line
             const crownBotY = seg.topY != null ? seg.topY : (upTopY);
             const crownTopY = Math.max(ceilGapY, crownBotY - CROWN_H * S);
@@ -1294,10 +1304,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             if (h < 1) return null;
             return <CrownSegment key={`cr${i}`} x1={seg.s * S} x2={seg.e * S} y={crownTopY} height={h} />;
           });
+          return <>{topLine}{crowns}</>;
         }
 
         if (fit === 'fitted') {
-          return upperSegs.map((seg, i) => {
+          return topSegs.map((seg, i) => {
             const panelBotY = seg.topY != null ? seg.topY : upTopY;  // cabinet top
             const panelTopY = ceilY;                                  // up to the ceiling
             const h = panelBotY - panelTopY;
@@ -1321,26 +1332,27 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           });
         }
 
-        // 'open' (unfitted): a faint reveal line above each run; no panel, no crown.
-        return upperSegs.map((seg, i) => {
+        // 'open' / slab modern: continuous flush top line + faint reveal hint.
+        const openHint = topSegs.map((seg, i) => {
           const topY = seg.topY != null ? seg.topY : upTopY;
           const x = seg.s * S, w = (seg.e - seg.s) * S;
-          if (w < 20) return null;
+          if (w < 26) return null;
           return (
             <text key={`open${i}`} x={x + w / 2} y={topY - 2} fill={C.annotColor}
               fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle"
               fontStyle="italic" opacity={0.55}>OPEN ABOVE</text>
           );
         });
+        return <>{topLine}{openHint}</>;
       })()}
 
       {/* ══════════ LIGHT RAIL (skips hoods) ══════════ */}
-      {trim.lightRail && upperSegs.map((seg, i) => (
+      {trim.lightRail && railSegs.map((seg, i) => (
         <LightRailSegment key={`lr${i}`} x1={seg.s * S} x2={seg.e * S} y={upBotY} />
       ))}
 
       {/* ══════════ LIGHT CONCEAL ANNOTATION ══════════ */}
-      {trim.lightRail && upperSegs.length > 0 && upperSegs.map((seg, i) => (
+      {trim.lightRail && railSegs.length > 0 && railSegs.map((seg, i) => (
         <text key={`lca${i}`} x={(seg.s + seg.e) / 2 * S} y={upBotY + LR_H * S + 5}
           fill={C.annotColor} fontSize={3.2}
           fontFamily="Helvetica,Arial,sans-serif"
