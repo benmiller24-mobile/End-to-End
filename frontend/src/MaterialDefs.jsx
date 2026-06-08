@@ -3,13 +3,16 @@ import textureManifest from './textureManifest.json';
 
 // Real Cyncly finish photo for a species + finish color (else null → procedural).
 const _cn = (x) => (x || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-export function textureURL(species, finishColor) {
+export function textureURL(species, finishColor, horizontal = false) {
   const sp = textureManifest[species];
   if (!sp) return null;
   const k = _cn(finishColor);
-  if (k && sp[k]) return '/textures/' + sp[k];
-  const first = Object.values(sp)[0];          // representative swatch for the species
-  return first ? '/textures/' + first : null;
+  const e = (k && sp[k]) ? sp[k] : Object.values(sp)[0];   // {f, g} ; g = V|H|F grain
+  if (!e) return null;
+  // Doors want VERTICAL grain by default; rotate a swatch 90° when its native
+  // grain doesn't match the requested direction (toggle → horizontal).
+  const rotate = horizontal ? (e.g === 'H' ? 0 : 90) : (e.g === 'H' ? 90 : 0);
+  return { url: '/textures/' + e.f, rotate };
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -167,7 +170,7 @@ function StonePattern({ sfx, stone }) {
   );
 }
 
-export function MaterialDefs({ sfx, species, stone, finishColor }) {
+export function MaterialDefs({ sfx, species, stone, finishColor, grainHorizontal = false }) {
   const tone = speciesTone(species);
   const st = stone || { type: 'quartz', base: '#e9e6e1' };
   const sBaseLt = shade(st.base, 0.06), sBaseDk = shade(st.base, -0.08);
@@ -175,13 +178,15 @@ export function MaterialDefs({ sfx, species, stone, finishColor }) {
     <defs>
       {/* wood: real Cyncly finish photo when available, else procedural grain */}
       {(() => {
-        const tex = textureURL(species, finishColor);
+        const tex = textureURL(species, finishColor, grainHorizontal);
         if (tex) {
-          // square swatch tiled at ~36" so a door shows most of one photo
+          // square swatch tiled at ~36" so a door shows most of one photo;
+          // rotate 90° around the tile centre to force the grain direction.
           const T = 80;
+          const tr = tex.rotate ? `rotate(${tex.rotate} ${T / 2} ${T / 2})` : undefined;
           return (
             <pattern id={`wood-${sfx}`} patternUnits="userSpaceOnUse" width={T} height={T}>
-              <image href={tex} x="0" y="0" width={T} height={T} preserveAspectRatio="xMidYMid slice" />
+              <image href={tex.url} x="0" y="0" width={T} height={T} transform={tr} preserveAspectRatio="xMidYMid slice" />
             </pattern>
           );
         }

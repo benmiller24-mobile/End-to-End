@@ -944,7 +944,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {/* Elevations tab */}
       {tab === 'elevations' && (
         <div>
-          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} />
+          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} grainHorizontal={materials?.grainHorizontal} />
           {/* Tag SVGs for PDF export */}
           <style>{`[data-pdf="elevation"] { /* marker */ }`}</style>
         </div>
@@ -1387,7 +1387,7 @@ export default function App() {
 
   // Materials
   const [materials, setMaterials] = useState({
-    species: 'Maple', door: 'MET-V', construction: 'Standard', islandSpecies: '', finishColor: 'Natural',
+    species: 'Maple', door: 'MET-V', construction: 'Standard', islandSpecies: '', finishColor: 'Natural', grainHorizontal: false,
   });
 
   // Appliance selections
@@ -1571,6 +1571,11 @@ export default function App() {
                     <select value={materials.finishColor || ''} onChange={e => setMaterials(m => ({ ...m, finishColor: e.target.value }))} style={inputStyle}>
                       {(FINISH_COLORS[materials.species] || []).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, color: C.dim, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!!materials.grainHorizontal}
+                        onChange={e => setMaterials(m => ({ ...m, grainHorizontal: e.target.checked }))} />
+                      Horizontal grain (default: vertical)
+                    </label>
                   </div>
                   )}
 

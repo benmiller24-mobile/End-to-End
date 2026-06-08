@@ -478,19 +478,11 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
 // COMPONENT: FillerStrip — Hatched filler visualization
 // ═══════════════════════════════════════════════════════════════════════
 
-function FillerStrip({ x, y, w, h, label }) {
-  const id = `fh_${Math.round(x)}_${Math.round(y)}`;
+function FillerStrip({ x, y, w, h, label, frontFill = C.fillerFill }) {
   return (
     <g>
-      <defs>
-        <pattern id={id} width={3} height={3} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1={0} y1={0} x2={0} y2={3} stroke={C.fillerHatch} strokeWidth={0.3} />
-        </pattern>
-      </defs>
       <rect x={x} y={y} width={w} height={h}
-        fill={C.fillerFill} stroke={C.line} strokeWidth={0.5} />
-      <rect x={x} y={y} width={w} height={h}
-        fill={`url(#${id})`} stroke="none" />
+        fill={frontFill} stroke={C.line} strokeWidth={0.5} />
       {label && w > 3 * S && (
         <text x={x + w / 2} y={y + h / 2 + 1.5} fill={C.annotColor}
           fontSize={3} fontFamily="Helvetica,Arial,sans-serif"
@@ -508,19 +500,11 @@ function FillerStrip({ x, y, w, h, label }) {
 // COMPONENT: REPPanel — Refrigerator End Panel visualization
 // ═══════════════════════════════════════════════════════════════════════
 
-function REPPanel({ x, y, w, h }) {
+function REPPanel({ x, y, w, h, frontFill = C.repFill }) {
   return (
     <g>
       <rect x={x} y={y} width={w} height={h}
-        fill={C.repFill} stroke={C.line} strokeWidth={0.6} />
-      {/* Vertical grain lines */}
-      {Array.from({ length: Math.floor(w / (1.5 * S)) }, (_, i) => {
-        const lx = x + (i + 1) * 1.5 * S;
-        return lx < x + w - 1 ? (
-          <line key={`g${i}`} x1={lx} y1={y + 2} x2={lx} y2={y + h - 2}
-            stroke={C.fillerHatch} strokeWidth={0.15} opacity={0.35} />
-        ) : null;
-      })}
+        fill={frontFill} stroke={C.line} strokeWidth={0.6} />
       <text x={x + w / 2} y={y + h / 2 + 1.5} fill={C.annotColor}
         fontSize={3.2} fontFamily="Helvetica,Arial,sans-serif"
         textAnchor="middle" fontWeight="600"
@@ -769,7 +753,7 @@ function ScribeAnnotation({ x, y1, y2, side = 'left' }) {
 // COMPONENT: CrownProfile — Crown molding cross-section profile
 // ═══════════════════════════════════════════════════════════════════════
 
-function CrownSegment({ x1, x2, y, height }) {
+function CrownSegment({ x1, x2, y, height, frontFill = C.crownFill }) {
   const h = height != null ? height : CROWN_H * S;
   // Profile: bottom-left, cove curve up, ogee top, straight to right, mirror
   const w = x2 - x1;
@@ -783,7 +767,7 @@ function CrownSegment({ x1, x2, y, height }) {
         Q ${x2} ${y} ${x2} ${y + h * 0.4}
         L ${x2} ${y + h}
         Z`}
-        fill={C.crownFill} stroke={C.line} strokeWidth={0.4} />
+        fill={frontFill} stroke={C.line} strokeWidth={0.4} />
       {/* Detail line (cove profile step) */}
       <line x1={x1 + 1} y1={y + h * 0.6} x2={x2 - 1} y2={y + h * 0.6}
         stroke={C.thinLine} strokeWidth={0.2} opacity={0.5} />
@@ -796,12 +780,12 @@ function CrownSegment({ x1, x2, y, height }) {
 // COMPONENT: LightRailSegment — Light rail under upper cabinets
 // ═══════════════════════════════════════════════════════════════════════
 
-function LightRailSegment({ x1, x2, y }) {
+function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
   const h = LR_H * S;
   return (
     <g>
       <rect x={x1} y={y} width={x2 - x1} height={h}
-        fill={C.lrFill} stroke={C.line} strokeWidth={0.35} />
+        fill={frontFill} stroke={C.line} strokeWidth={0.35} />
       {/* Small detail bead at bottom edge */}
       <line x1={x1} y1={y + h - 0.5} x2={x2} y2={y + h - 0.5}
         stroke={C.thinLine} strokeWidth={0.25} opacity={0.6} />
@@ -814,7 +798,7 @@ function LightRailSegment({ x1, x2, y }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -911,7 +895,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       style={{ width: '100%', height: 'auto', maxHeight: 620, background: C.bg, borderRadius: 4, marginBottom: 20 }}
       xmlns="http://www.w3.org/2000/svg">
 
-      <MaterialDefs sfx={sfx} species={species} stone={stone} finishColor={finishColor} />
+      <MaterialDefs sfx={sfx} species={species} stone={stone} finishColor={finishColor} grainHorizontal={grainHorizontal} />
 
       {/* ══════════ TITLE BLOCK (NKBA Ch.2 Fig 2.2 style) ══════════ */}
       <g>
@@ -1060,9 +1044,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         return (
           <g key={`b${i}`}>
             {isRepPanel ? (
-              <REPPanel x={x} y={y} w={w} h={h} />
+              <REPPanel x={x} y={y} w={w} h={h} frontFill={frontFill} />
             ) : isFill ? (
-              <FillerStrip x={x} y={y} w={w} h={h} label={cab.width <= FILLER_MIN ? '' : sku} />
+              <FillerStrip x={x} y={y} w={w} h={h} label={cab.width <= FILLER_MIN ? '' : sku} frontFill={frontFill} />
             ) : (isApp && !isSinkBase) ? (
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
@@ -1128,9 +1112,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         return (
           <g key={`u${i}`}>
             {isRepPanel ? (
-              <REPPanel x={x} y={y} w={w} h={uH} />
+              <REPPanel x={x} y={y} w={w} h={uH} frontFill={frontFill} />
             ) : isFill ? (
-              <FillerStrip x={x} y={y} w={w} h={uH} />
+              <FillerStrip x={x} y={y} w={w} h={uH} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} />
             )}
@@ -1162,7 +1146,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         return (
           <g key={`t${i}`}>
             {isRepPanel ? (
-              <REPPanel x={x} y={y} w={w} h={tH} />
+              <REPPanel x={x} y={y} w={w} h={tH} frontFill={frontFill} />
             ) : isApp ? (
               <ApplianceSym x={x} y={y} w={w} h={tH} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (() => {
@@ -1316,7 +1300,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             const crownTopY = Math.max(ceilGapY, crownBotY - CROWN_H * S);
             const h = crownBotY - crownTopY;
             if (h < 1) return null;
-            return <CrownSegment key={`cr${i}`} x1={seg.s * S} x2={seg.e * S} y={crownTopY} height={h} />;
+            return <CrownSegment key={`cr${i}`} x1={seg.s * S} x2={seg.e * S} y={crownTopY} height={h} frontFill={frontFill} />;
           });
           return <>{topLine}{crowns}</>;
         }
@@ -1362,7 +1346,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 
       {/* ══════════ LIGHT RAIL (skips hoods) ══════════ */}
       {trim.lightRail && railSegs.map((seg, i) => (
-        <LightRailSegment key={`lr${i}`} x1={seg.s * S} x2={seg.e * S} y={upBotY} />
+        <LightRailSegment key={`lr${i}`} x1={seg.s * S} x2={seg.e * S} y={upBotY} frontFill={frontFill} />
       ))}
 
       {/* ══════════ LIGHT CONCEAL ANNOTATION ══════════ */}
@@ -1699,7 +1683,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
-export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false }) {
   const styleSpec = doorStyleSpec(doorStyle);
   const stone = classifyStone(countertopColor);
   if (!solverResult) return null;
@@ -1814,6 +1798,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             species={species}
             stone={stone}
             finishColor={finishColor}
+            grainHorizontal={grainHorizontal}
           />
         );
       })}
