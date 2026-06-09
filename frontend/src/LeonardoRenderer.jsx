@@ -8,12 +8,11 @@ import React, { useState, useCallback } from 'react';
  * the solver output, material selections, appliance choices, and
  * countertop selection.
  *
- * SETUP: Set your Leonardo AI API key in the LEONARDO_API_KEY constant
- * or provide it via the UI input. Get a key at https://leonardo.ai
+ * The Leonardo API key is embedded server-side in the /api/leonardo Netlify
+ * function (env var LEONARDO_API_KEY, with a fallback). The user never enters a
+ * key; this component just POSTs the prompt and polls for the image — and only
+ * when the user clicks "Generate AI Rendering".
  */
-
-// ── Placeholder: Replace with your Leonardo AI API key ──
-const LEONARDO_API_KEY = '';
 
 // ── Theme colors (match App.jsx) ──
 const C = {
@@ -90,76 +89,40 @@ function buildPrompt({ layoutType, roomType, materials, appliances, countertop, 
 }
 
 /**
- * Call Leonardo AI API to generate an image
+ * Generate an image via the server-side /api/leonardo proxy (key stays on the
+ * server). Creates a generation, then polls until the image is ready.
  */
-async function generateImage(apiKey, prompt) {
-  // Step 1: Create generation
-  const createRes = await fetch('https://cloud.leonardo.ai/api/rest/v1/generations', {
+async function generateImage(prompt) {
+  const createRes = await fetch('/api/leonardo', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      prompt,
-      modelId: 'e71a1c2f-4f80-4800-934f-2c68979d8cc8', // Leonardo Kino XL
-      width: 1360,
-      height: 768,
-      num_images: 1,
-      guidance_scale: 7,
-      alchemy: true,
-      photoReal: true,
-      photoRealVersion: 'v2',
-      presetStyle: 'CINEMATIC',
-      negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, painting, sketch, watermark, text, logo',
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
   });
-
   if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`Leonardo API error: ${createRes.status} — ${err}`);
+    const e = await createRes.json().catch(() => ({}));
+    throw new Error(e.error || `Generation request failed (${createRes.status})`);
   }
-
-  const createData = await createRes.json();
-  const generationId = createData.sdGenerationJob?.generationId;
+  const { generationId } = await createRes.json();
   if (!generationId) throw new Error('No generation ID returned');
 
-  // Step 2: Poll for result
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 40; i++) {
     await new Promise(r => setTimeout(r, 3000));
-
-    const pollRes = await fetch(`https://cloud.leonardo.ai/api/rest/v1/generations/${generationId}`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-    });
-
+    const pollRes = await fetch(`/api/leonardo?id=${encodeURIComponent(generationId)}`);
     if (!pollRes.ok) continue;
-
-    const pollData = await pollRes.json();
-    const images = pollData.generations_by_pk?.generated_images;
-    if (images && images.length > 0) {
-      return images[0].url;
-    }
-
-    const status = pollData.generations_by_pk?.status;
-    if (status === 'FAILED') throw new Error('Leonardo generation failed');
+    const pd = await pollRes.json();
+    if (pd.status === 'COMPLETE' && pd.url) return pd.url;
+    if (pd.status === 'FAILED') throw new Error('Leonardo generation failed');
   }
-
-  throw new Error('Generation timed out after 90 seconds');
+  throw new Error('Generation timed out after ~2 minutes');
 }
 
 export default function LeonardoRenderer({ solverResult, materials, selectedAppliances, countertopColor, prefs }) {
-  const [apiKey, setApiKey] = useState(LEONARDO_API_KEY);
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [prompt, setPrompt] = useState('');
 
   const handleGenerate = useCallback(async () => {
-    if (!apiKey) {
-      setError('Please enter your Leonardo AI API key');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setImageUrl(null);
@@ -175,13 +138,13 @@ export default function LeonardoRenderer({ solverResult, materials, selectedAppl
     setPrompt(generatedPrompt);
 
     try {
-      const url = await generateImage(apiKey, generatedPrompt);
+      const url = await generateImage(generatedPrompt);
       setImageUrl(url);
     } catch (err) {
       setError(err.message);
     }
     setLoading(false);
-  }, [apiKey, solverResult, materials, selectedAppliances, countertopColor, prefs]);
+  }, [solverResult, materials, selectedAppliances, countertopColor, prefs]);
 
   const panelStyle = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 16, marginBottom: 16 };
   const inputStyle = { width: '100%', padding: '7px 10px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4, color: C.text, fontSize: 13, boxSizing: 'border-box' };
@@ -192,26 +155,13 @@ export default function LeonardoRenderer({ solverResult, materials, selectedAppl
         AI Rendering — Leonardo.ai
       </div>
 
-      {/* API Key input */}
-      {!LEONARDO_API_KEY && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', fontSize: 12, color: C.dim, marginBottom: 4 }}>Leonardo AI API Key</label>
-          <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-            placeholder="Enter your Leonardo AI API key..."
-            style={inputStyle} />
-          <div style={{ fontSize: 10, color: C.dim, marginTop: 4 }}>
-            Get your API key at <a href="https://leonardo.ai" target="_blank" rel="noopener noreferrer" style={{ color: C.primary }}>leonardo.ai</a> — Keys are not stored or transmitted anywhere except to Leonardo's API.
-          </div>
-        </div>
-      )}
-
       {/* Generate button */}
-      <button onClick={handleGenerate} disabled={loading || !apiKey}
+      <button onClick={handleGenerate} disabled={loading}
         style={{
           width: '100%', padding: 12, border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600,
           cursor: loading ? 'wait' : 'pointer',
           background: loading ? C.border : `linear-gradient(135deg, ${C.purple}, ${C.primary})`,
-          color: '#fff', opacity: !apiKey ? 0.5 : 1,
+          color: '#fff', opacity: 1,
         }}>
         {loading ? 'Generating rendering... (30-60 seconds)' : 'Generate AI Rendering'}
       </button>
