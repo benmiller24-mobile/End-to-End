@@ -1510,9 +1510,19 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           const upx = validUppers.map(u => ({ l: u.position * S, r: (u.position + u.width) * S }));
           const leftCab  = upx.filter(u => u.r <= x + 1).sort((a, b) => b.r - a.r)[0];
           const rightCab = upx.filter(u => u.l >= x + w - 1).sort((a, b) => a.l - b.l)[0];
-          const maxExt = 15 * S;
-          const xL = Math.min(x,     leftCab  ? Math.max(leftCab.r, x - maxExt)     : x - 7 * S);
-          const xR = Math.max(x + w, rightCab ? Math.min(rightCab.l, x + w + maxExt) : x + w + 7 * S);
+          // A featured mantel sized off the RANGE (≈48" over a 30" range), NOT stretched
+          // to the cabinets — leave a clearance REVEAL so the flanking doors can swing
+          // (NKBA filler ≥1.5"; 3" here for comfort). When there are no flanking cabinets
+          // the hood simply stands on open wall as a feature.
+          const clear = 3 * S;
+          const featHalf = w / 2 + 6 * S;   // generous featured half-width
+          const minHalf  = w / 2 + 2 * S;   // never narrower than this
+          let xL = cx - featHalf;
+          if (leftCab && leftCab.r + clear > xL) xL = leftCab.r + clear;   // hold the reveal
+          xL = Math.min(xL, cx - minHalf);
+          let xR = cx + featHalf;
+          if (rightCab && rightCab.l - clear < xR) xR = rightCab.l - clear;
+          xR = Math.max(xR, cx + minHalf);
           const apronHalf = w / 2 + 2 * S;                 // apron over the cooktop
           const apronTopY = yBottom - 9 * S;
           const H = yBottom - ceilY;
@@ -1567,9 +1577,6 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                 <path d={`M ${cx - apronHalf * 0.7} ${yBottom - H * 0.22} Q ${cx} ${yBottom - H * 0.17} ${cx + apronHalf * 0.7} ${yBottom - H * 0.23}`}
                   fill="none" stroke="#ddd0b6" strokeWidth={1.1} opacity={0.28} strokeLinecap="round" />
               </g>
-              {/* butt-joint seam where the mantel meets each cabinet */}
-              <line x1={xL} y1={ceilY + rt} x2={xL} y2={yShoulder} stroke="#cdbda0" strokeWidth={0.6} opacity={0.6} />
-              <line x1={xR} y1={ceilY + rt} x2={xR} y2={yShoulder} stroke="#cdbda0" strokeWidth={0.6} opacity={0.6} />
               {/* gentle warm shading down the scoop for volume */}
               <path d={`M ${xL + 1.2} ${yShoulder} C ${xL + 1.2} ${yShoulder + sc} ${cx - apronHalf + 1.2} ${apronTopY - sc} ${cx - apronHalf + 1.2} ${apronTopY}`}
                 fill="none" stroke="#d8cab0" strokeWidth={1.3} opacity={0.4} strokeLinecap="round" />
