@@ -174,6 +174,10 @@ function doorCount(width) {
 function parseDoorDrawer(sku, width) {
   if (!sku) return { doors: doorCount(width), drawers: 1 };
   const s = sku.toUpperCase().replace(/^FC-/, '');
+  // Base/wall ANGLE (diagonal) corner — single diagonal door (check before -FHD)
+  if (/^BA\d|^WA\d/.test(s)) return { doors: 1, drawers: 0, angle: true };
+  // Blind corners stay blind even with a full-height door (check before -FHD)
+  if (/^BBC/.test(s)) return { doors: 1, drawers: /-FHD/.test(s) ? 0 : 1, blind: true };
   // Full-height door variant: tall single panel, no drawer/false front (check first)
   if (/-FHD/.test(s)) return { doors: doorCount(width), drawers: 0 };
   // All-drawer bases (catalog: B3D = 3-drawer, B4D = 4-drawer, B2TD = 2 tiered drawers)
@@ -182,7 +186,7 @@ function parseDoorDrawer(sku, width) {
   if (/^B2TD/.test(s)) return { doors: 0, drawers: 2 };
   // Sink bases: catalog SB cabinets have a FALSE drawer front on top + doors below
   // (the -FHD full-height-door variant handled above has none).
-  if (/^SB|^BSB|^IWS|^IBS|^DSB/.test(s)) return { doors: doorCount(width), drawers: 1, falseFront: true };
+  if (/^SB|^BSB|^IWS|^IBS|^DSB|^VSB|^VS\d/.test(s)) return { doors: doorCount(width), drawers: 1, falseFront: true };
   // Roll-out tray, pull-out shelf: door only
   if (/-RT/.test(s) || /^BPOS/.test(s)) return { doors: doorCount(width), drawers: 0 };
   // Range top base: open frame
@@ -191,13 +195,17 @@ function parseDoorDrawer(sku, width) {
   if (/^BBC/.test(s)) return { doors: 1, drawers: 1, blind: true };
   // Lazy Susan: 2 bi-fold doors, no drawer
   if (/^BL\d/.test(s)) return { doors: 2, drawers: 0 };
+  // Lazy-susan blind / base angle (diagonal) corners
+  if (/^BLS/.test(s)) return { doors: 2, drawers: 0 };
+  // Waste / recycling pull-out base: a single full-height door (no top drawer)
+  if (/^BWDMA|^BWB|^BWBM/.test(s)) return { doors: doorCount(width), drawers: 0 };
   // Tray base
   if (/^BTR/.test(s)) return { doors: doorCount(width), drawers: 1 };
   // Legacy drawer base format
   const dbMatch = s.match(/B(\d?)DB/);
   if (dbMatch) return { doors: 0, drawers: parseInt(dbMatch[1] || '3') };
   // Fillers, panels — no doors or drawers
-  if (/^F\d|^OVF|^BEP|^WEP|^REP|^DP$/.test(s)) return { doors: 0, drawers: 0 };
+  if (/^F\d|^OVF|^BEP|^WEP|^REP|^DP$|^PED|^LBRK|^MANT|^COL|^CORBEL|^VAL|^SLAT|^ANGF|^TF\d|^WF\d|^BF\d|^ISL-PR|^TKMS|^TKCD|^3SRM|^TK\b|^WFC|^WC\d+\(/.test(s)) return { doors: 0, drawers: 0 };
   // Standard base cabinets
   if (width >= 39) return { doors: doorCount(width), drawers: 2 };
   if (width > 24) return { doors: doorCount(width), drawers: 1 };
@@ -377,7 +385,7 @@ function frontTypeOf(cab, styleSpec) {
   const sku = (cab.sku || '').toUpperCase();
   const role = (cab.role || '').toLowerCase();
   const type = (cab.type || '').toLowerCase();
-  if (/WINE|^WR\d|WRK/.test(sku) || (cab.applianceType || '').toLowerCase() === 'wine' || role.includes('wine')) return 'wine';
+  if (/WINE|^WR\d|WRK|^BWR|^WWR|WRX/.test(sku) || (cab.applianceType || '').toLowerCase() === 'wine' || role.includes('wine')) return 'wine';
   if (/^SFLS|^OS\d|OPEN/.test(sku) || type.includes('shelf') || type.includes('floating') || role.includes('open')) return 'open';
   if (mods.some(m => /^MD$|MULL/.test(m)) || (styleSpec && styleSpec.panel === 'mullion')) return 'mullion';
   if (mods.some(m => /GFD|GLASS/.test(m)) || /GFD|GLASS/.test(sku)) return 'glass';
@@ -449,9 +457,12 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
 
   // ── BLIND CORNER: a ~24" access face (drawer over door) on the open side and a
   //    flat BLIND panel over the dead corner — never a single wide door. ──
-  if (blindCorner && (w / S) > 26) {
+  if (blindCorner && (w / S) >= 18) {
     const blindLeft = cornerSide === 'left';
-    const accessIn = Math.min(24, (w / S) - 18);
+    // Blind (dead) portion ~ the perpendicular run depth (24" base / 12" wall);
+    // the visible access door is the remainder, clamped to <=24".
+    const blindDepthIn = isUpper ? 12 : 24;
+    const accessIn = Math.min(24, Math.max(9, (w / S) - blindDepthIn));
     const accessW = accessIn * S, blindW = w - accessW;
     const accessX = blindLeft ? x + blindW : x;
     const blindX = blindLeft ? x : x + accessW;
@@ -1483,6 +1494,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         }
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);
+        // Wall blind corner (WBC/SWBC): access door + blind panel, not a wide door.
+        const wallBlind = /^(FC-)?(SWBC|WBC)/i.test(cab.sku || '');
         const doors = doorCount(cab.width);
         const hinge = doors === 1
           ? computeHingeSide(sortedUppers[i - 1], sortedUppers[i + 1], i === 0, i === sortedUppers.length - 1)
@@ -1495,7 +1508,9 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} frontFill={frontFill} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+              <CabFront x={x} y={y} w={w} h={uH} doors={wallBlind ? 1 : doors} drawers={0} isUpper hinge={hinge}
+                isCorner={wallBlind} cornerSide={cab._cornerSide || 'left'} blindCorner={wallBlind}
+                styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
             )}
           </g>
         );
