@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import ElevationView from './ElevationView.jsx';
 
 /**
  * LeonardoRenderer — AI Kitchen/Bath Rendering via Leonardo.ai API
@@ -136,11 +137,13 @@ function buildPrompt({ solverResult, materials, appliances, countertop, prefs, t
  * Generate an image via the server-side /api/leonardo proxy (key stays on the
  * server). Creates a generation, then polls until the image is ready.
  */
-async function generateImage(prompt) {
+async function generateImage(prompt, initImage, controlnetWeight) {
+  const payload = { prompt };
+  if (initImage) { payload.initImage = initImage; if (controlnetWeight != null) payload.controlnetWeight = controlnetWeight; }
   const createRes = await fetch('/api/leonardo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify(payload),
   });
   if (!createRes.ok) {
     const e = await createRes.json().catch(() => ({}));
@@ -160,8 +163,37 @@ async function generateImage(prompt) {
   throw new Error('Generation timed out after ~2 minutes');
 }
 
+// Rasterize an elevation <svg> to a base64 PNG (white background) for use as a
+// Canny ControlNet structure image. Returns base64 (no data: prefix).
+function svgToPngBase64(svgEl, W = 1536, Hh = 640) {
+  return new Promise((resolve, reject) => {
+    let xml = new XMLSerializer().serializeToString(svgEl);
+    if (!/xmlns=/.test(xml)) xml = xml.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+    const svg64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(xml)));
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = Hh;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, Hh);
+      const vb = svgEl.viewBox && svgEl.viewBox.baseVal;
+      const aw = (vb && vb.width) || img.width || W;
+      const ah = (vb && vb.height) || img.height || Hh;
+      const scale = Math.min(W / aw, Hh / ah);
+      const dw = aw * scale, dh = ah * scale;
+      ctx.drawImage(img, (W - dw) / 2, (Hh - dh) / 2, dw, dh);
+      try { resolve(canvas.toDataURL('image/png').split(',')[1]); }
+      catch (e) { reject(new Error('Could not capture the elevation (image-security taint). Use prompt-only mode.')); }
+    };
+    img.onerror = () => reject(new Error('Elevation failed to load for capture.'));
+    img.src = svg64;
+  });
+}
+
 export default function LeonardoRenderer({ solverResult, materials, selectedAppliances, countertopColor, prefs, trim, construction }) {
   const [viewpoint, setViewpoint] = useState('three_quarter');
+  const [structureLock, setStructureLock] = useState(false);
+  const hiddenRef = useRef(null);
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -177,18 +209,25 @@ export default function LeonardoRenderer({ solverResult, materials, selectedAppl
       materials,
       appliances: selectedAppliances,
       countertop: countertopColor,
-      prefs, trim, construction, viewpoint,
+      prefs, trim, construction,
+      viewpoint: structureLock ? 'straight_on' : viewpoint,
     });
     setPrompt(generatedPrompt);
 
     try {
-      const url = await generateImage(generatedPrompt);
+      let initImage = null;
+      if (structureLock) {
+        const svgEl = hiddenRef.current && hiddenRef.current.querySelector('svg[data-pdf="elevation"]');
+        if (!svgEl) throw new Error('No elevation available to match — solve a layout first.');
+        initImage = await svgToPngBase64(svgEl);
+      }
+      const url = await generateImage(generatedPrompt, initImage, structureLock ? 0.9 : undefined);
       setImageUrl(url);
     } catch (err) {
       setError(err.message);
     }
     setLoading(false);
-  }, [solverResult, materials, selectedAppliances, countertopColor, prefs, trim, construction, viewpoint]);
+  }, [solverResult, materials, selectedAppliances, countertopColor, prefs, trim, construction, viewpoint, structureLock]);
 
   const panelStyle = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: 16, marginBottom: 16 };
   const inputStyle = { width: '100%', padding: '7px 10px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4, color: C.text, fontSize: 13, boxSizing: 'border-box' };
@@ -222,6 +261,15 @@ export default function LeonardoRenderer({ solverResult, materials, selectedAppl
           The prompt is built from your actual design — construction, door style, finish, hood, island, appliances, windows and countertop.
           Note: AI image generation depicts the design faithfully but is not a dimensionally-exact CAD render.
         </div>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 10, cursor: 'pointer' }}>
+          <input type="checkbox" checked={structureLock} onChange={e => setStructureLock(e.target.checked)} style={{ marginTop: 2 }} />
+          <span style={{ fontSize: 12, color: structureLock ? C.accent : C.muted }}>
+            <strong>Match my elevation (structure-locked)</strong>
+            <span style={{ display: 'block', fontSize: 10, color: C.dim, marginTop: 2 }}>
+              Traces your actual elevation drawing with an edge ControlNet, so the render's cabinet runs, hood and openings follow the real layout. Forces a front-elevation view. (Slightly slower.)
+            </span>
+          </span>
+        </label>
       </div>
 
       {/* Generate button */}
@@ -275,6 +323,25 @@ export default function LeonardoRenderer({ solverResult, materials, selectedAppl
           <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>
             Uses your layout, materials, appliances, and countertop selections to generate a photorealistic visualization
           </div>
+        </div>
+      )}
+
+      {/* Hidden, off-screen ElevationView — source for the structure-lock capture */}
+      {structureLock && solverResult && (
+        <div ref={hiddenRef} aria-hidden="true"
+          style={{ position: 'absolute', left: -100000, top: 0, width: 1400, pointerEvents: 'none', opacity: 0 }}>
+          <ElevationView
+            solverResult={solverResult}
+            trim={trim || {}}
+            doorStyle={materials?.door}
+            species={materials?.species}
+            countertopColor={countertopColor}
+            finishColor={materials?.finishColor}
+            grainHorizontal={materials?.grainHorizontal}
+            hardware={materials?.hardware}
+            appliances={selectedAppliances}
+            construction={construction}
+          />
         </div>
       )}
     </div>
