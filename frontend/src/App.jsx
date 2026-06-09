@@ -35,6 +35,7 @@ import {
 } from '../../eclipse-engine/src/countertopData.js';
 
 // ── Output view imports ──
+import { BRANDS, CONSTRUCTIONS, CONSTRUCTIONS_BY_BRAND, DEFAULT_CONSTRUCTION_BY_BRAND, getConstruction } from './constructionProfiles.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
 import ApplianceRecommendationPanel from './ApplianceRecommendationPanel.jsx';
@@ -936,6 +937,12 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
     <div>
       <button onClick={onBack} style={{ ...btnOutline, marginBottom: 16 }}>Back to Designer</button>
 
+      {materials?.brand === 'shiloh' && (
+        <div style={{ marginBottom: 16, padding: '10px 12px', background: '#c8a96e22', border: `1px solid ${C.gold}`, borderRadius: 8, fontSize: 12, color: C.text }}>
+          <strong>Shiloh (framed) — {getConstruction(materials.frameStyle).label}.</strong> Cabinet pricing below is <strong>interim</strong>: it uses the Eclipse list as a placeholder pending the Shiloh price file. Construction, depths, and the elevation drawings are Shiloh-correct; only the dollar figures will change when the price spreadsheet is loaded.
+        </div>
+      )}
+
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
         {[
@@ -1015,7 +1022,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {/* Elevations tab */}
       {tab === 'elevations' && (
         <div>
-          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} grainHorizontal={materials?.grainHorizontal} hardware={materials?.hardware} hardwareFinish={materials?.hardwareFinish} appliances={selectedAppliances} titleBlock={{ project: `${solverResult?.roomType || 'Kitchen'}${solverResult?.layoutType ? ' \u2014 ' + solverResult.layoutType : ''}`, designer: 'Eclipse Kitchen Designer', date: new Date().toLocaleDateString('en-US'), scale: '1/2" = 1\'-0"' }} />
+          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} grainHorizontal={materials?.grainHorizontal} hardware={materials?.hardware} hardwareFinish={materials?.hardwareFinish} appliances={selectedAppliances} construction={getConstruction(materials?.frameStyle)} titleBlock={{ project: `${solverResult?.roomType || 'Kitchen'}${solverResult?.layoutType ? ' \u2014 ' + solverResult.layoutType : ''}`, designer: 'Eclipse Kitchen Designer', date: new Date().toLocaleDateString('en-US'), scale: '1/2" = 1\'-0"' }} />
           {/* Tag SVGs for PDF export */}
           <style>{`[data-pdf="elevation"] { /* marker */ }`}</style>
         </div>
@@ -1458,6 +1465,7 @@ export default function App() {
 
   // Materials
   const [materials, setMaterials] = useState({
+    brand: 'eclipse', frameStyle: 'eclipse_frameless',
     species: 'Maple', door: 'MET-V', construction: 'Standard', islandSpecies: '', finishColor: 'Natural', grainHorizontal: false, hardware: 'knob', hardwareFinish: 'Brushed Nickel',
   });
 
@@ -1633,6 +1641,36 @@ export default function App() {
               <div style={{ maxWidth: 700, margin: '0 auto' }}>
                 <div style={panelStyle}>
                   <div style={sectionTitle}>Materials & Pricing</div>
+
+                  {/* ── Cabinet line + framed/inset construction ── */}
+                  <div style={{ marginBottom: 12, padding: '10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
+                    <label style={{ ...labelStyle, marginBottom: 6 }}>Cabinet Line</label>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                      {BRANDS.map(b => {
+                        const active = (materials.brand || 'eclipse') === b.id;
+                        return (
+                          <button key={b.id} onClick={() => setMaterials(m => ({ ...m, brand: b.id, frameStyle: DEFAULT_CONSTRUCTION_BY_BRAND[b.id] }))}
+                            style={{ flex: 1, padding: '7px 6px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
+                              border: `1px solid ${active ? C.primary : C.border}`, background: active ? '#c8a96e22' : 'transparent', color: active ? C.text : C.muted }}>
+                            <div style={{ fontSize: 12, fontWeight: 700 }}>{b.label}</div>
+                            <div style={{ fontSize: 10, color: C.dim }}>{b.sub}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <label style={labelStyle}>Construction</label>
+                    <select value={materials.frameStyle || 'eclipse_frameless'} onChange={e => setMaterials(m => ({ ...m, frameStyle: e.target.value }))} style={inputStyle}>
+                      {(CONSTRUCTIONS_BY_BRAND[materials.brand || 'eclipse'] || ['eclipse_frameless']).map(k => (
+                        <option key={k} value={k}>{CONSTRUCTIONS[k].label}</option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 10, color: C.dim, marginTop: 5 }}>
+                      {getConstruction(materials.frameStyle).frame
+                        ? `Framed face-frame line. Doors ${getConstruction(materials.frameStyle).inset ? 'inset within the frame' : 'overlay the frame'}.`
+                        : 'Frameless (full overlay) — European, no face frame, maximized openings.'}
+                      {materials.brand === 'shiloh' && <span style={{ color: C.accent }}>{'  · Pricing interim (pending Shiloh price file).'}</span>}
+                    </div>
+                  </div>
 
                   <div style={{ marginBottom: 10 }}>
                     <label style={labelStyle}>Species {speciesPct !== 0 && <span style={{ color: speciesPct > 0 ? C.warn : C.accent }}>({speciesPct > 0 ? '+' : ''}{speciesPct}%)</span>}</label>

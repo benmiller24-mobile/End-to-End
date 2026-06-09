@@ -404,7 +404,7 @@ function drawGlassPanel(els, key, fx, fy, fw, fh, mullion) {
   els.push(<line key={`${key}rf`} x1={px + pw * 0.22} y1={py + 1.5} x2={px + pw * 0.05} y2={py + ph * 0.6} stroke="#ffffff" strokeWidth={0.5} opacity={0.4} strokeLinecap="round" />);
 }
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid' }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid', construction = null }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -446,6 +446,69 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     if (n === 2) return [6, Math.max(6, boxIn - 6)];   // B2TD: small top, large bottom (catalog I13)
     return Array.from({ length: n }, () => boxIn / n);
   };
+
+  // ── FRAMED constructions (Shiloh): draw a 1½" face frame, then seat each
+  //    door/drawer OVER the frame (overlay) or INSIDE the opening (inset, 3/32"
+  //    gap so the full frame shows). Frameless (Eclipse) skips this entirely. ──
+  if (construction && construction.frame) {
+    const stileS = (construction.stile || 1.5) * S;
+    const halfS = stileS / 2;
+    const gapS = (construction.gap || 0.094) * S;
+    const overlayS = (construction.overlay || 0) * S;
+    const inset = !!construction.inset;
+    const rows = [];
+    let cyF = y;
+    if (drawers > 0) {
+      if (isDrawerStack) {
+        const faces = drawerFacesIn(drawers); const tot = faces.reduce((a, b) => a + b, 0);
+        faces.forEach(f => { const bh = (f / tot) * h; rows.push({ kind: 'drawer', yTop: cyF, hh: bh, splits: 1, pull: 'bar' }); cyF += bh; });
+      } else {
+        const bh = 6 * S; const splits = (!falseFront && (w / S) > 36) ? 2 : 1;
+        rows.push({ kind: 'drawer', yTop: cyF, hh: bh, splits, pull: falseFront ? null : 'bar' }); cyF += bh;
+      }
+    }
+    if (doors > 0 && (y + h) - cyF > 3 * S) rows.push({ kind: 'door', yTop: cyF, hh: (y + h) - cyF, splits: doors, pull: null });
+    rows.forEach((row, ri) => {
+      const topShared = ri > 0, botShared = ri < rows.length - 1;
+      const oT = row.yTop + (topShared ? halfS : stileS);
+      const oB = row.yTop + row.hh - (botShared ? halfS : stileS);
+      const nc = row.splits;
+      for (let ci = 0; ci < nc; ci++) {
+        const cl = x + (w * ci) / nc, cw = w / nc;
+        const lSh = ci > 0, rSh = ci < nc - 1;
+        const oL = cl + (lSh ? halfS : stileS);
+        const oR = cl + cw - (rSh ? halfS : stileS);
+        const ow = oR - oL, oh = oB - oT;
+        if (ow <= 1 || oh <= 1) continue;
+        const isDoorF = row.kind === 'door';
+        // face-frame inner edge (the visible reveal of the frame around the opening)
+        els.push(<rect key={`fo${ri}_${ci}`} x={oL} y={oT} width={ow} height={oh} fill="none" stroke={C.line} strokeWidth={0.5} />);
+        // panel rect: inset sits inside the opening; overlay grows onto the frame
+        let pL, pT, pW, pH;
+        if (inset) { pL = oL + gapS; pT = oT + gapS; pW = ow - 2 * gapS; pH = oh - 2 * gapS; }
+        else { const g = Math.min(overlayS, halfS - 0.6); pL = oL - g; pT = oT - g; pW = ow + 2 * g; pH = oh + 2 * g; }
+        if (pW <= 1 || pH <= 1) continue;
+        els.push(<rect key={`fp${ri}_${ci}`} x={pL} y={pT} width={pW} height={pH} fill={inset ? '#0000000a' : 'none'} stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+        if (construction.beaded) els.push(<rect key={`fb${ri}_${ci}`} x={oL + 0.7} y={oT + 0.7} width={ow - 1.4} height={oh - 1.4} fill="none" stroke={C.thinLine} strokeWidth={construction.squareBead ? 0.5 : 0.35} opacity={0.5} rx={construction.squareBead ? 0 : 0.5} />);
+        if (isDoorF && (frontType === 'glass' || frontType === 'mullion')) drawGlassPanel(els, `fg${ri}_${ci}`, pL, pT, pW, pH, frontType === 'mullion');
+        else pushStylePanel(els, `fs${ri}_${ci}`, pL, pT, pW, pH, styleSpec, isDoorF);
+        if (isDoorF) {
+          const hingeLeft = nc === 2 ? (ci === 0) : (hinge !== 'right');
+          const hwX = hingeLeft ? pL + pW - 1.6 * S : pL + 1.6 * S;
+          const hwY = isUpper ? pT + pH - 3 * S : pT + 3 * S;
+          if (hardware === 'bar' || hardware === 'pull') { const ph = Math.min(pH * 0.32, 4.5 * S); els.push(<line key={`fk${ri}_${ci}`} x1={hwX} y1={hwY - ph / 2} x2={hwX} y2={hwY + ph / 2} stroke={C.hwColor} strokeWidth={0.85} strokeLinecap="round" />); }
+          else els.push(<circle key={`fk${ri}_${ci}`} cx={hwX} cy={hwY} r={0.9} fill={C.hwColor} />);
+          const apexX = hingeLeft ? pL : pL + pW, latchX = hingeLeft ? pL + pW : pL, apexY = pT + pH / 2;
+          els.push(<line key={`fw1${ri}_${ci}`} x1={latchX} y1={pT} x2={apexX} y2={apexY} stroke={C.thinLine} strokeWidth={0.22} opacity={0.3} strokeDasharray="2,1.6" />);
+          els.push(<line key={`fw2${ri}_${ci}`} x1={latchX} y1={pT + pH} x2={apexX} y2={apexY} stroke={C.thinLine} strokeWidth={0.22} opacity={0.3} strokeDasharray="2,1.6" />);
+        } else if (row.pull === 'bar') {
+          if (hardware === 'knob') els.push(<circle key={`fdk${ri}_${ci}`} cx={pL + pW / 2} cy={pT + pH / 2} r={0.9} fill={C.hwColor} />);
+          else { const pw2 = Math.min(pW * 0.28, 5 * S); els.push(<line key={`fdk${ri}_${ci}`} x1={pL + pW / 2 - pw2 / 2} y1={pT + pH / 2} x2={pL + pW / 2 + pw2 / 2} y2={pT + pH / 2} stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />); }
+        }
+      }
+    });
+    return <>{els}</>;
+  }
 
   // Draw one full-overlay front. Panel style per door style:
   //  slab → no inner panel; flat → recessed panel; raised → panel + bevel field.
@@ -872,7 +935,7 @@ function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [] }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [], construction = null }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -1027,7 +1090,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         </text>
         <text x={0} y={totalH + 22} fill={C.dimText} fontSize={3.5}
           fontFamily="Helvetica,Arial,sans-serif" opacity={0.6}>
-          Scale: ½" = 1'-0" (approx)  |  Eclipse C3 Frameless
+          Scale: ½" = 1'-0" (approx)  |  {construction && construction.note ? construction.note : 'Eclipse C3 Frameless'}
         </text>
       </g>
 
@@ -1281,7 +1344,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
@@ -1382,7 +1445,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH} frontFill={frontFill} />
             ) : (
-              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
+              <CabFront x={x} y={y} w={w} h={uH} doors={doors} drawers={0} isUpper hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
             )}
           </g>
         );
@@ -1438,18 +1501,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                       x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
                       stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
                     {/* Door panel below */}
-                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
+                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
                   </g>
                 );
               }
               if (isFHD) {
-                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />;
+                return <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />;
               }
               // Standard utility: show shelf lines
               const shelfCount = Math.floor(tH / (20 * S));
               return (
                 <g>
-                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} />
+                  <CabFront x={x} y={y} w={w} h={tH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
                   {Array.from({ length: Math.min(shelfCount, 4) }, (_, si) => {
                     const sy = y + (si + 1) * tH / (Math.min(shelfCount, 4) + 1);
                     return (
@@ -2256,7 +2319,7 @@ function SectionView({ ceilH = 96, upperH = 36, frontFill = C.fill, stoneFill = 
   );
 }
 
-export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {}, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [] }) {
+export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {}, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [], construction = null }) {
   const styleSpec = doorStyleSpec(doorStyle);
   const stone = classifyStone(countertopColor);
   if (!solverResult) return null;
@@ -2393,6 +2456,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             isIsland={wd.isIsland}
             titleBlock={titleBlock}
             sheetNo={titleBlock.sheetPrefix ? `${titleBlock.sheetPrefix}${_wi + 1}` : `A-${_wi + 1}`}
+            construction={construction}
           />
         );
       })}
