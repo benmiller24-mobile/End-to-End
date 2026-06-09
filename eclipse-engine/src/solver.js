@@ -590,6 +590,13 @@ export function solve(input) {
     peninsulaLayout = solvePeninsula(peninsula, pf, golaPrefix);
   }
 
+  // ── DESIGNER MOVE: center the cooking zone (range/cooktop) in its run ──
+  // A high-end KD centers the cooktop with balanced flanking — an off-center range is a
+  // classic "auto-generated" tell. Runs BEFORE the uppers solve so the hood follows the
+  // centered range. Reflows only the movable middle, conserves total width, reverts on any
+  // anomaly. Part of the "validate proportions & self-correct before finalizing" pass.
+  try { centerCookingZone(wallLayouts); } catch (_e) { /* non-fatal */ }
+
   // Phase 4: Generate upper cabinets (skip for non-kitchen rooms that don't use uppers)
   const upperLayouts = [];
   if (pf.upperApproach !== "none") {
@@ -7702,6 +7709,76 @@ function centerSinkUnderWindow(wallLayouts, inputWalls) {
       }
       if (pos > wallLen + 0.6) continue;             // sanity (won't happen if width conserved)
       wl._sinkCenteredUnderWindow = Math.round(newSinkC);
+    } catch (_e) { /* leave this wall unchanged */ }
+  }
+}
+
+// Center the primary cooking element (range/cooktop) within its run so the flanking
+// cabinetry is symmetric — the high-end "center the cooktop" proportion move and the
+// composition analog of centerSinkUnderWindow. Anchors corners / REP+end panels / fridge
+// / talls / OTHER appliances, reflows the movable middle to the span midpoint, conserves
+// total width, and reverts on any anomaly. Skips walls that also carry the sink (that wall
+// is balanced by the sink-under-window move instead).
+function centerCookingZone(wallLayouts) {
+  for (const wl of wallLayouts) {
+    try {
+      const all = (wl.cabinets || [])
+        .filter(c => typeof c.position === 'number' && c.width > 0)
+        .sort((a, b) => a.position - b.position);
+      if (all.length < 3) continue;
+      const range = all.find(c => /range|cooktop/i.test(c.applianceType || ''));
+      if (!range) continue;
+      if (all.some(c => c.applianceType === 'sink')) continue;
+      const wallLen = wl.wallLength || all.reduce((m, c) => Math.max(m, c.position + c.width), 0);
+      const totalW0 = all.reduce((s, c) => s + c.width, 0);
+
+      const isAnchor = (c) => c === range ? false : (
+        c.role === 'corner' || c._isCorner
+        || /^BBC|^BL|^REP|^BEP|^WEP|^FREP|^FWEP/i.test(c.sku || '')
+        || c.type === 'appliance'
+        || (c._elev && c._elev.zone === 'TALL'));
+
+      let aL = 0; while (aL < all.length && isAnchor(all[aL])) aL++;
+      let aR = all.length - 1; while (aR >= 0 && isAnchor(all[aR])) aR--;
+      const leftAnchor = all.slice(0, aL), rightAnchor = all.slice(aR + 1);
+      const middle = all.slice(aL, aR + 1);
+      if (!middle.includes(range)) continue;
+      if (middle.some(c => isAnchor(c))) continue;          // an anchor stuck mid-run
+
+      const leftAW = leftAnchor.reduce((s, c) => s + c.width, 0);
+      const rightAW = rightAnchor.reduce((s, c) => s + c.width, 0);
+      const runStart = all[0].position || 0;                // run begins after any corner consumption
+      const spanStart = runStart + leftAW;
+      const spanEnd = runStart + totalW0 - rightAW;         // run is contiguous (chain-enforced)
+      const targetC = (spanStart + spanEnd) / 2;            // symmetric: range centered in the span
+      const curC = range.position + range.width / 2;
+      if (Math.abs(curC - targetC) <= 4) continue;          // already balanced (+/-4")
+
+      const movable = middle.filter(c => c !== range);
+      const byPos = [...movable].sort((a, b) => a.position - b.position);
+      let best = null, lw = 0;
+      const prefixes = [{ lw: 0, left: [] }];
+      for (let k = 0; k < byPos.length; k++) { lw += byPos[k].width; prefixes.push({ lw, left: byPos.slice(0, k + 1) }); }
+      for (const pre of prefixes) {
+        if (spanStart + pre.lw + range.width > spanEnd + 0.01) continue;
+        const rc = spanStart + pre.lw + range.width / 2;
+        const err = Math.abs(rc - targetC);
+        if (!best || err < best.err) best = { err, left: pre.left, rc };
+      }
+      if (!best || best.err >= Math.abs(curC - targetC) - 2) continue;   // require a real improvement
+      const right = byPos.filter(c => !best.left.includes(c));
+      const order = [...leftAnchor, ...best.left, range, ...right, ...rightAnchor];
+      if (order.length !== all.length) continue;
+      if (Math.abs(order.reduce((s, c) => s + c.width, 0) - totalW0) > 0.01) continue;  // conserve width
+      let pos = runStart;
+      for (const c of order) {
+        c.position = Math.round(pos * 100) / 100;
+        c.position_start = c.position;
+        c.position_end = Math.round((pos + c.width) * 100) / 100;
+        pos += c.width;
+      }
+      if (pos > wallLen + 0.6) continue;
+      wl._cookingCentered = Math.round(best.rc);
     } catch (_e) { /* leave this wall unchanged */ }
   }
 }
