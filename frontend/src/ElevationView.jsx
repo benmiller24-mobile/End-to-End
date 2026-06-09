@@ -553,9 +553,19 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
       } else {
         const r = seat(`cdoor${ci}`, cx0, y, cw, h, true, lSh(ci), rSh(ci));
         if (r) {
-          const hingeLeft = ci === 0;
-          const hwX = hingeLeft ? r.pL + r.pW - 1.6 * S : r.pL + 1.6 * S;
-          els.push(<circle key={`cdh${ci}`} cx={hwX} cy={r.pT + r.pH - 3 * S} r={0.9} fill={C.hwColor} />);
+          const { pL: ix, pT: iy, pW: iw, pH: ih } = r;
+          const hingeLeft = ci === 0;                       // outer door hinges to the outer edge
+          // hardware near the TOP (base/vanity convention — NOT the upper-cabinet bottom)
+          const hwX = hingeLeft ? ix + iw - 1.6 * S : ix + 1.6 * S;
+          const hwY = iy + 3 * S;
+          if (hardware === 'bar' || hardware === 'pull') {
+            const ph = Math.min(ih * 0.32, 4.5 * S);
+            els.push(<line key={`cdh${ci}`} x1={hwX} y1={hwY - ph / 2} x2={hwX} y2={hwY + ph / 2} stroke={C.hwColor} strokeWidth={0.85} strokeLinecap="round" />);
+          } else els.push(<circle key={`cdh${ci}`} cx={hwX} cy={hwY} r={0.9} fill={C.hwColor} />);
+          // door-swing notation (latch -> hinge apex)
+          const apexX = hingeLeft ? ix : ix + iw, latchX = hingeLeft ? ix + iw : ix, apexY = iy + ih / 2;
+          els.push(<line key={`csw1${ci}`} x1={latchX} y1={iy} x2={apexX} y2={apexY} stroke={C.thinLine} strokeWidth={0.22} opacity={0.3} strokeDasharray="2,1.6" />);
+          els.push(<line key={`csw2${ci}`} x1={latchX} y1={iy + ih} x2={apexX} y2={apexY} stroke={C.thinLine} strokeWidth={0.22} opacity={0.3} strokeDasharray="2,1.6" />);
         }
       }
       cx0 += cw;
