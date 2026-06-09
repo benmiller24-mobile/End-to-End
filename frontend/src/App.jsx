@@ -40,6 +40,7 @@ import { findShilohSku, SHILOH_SKU_COUNT } from '../../eclipse-pricing/src/shilo
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
 import ApplianceRecommendationPanel from './ApplianceRecommendationPanel.jsx';
+import Kitchen3DView from './Kitchen3DView.jsx';
 import LeonardoRenderer from './LeonardoRenderer.jsx';
 import { exportPDF } from './pdfExport.js';
 
@@ -973,6 +974,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           { id: 'floorplan', label: 'Floor Plan' },
           { id: 'elevations', label: 'Elevations' },
           { id: 'rendering', label: 'AI Rendering' },
+          { id: '3d', label: '3D View' },
           { id: 'layout', label: 'Cabinet List' },
           { id: 'quote', label: 'Quote' },
           { id: 'training', label: 'Training' },
@@ -1043,6 +1045,17 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           prefs={prefs}
           trim={trimSelections}
           construction={getConstruction(materials?.frameStyle)}
+        />
+      )}
+
+      {/* 3D View tab */}
+      {tab === '3d' && (
+        <Kitchen3DView
+          solverResult={solverResult}
+          materials={materials}
+          construction={getConstruction(materials?.frameStyle)}
+          countertopColor={countertopColor}
+          trim={trimSelections}
         />
       )}
 
