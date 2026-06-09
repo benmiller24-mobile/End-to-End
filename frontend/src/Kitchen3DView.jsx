@@ -215,7 +215,8 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
           let bot, top;
           if (isStack) { bot = e.yMount ?? UPPER_BOT; top = bot + (e.height || UPPER_H_DEF); }
           else { bot = aboveTall ? (e.yMount || 84) : (e.yMount ?? UPPER_BOT); top = upperTopAFF; }
-          placeOnWall(f, c.position, c.width, UPPER_D, bot, top, woodMat);
+          const dep = e.depth || UPPER_D;   // over-fridge (RW) cabs carry a deeper (~24-27") depth
+          placeOnWall(f, c.position, c.width, dep, bot, top, woodMat);
         });
       });
 
