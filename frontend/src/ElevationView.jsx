@@ -1497,44 +1497,56 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const flueTopY = ceilY;                               // flue runs up to ceiling
         const flueW = Math.min(w * 0.4, 10 * S);
         // ── Sculptural plaster hood (warm-organic / Mediterranean) ──
-        // A monolithic, hand-troweled PLASTER mass — NOT a metal canopy. Warm matte
-        // cream, chunky rounded body tapering up to the ceiling, troweled texture,
-        // and no metal sheen or dark liner band (those read as stainless).
+        // A monolithic hand-troweled PLASTER mantel that FILLS the opening between
+        // the flanking wall cabinets (they butt into its sides — NKBA Ch.6 / designer
+        // practice: an oversized mantel hood, e.g. 48" over a 30" range). Warm matte
+        // cream, vertical shoulders touching the cabinets, scooping to a wide apron
+        // over the cooktop. No metal sheen / liner band (those read as stainless).
         if ((trim.hoodStyle || 'steel') === 'plaster') {
           const cx = x + w / 2;
           const gid = `phood-${sfx}`;
-          const topHalf  = Math.max(10 * S, w * 0.31);     // broad body where it meets the ceiling
-          const baseHalf = w / 2 + 5 * S;                  // generous apron past the range
-          const rt = 5 * S, rb = 4.5 * S;                  // soft hand-formed corners
+          // Flanking wall-cabinet inner faces (px). The mantel spans cabinet→cabinet so
+          // it touches them; clamped to at most ~15" past the hood on each side.
+          const upx = validUppers.map(u => ({ l: u.position * S, r: (u.position + u.width) * S }));
+          const leftCab  = upx.filter(u => u.r <= x + 1).sort((a, b) => b.r - a.r)[0];
+          const rightCab = upx.filter(u => u.l >= x + w - 1).sort((a, b) => a.l - b.l)[0];
+          const maxExt = 15 * S;
+          const xL = Math.min(x,     leftCab  ? Math.max(leftCab.r, x - maxExt)     : x - 7 * S);
+          const xR = Math.max(x + w, rightCab ? Math.min(rightCab.l, x + w + maxExt) : x + w + 7 * S);
+          const apronHalf = w / 2 + 2 * S;                 // apron over the cooktop
+          const apronTopY = yBottom - 9 * S;
           const H = yBottom - ceilY;
-          // Silhouette: rounded apron → gently concave sides → rounded shoulders at
-          // the ceiling. Cubic controls pulled slightly inward for an organic scoop.
+          const rt = 4.5 * S, rb = 4 * S;                  // soft hand-formed corners
+          const yShoulder = Math.min(ceilY + 0.5 * H, apronTopY - 8 * S); // vertical touch band, then scoop
+          const sc = 9 * S;                                // scoop control reach
           const d = [
-            `M ${cx - baseHalf + rb} ${yBottom}`,
-            `L ${cx + baseHalf - rb} ${yBottom}`,
-            `Q ${cx + baseHalf} ${yBottom} ${cx + baseHalf} ${yBottom - rb}`,
-            `C ${cx + baseHalf - 1.4 * S} ${yBottom - rb - H * 0.42} ${cx + topHalf - 1.4 * S} ${ceilY + rt + H * 0.30} ${cx + topHalf} ${ceilY + rt}`,
-            `Q ${cx + topHalf} ${ceilY} ${cx + topHalf - rt} ${ceilY}`,
-            `L ${cx - topHalf + rt} ${ceilY}`,
-            `Q ${cx - topHalf} ${ceilY} ${cx - topHalf} ${ceilY + rt}`,
-            `C ${cx - topHalf + 1.4 * S} ${ceilY + rt + H * 0.30} ${cx - baseHalf + 1.4 * S} ${yBottom - rb - H * 0.42} ${cx - baseHalf} ${yBottom - rb}`,
-            `Q ${cx - baseHalf} ${yBottom} ${cx - baseHalf + rb} ${yBottom}`,
+            `M ${cx - apronHalf + rb} ${yBottom}`,
+            `L ${cx + apronHalf - rb} ${yBottom}`,
+            `Q ${cx + apronHalf} ${yBottom} ${cx + apronHalf} ${yBottom - rb}`,
+            `L ${cx + apronHalf} ${apronTopY}`,
+            `C ${cx + apronHalf} ${apronTopY - sc} ${xR} ${yShoulder + sc} ${xR} ${yShoulder}`,
+            `L ${xR} ${ceilY + rt}`,
+            `Q ${xR} ${ceilY} ${xR - rt} ${ceilY}`,
+            `L ${xL + rt} ${ceilY}`,
+            `Q ${xL} ${ceilY} ${xL} ${ceilY + rt}`,
+            `L ${xL} ${yShoulder}`,
+            `C ${xL} ${yShoulder + sc} ${cx - apronHalf} ${apronTopY - sc} ${cx - apronHalf} ${apronTopY}`,
+            `L ${cx - apronHalf} ${yBottom - rb}`,
+            `Q ${cx - apronHalf} ${yBottom} ${cx - apronHalf + rb} ${yBottom}`,
             `Z`,
           ].join(' ');
           return (
             <g>
               <defs>
-                {/* very low-contrast WARM matte gradient (no metallic sheen) */}
                 <linearGradient id={gid} x1="0" y1={ceilY} x2="0" y2={yBottom} gradientUnits="userSpaceOnUse">
                   <stop offset="0" stopColor="#f3ecdb" />
                   <stop offset="0.6" stopColor="#ede4d1" />
                   <stop offset="1" stopColor="#e7ddc7" />
                 </linearGradient>
-                <radialGradient id={`${gid}-c`} cx="0.5" cy="0.4" r="0.7">
-                  <stop offset="0" stopColor="#f7f0e1" stopOpacity="0.55" />
+                <radialGradient id={`${gid}-c`} cx="0.5" cy="0.42" r="0.72">
+                  <stop offset="0" stopColor="#f7f0e1" stopOpacity="0.5" />
                   <stop offset="1" stopColor="#f7f0e1" stopOpacity="0" />
                 </radialGradient>
-                {/* hand-troweled plaster mottle */}
                 <filter id={`${gid}-tex`} x="-5%" y="-5%" width="110%" height="110%">
                   <feTurbulence type="fractalNoise" baseFrequency="0.05 0.07" numOctaves="3" seed="11" result="t" />
                   <feColorMatrix in="t" type="matrix"
@@ -1543,32 +1555,33 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                 <clipPath id={`${gid}-clip`}><path d={d} /></clipPath>
               </defs>
               {/* soft contact shadow on the wall */}
-              <path d={d} fill="#000000" opacity={0.05} transform="translate(1.4,1.6)" />
+              <path d={d} fill="#000000" opacity={0.05} transform="translate(1.2,1.5)" />
               {/* plaster body */}
               <path d={d} fill={`url(#${gid})`} stroke="#cebfa3" strokeWidth={0.5} strokeLinejoin="round" />
               {/* troweled texture + center bloom (clipped to the body) */}
               <g clipPath={`url(#${gid}-clip)`}>
-                <rect x={cx - baseHalf} y={ceilY} width={2 * baseHalf} height={H + 2} filter={`url(#${gid}-tex)`} opacity={0.16} />
+                <rect x={xL} y={ceilY} width={xR - xL} height={H + 2} filter={`url(#${gid}-tex)`} opacity={0.16} />
                 <path d={d} fill={`url(#${gid}-c)`} />
-                {/* a couple of soft trowel sweeps */}
-                <path d={`M ${cx - topHalf * 0.6} ${ceilY + H * 0.32} Q ${cx} ${ceilY + H * 0.26} ${cx + topHalf * 0.7} ${ceilY + H * 0.36}`}
-                  fill="none" stroke="#f6efe0" strokeWidth={1.2} opacity={0.35} strokeLinecap="round" />
-                <path d={`M ${cx - baseHalf * 0.7} ${yBottom - H * 0.30} Q ${cx} ${yBottom - H * 0.24} ${cx + baseHalf * 0.7} ${yBottom - H * 0.31}`}
-                  fill="none" stroke="#ddd0b6" strokeWidth={1.1} opacity={0.3} strokeLinecap="round" />
+                <path d={`M ${cx - (xR - xL) * 0.28} ${ceilY + H * 0.30} Q ${cx} ${ceilY + H * 0.25} ${cx + (xR - xL) * 0.30} ${ceilY + H * 0.33}`}
+                  fill="none" stroke="#f6efe0" strokeWidth={1.2} opacity={0.32} strokeLinecap="round" />
+                <path d={`M ${cx - apronHalf * 0.7} ${yBottom - H * 0.22} Q ${cx} ${yBottom - H * 0.17} ${cx + apronHalf * 0.7} ${yBottom - H * 0.23}`}
+                  fill="none" stroke="#ddd0b6" strokeWidth={1.1} opacity={0.28} strokeLinecap="round" />
               </g>
-              {/* gentle warm edge shading for volume (no hard metal lines) */}
-              <path d={`M ${cx - baseHalf + 1.2} ${yBottom - rb} C ${cx - baseHalf + 0.2 * S} ${yBottom - rb - H * 0.42} ${cx - topHalf + 0.2 * S} ${ceilY + rt + H * 0.30} ${cx - topHalf + 1.2} ${ceilY + rt}`}
-                fill="none" stroke="#d8cab0" strokeWidth={1.4} opacity={0.4} strokeLinecap="round" />
-              <path d={`M ${cx + baseHalf - 1.2} ${yBottom - rb} C ${cx + baseHalf - 0.2 * S} ${yBottom - rb - H * 0.42} ${cx + topHalf - 0.2 * S} ${ceilY + rt + H * 0.30} ${cx + topHalf - 1.2} ${ceilY + rt}`}
-                fill="none" stroke="#d8cab0" strokeWidth={1.4} opacity={0.28} strokeLinecap="round" />
-              {/* soft warm recess shadow under the apron (where the cooktop sits) — not a metal band */}
-              <ellipse cx={cx} cy={yBottom - 0.6 * S} rx={baseHalf - 7 * S} ry={1.6 * S} fill="#c9b894" opacity={0.35} />
+              {/* butt-joint seam where the mantel meets each cabinet */}
+              <line x1={xL} y1={ceilY + rt} x2={xL} y2={yShoulder} stroke="#cdbda0" strokeWidth={0.6} opacity={0.6} />
+              <line x1={xR} y1={ceilY + rt} x2={xR} y2={yShoulder} stroke="#cdbda0" strokeWidth={0.6} opacity={0.6} />
+              {/* gentle warm shading down the scoop for volume */}
+              <path d={`M ${xL + 1.2} ${yShoulder} C ${xL + 1.2} ${yShoulder + sc} ${cx - apronHalf + 1.2} ${apronTopY - sc} ${cx - apronHalf + 1.2} ${apronTopY}`}
+                fill="none" stroke="#d8cab0" strokeWidth={1.3} opacity={0.4} strokeLinecap="round" />
+              <path d={`M ${xR - 1.2} ${yShoulder} C ${xR - 1.2} ${yShoulder + sc} ${cx + apronHalf - 1.2} ${apronTopY - sc} ${cx + apronHalf - 1.2} ${apronTopY}`}
+                fill="none" stroke="#d8cab0" strokeWidth={1.3} opacity={0.28} strokeLinecap="round" />
+              {/* soft warm recess shadow under the apron (cooktop) — not a metal band */}
+              <ellipse cx={cx} cy={yBottom - 0.6 * S} rx={apronHalf - 5 * S} ry={1.5 * S} fill="#c9b894" opacity={0.32} />
               {/* discreet architectural note off to the side */}
-              <line x1={cx + baseHalf} y1={ceilY + H * 0.55} x2={x + w + 6} y2={ceilY + H * 0.55} stroke={C.annotColor} strokeWidth={0.4} />
-              <text x={x + w + 7} y={ceilY + H * 0.55 - 1} fill={C.annotColor} fontSize={3}
-                fontFamily="Helvetica,Arial,sans-serif" textAnchor="start" fontWeight="600">PLASTER HOOD</text>
-              <text x={x + w + 7} y={ceilY + H * 0.55 + 3.4} fill={C.annotColor} fontSize={2.7}
-                fontFamily="Helvetica,Arial,sans-serif" textAnchor="start">{`${hood.cfm || 600} CFM insert \u00b7 ${fmt(bottomAFF - COUNTER_AFF)} o/counter`}</text>
+              <text x={cx} y={ceilY + H * 0.5} fill={C.dimText} fontSize={3.1}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="600" opacity={0.65}>PLASTER HOOD</text>
+              <text x={cx} y={ceilY + H * 0.5 + 3.6} fill={C.annotColor} fontSize={2.6}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" opacity={0.8}>{`${hood.cfm || 600} CFM insert \u00b7 ${fmt(bottomAFF - COUNTER_AFF)} o/counter`}</text>
             </g>
           );
         }
