@@ -181,9 +181,10 @@ function buildPricingPlacements(placements) {
 
 // ==================== THEME ====================
 const C = {
-  bg: '#0f172a', surface: '#1e293b', surface2: '#334155', border: '#334155',
-  primary: '#3b82f6', primaryHover: '#2563eb', accent: '#10b981', danger: '#ef4444', warn: '#f59e0b',
-  text: '#f1f5f9', muted: '#94a3b8', dim: '#64748b', purple: '#8b5cf6',
+  // Pinnacle Sales palette: white + warm cream, near-black text, signature gold accent.
+  bg: '#ffffff', surface: '#faf8f5', surface2: '#f1ece4', border: '#e4ddd2',
+  primary: '#1a1a1a', primaryHover: '#000000', accent: '#b8944e', danger: '#c0392b', warn: '#b8860b',
+  text: '#1a1a1a', muted: '#555555', dim: '#8a8a8a', purple: '#7a6f9b', gold: '#c8a96e',
 };
 
 const inputStyle = { width: '100%', padding: '7px 10px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4, color: C.text, fontSize: 13, boxSizing: 'border-box' };
@@ -269,7 +270,7 @@ function TemplatePicker({ onSelect, selected }) {
                 <button key={t.id} onClick={() => onSelect(t.id)}
                   style={{
                     padding: '10px 12px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
-                    background: selected === t.id ? '#1e3a5f' : C.bg,
+                    background: selected === t.id ? '#f6efe2' : C.bg,
                     border: `1px solid ${selected === t.id ? C.primary : C.border}`,
                     color: C.text, transition: 'all 0.15s',
                   }}>
@@ -470,7 +471,7 @@ function ApplianceBrandPicker({ selectedAppliances, onChange }) {
             <div key={app.id} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px',
               marginBottom: 4, borderRadius: 6, cursor: 'pointer',
-              background: isSelected ? '#1e3a5f' : C.bg, border: `1px solid ${isSelected ? C.primary : C.border}`,
+              background: isSelected ? '#f6efe2' : C.bg, border: `1px solid ${isSelected ? C.primary : C.border}`,
             }} onClick={() => toggleAppliance(app.id)}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: isSelected ? C.text : C.muted }}>{app.model}</div>
@@ -567,7 +568,7 @@ function CountertopPicker({ selection, onChange }) {
                     title={`${c.name} — ${c.finishes.join(', ')}`}
                     style={{
                       width: 52, padding: '4px 2px', borderRadius: 6, cursor: 'pointer', textAlign: 'center',
-                      background: isSelected ? '#1e3a5f' : C.bg, border: `2px solid ${isSelected ? C.primary : C.border}`,
+                      background: isSelected ? '#f6efe2' : C.bg, border: `2px solid ${isSelected ? C.primary : C.border}`,
                     }}>
                     <div style={{
                       width: 36, height: 36, borderRadius: 4, margin: '0 auto 4px', border: `1px solid ${C.border}`,
@@ -671,7 +672,7 @@ function TrimPicker({ selections, onChange }) {
         <div key={item.key} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '8px 10px', marginBottom: 4, borderRadius: 6,
-          background: selections[item.key] ? '#1e3a5f20' : C.bg,
+          background: selections[item.key] ? '#c8a96e22' : C.bg,
           border: `1px solid ${selections[item.key] ? C.primary : C.border}`,
           cursor: 'pointer',
         }} onClick={() => toggleField(item.key)}>
@@ -709,7 +710,7 @@ function TrimPicker({ selections, onChange }) {
               <button key={o.v} onClick={() => setField('ceilingFit', o.v)} title={o.desc}
                 style={{ flex: 1, padding: '6px 4px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
                   border: `1px solid ${active ? C.primary : C.border}`,
-                  background: active ? '#1e3a5f20' : 'transparent', color: active ? C.text : C.muted }}>
+                  background: active ? '#c8a96e22' : 'transparent', color: active ? C.text : C.muted }}>
                 {o.label}
               </button>
             );
@@ -737,7 +738,7 @@ function TrimPicker({ selections, onChange }) {
                 style={{
                   flex: 1, padding: '6px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
                   border: selections.crownProfile === opt.value ? `2px solid ${C.primary}` : `1px solid ${C.border}`,
-                  background: selections.crownProfile === opt.value ? '#1e3a5f30' : C.bg,
+                  background: selections.crownProfile === opt.value ? '#c8a96e30' : C.bg,
                   color: selections.crownProfile === opt.value ? C.text : C.muted,
                 }}>
                 <div style={{ fontWeight: 600 }}>{opt.label}</div>
@@ -763,7 +764,7 @@ function TrainingScorePanel({ score }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontSize: 14, fontWeight: 600 }}>Best: {score.bestMatch || 'N/A'}</span>
         <span style={{
-          background: score.confidence >= 80 ? '#065f4620' : score.confidence >= 60 ? '#78350f20' : '#7f1d1d20',
+          background: score.confidence >= 80 ? '#c8a96e22' : score.confidence >= 60 ? '#78350f20' : '#7f1d1d20',
           color: score.confidence >= 80 ? C.accent : score.confidence >= 60 ? C.warn : C.danger,
           border: `1px solid ${score.confidence >= 80 ? C.accent : score.confidence >= 60 ? C.warn : C.danger}`,
           padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 600,
@@ -781,7 +782,7 @@ function TrainingScorePanel({ score }) {
         </div>
       ))}
       {gc && (
-        <div style={{ marginTop: 12, padding: '8px 10px', background: gc.isGola ? '#4c1d9520' : C.bg, borderRadius: 6, border: `1px solid ${gc.isGola ? C.purple : C.border}` }}>
+        <div style={{ marginTop: 12, padding: '8px 10px', background: gc.isGola ? '#7a6f9b22' : C.bg, borderRadius: 6, border: `1px solid ${gc.isGola ? C.purple : C.border}` }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: gc.isGola ? '#c4b5fd' : C.muted, marginBottom: 4 }}>
             {gc.isGola ? 'Gola Compliance' : 'Standard (non-Gola)'}
           </div>
@@ -1166,7 +1167,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         const accessoryRows = scheduleRows.filter(r => r.isAccessory);
 
         const thStyle = { padding: '6px 8px', textAlign: 'left', color: C.dim, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: `2px solid ${C.border}` };
-        const tdStyle = { padding: '5px 8px', fontSize: 11, borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle', color: '#1e293b' };
+        const tdStyle = { padding: '5px 8px', fontSize: 11, borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle', color: C.text };
         const tdR = { ...tdStyle, textAlign: 'right' };
 
         return (
@@ -1264,10 +1265,10 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                     ] : []),
                   ].map((item, i) => (
                     <tr key={`np-${i}`} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff' }}>
-                      <td style={{ ...tdStyle, color: '#1e293b' }}>*</td>
-                      <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 10, color: '#1e293b' }}>{item.sku}</td>
-                      <td style={{ ...tdStyle, color: '#1e293b' }}>{item.desc}</td>
-                      <td style={{ ...tdR, color: '#1e293b' }}>Qty: {item.qty}</td>
+                      <td style={{ ...tdStyle, color: C.text }}>*</td>
+                      <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 10, color: C.text }}>{item.sku}</td>
+                      <td style={{ ...tdStyle, color: C.text }}>{item.desc}</td>
+                      <td style={{ ...tdR, color: C.text }}>Qty: {item.qty}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1349,7 +1350,7 @@ function StepIndicator({ steps, current, onStep }) {
           style={{
             flex: 1, padding: '8px 4px', borderRadius: i === 0 ? '6px 0 0 6px' : i === steps.length - 1 ? '0 6px 6px 0' : 0,
             cursor: 'pointer', border: 'none', fontSize: 12, fontWeight: current === i ? 700 : 400, transition: 'all 0.15s',
-            background: current === i ? C.primary : i < current ? '#065f4620' : C.bg,
+            background: current === i ? C.primary : i < current ? '#c8a96e22' : C.bg,
             color: current === i ? '#fff' : i < current ? C.accent : C.dim,
           }}>
           {i < current ? '\u2713 ' : ''}{s}
@@ -1489,15 +1490,17 @@ export default function App() {
   const STEPS = ['Layout', 'Materials', 'Appliances', 'Countertops', 'Trim & Molding', 'Review'];
 
   return (
-    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", color: C.text, background: C.bg, minHeight: '100vh' }}>
+    <div style={{ fontFamily: "'Questrial', 'Helvetica Neue', Arial, sans-serif", color: C.text, background: C.bg, minHeight: '100vh' }}>
       {/* Header */}
-      <header style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ background: C.surface, borderTop: `3px solid ${C.gold}`, borderBottom: `1px solid ${C.border}`, padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Eclipse Kitchen Designer</h1>
-          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#1e3a5f20', color: C.primary, border: `1px solid ${C.primary}` }}>v3 Full Configurator</span>
-          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: '#065f4620', color: C.accent, border: `1px solid ${C.accent}` }}>Dev Mode</span>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+            <span style={{ fontSize: 10, letterSpacing: 2.5, textTransform: 'uppercase', color: C.gold, fontWeight: 600 }}>Pinnacle Sales</span>
+            <h1 style={{ margin: 0, fontSize: 19, fontWeight: 600, letterSpacing: 0.3 }}>Eclipse Kitchen Designer</h1>
+          </div>
+          <span style={{ display: 'inline-block', padding: '2px 9px', borderRadius: 3, fontSize: 11, fontWeight: 600, letterSpacing: 0.5, background: '#c8a96e22', color: C.accent, border: `1px solid ${C.gold}` }}>Configurator</span>
         </div>
-        <span style={{ fontSize: 12, color: C.dim }}>22 templates / 5 appliance brands / 5 countertop brands</span>
+        <span style={{ fontSize: 12, color: C.dim }}>{TEMPLATES.length} templates / 5 appliance brands / 10 countertop brands</span>
       </header>
 
       {/* Main */}
@@ -1656,7 +1659,7 @@ export default function App() {
                     </div>
                   </div>
                   {prefs.golaChannel && (
-                    <div style={{ marginTop: 10, padding: '8px 10px', background: '#4c1d9520', borderRadius: 6, border: `1px solid ${C.purple}`, fontSize: 11, color: '#c4b5fd' }}>
+                    <div style={{ marginTop: 10, padding: '8px 10px', background: '#7a6f9b22', borderRadius: 6, border: `1px solid ${C.purple}`, fontSize: 11, color: '#c4b5fd' }}>
                       Gola mode: FC- prefix cabinets, no wall cabinets, B2TD drawer bases dominant, dishwasher door panel (DP) auto-included.
                     </div>
                   )}
@@ -1775,13 +1778,13 @@ export default function App() {
                   <div style={{ ...panelStyle, gridColumn: '1 / -1' }}>
                     <div style={sectionTitle}>Trim & Molding</div>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: C.dim }}>
-                      {trimSelections.toeKick && <span style={{ padding: '3px 8px', background: '#1e3a5f20', borderRadius: 4, border: `1px solid ${C.primary}` }}>Toe Kick (TK-N/C)</span>}
-                      {trimSelections.crown && <span style={{ padding: '3px 8px', background: '#1e3a5f20', borderRadius: 4, border: `1px solid ${C.primary}` }}>
+                      {trimSelections.toeKick && <span style={{ padding: '3px 8px', background: '#c8a96e22', borderRadius: 4, border: `1px solid ${C.primary}` }}>Toe Kick (TK-N/C)</span>}
+                      {trimSelections.crown && <span style={{ padding: '3px 8px', background: '#c8a96e22', borderRadius: 4, border: `1px solid ${C.primary}` }}>
                         {trimSelections.crownProfile === 'furniture' ? 'Furniture Crown (3FCR)' : 'Crown Mould (3 1/2CRN)'}
                       </span>}
-                      {trimSelections.lightRail && <span style={{ padding: '3px 8px', background: '#1e3a5f20', borderRadius: 4, border: `1px solid ${C.primary}` }}>Light Rail (1 3/4 UCA)</span>}
-                      {trimSelections.traditionalTrim && <span style={{ padding: '3px 8px', background: '#1e3a5f20', borderRadius: 4, border: `1px solid ${C.primary}` }}>Traditional Trim (7/8TD)</span>}
-                      {trimSelections.countertopEdge && <span style={{ padding: '3px 8px', background: '#1e3a5f20', borderRadius: 4, border: `1px solid ${C.primary}` }}>Countertop Edge</span>}
+                      {trimSelections.lightRail && <span style={{ padding: '3px 8px', background: '#c8a96e22', borderRadius: 4, border: `1px solid ${C.primary}` }}>Light Rail (1 3/4 UCA)</span>}
+                      {trimSelections.traditionalTrim && <span style={{ padding: '3px 8px', background: '#c8a96e22', borderRadius: 4, border: `1px solid ${C.primary}` }}>Traditional Trim (7/8TD)</span>}
+                      {trimSelections.countertopEdge && <span style={{ padding: '3px 8px', background: '#c8a96e22', borderRadius: 4, border: `1px solid ${C.primary}` }}>Countertop Edge</span>}
                       {!trimSelections.toeKick && !trimSelections.crown && !trimSelections.lightRail && !trimSelections.traditionalTrim && (
                         <span style={{ color: C.dim }}>No trim selected</span>
                       )}

@@ -37,24 +37,30 @@ export async function exportPDF(options = {}) {
 
   // ── Page 1: Cover + Floor Plan ──
   // Header
+  doc.setFontSize(8);
+  doc.setTextColor(184, 148, 78); // Pinnacle gold eyebrow
+  doc.text('PINNACLE SALES', margin, margin + 2);
   doc.setFontSize(22);
-  doc.setTextColor(30, 41, 59);
-  doc.text(title, margin, margin + 10);
+  doc.setTextColor(26, 26, 26);
+  doc.text(title, margin, margin + 18);
+  doc.setDrawColor(200, 169, 110); // gold rule under the title
+  doc.setLineWidth(1.5);
+  doc.line(margin, margin + 24, margin + 150, margin + 24);
 
   doc.setFontSize(10);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Layout: ${layoutType.toUpperCase()} | Room: ${roomType} | Generated: ${new Date().toLocaleDateString()}`, margin, margin + 26);
+  doc.setTextColor(85, 85, 85);
+  doc.text(`Layout: ${layoutType.toUpperCase()} | Room: ${roomType} | Generated: ${new Date().toLocaleDateString()}`, margin, margin + 38);
 
   // Materials summary
   doc.setFontSize(9);
-  doc.text(`Species: ${materials.species || 'N/A'} | Door: ${materials.door || 'N/A'} | Construction: ${materials.construction || 'N/A'}`, margin, margin + 40);
+  doc.text(`Species: ${materials.species || 'N/A'} | Door: ${materials.door || 'N/A'} | Construction: ${materials.construction || 'N/A'}`, margin, margin + 52);
 
   // Pricing summary bar
-  const barY = margin + 52;
-  doc.setFillColor(241, 245, 249);
+  const barY = margin + 64;
+  doc.setFillColor(250, 248, 245);
   doc.roundedRect(margin, barY, pageW - 2 * margin, 24, 4, 4, 'F');
   doc.setFontSize(9);
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(26, 26, 26);
   doc.text(`Cabinetry: ${formatCurrency(cabinetTotal)}`, margin + 10, barY + 15);
   doc.text(`Appliances: ${applianceTotal > 0 ? formatCurrency(applianceTotal) : 'N/A'}`, margin + 180, barY + 15);
   const ctText = countertopEstimate
@@ -63,7 +69,9 @@ export async function exportPDF(options = {}) {
   doc.text(`Countertops: ${ctText}`, margin + 340, barY + 15);
   const grandTotal = cabinetTotal + applianceTotal + (countertopEstimate ? (countertopEstimate.totalLow + countertopEstimate.totalHigh) / 2 : 0);
   doc.setFont(undefined, 'bold');
+  doc.setTextColor(184, 148, 78); // Pinnacle gold
   doc.text(`Est. Total: ${formatCurrency(Math.round(grandTotal))}`, margin + 520, barY + 15);
+  doc.setTextColor(26, 26, 26);
   doc.setFont(undefined, 'normal');
 
   // Floor plan SVG
@@ -94,7 +102,7 @@ export async function exportPDF(options = {}) {
 
   // Footer
   doc.setFontSize(7);
-  doc.setTextColor(148, 163, 184);
+  doc.setTextColor(138, 138, 138);
   doc.text('Eclipse Kitchen Designer — Pinnacle Sales — Eclipse Cabinetry', margin, pageH - 15);
   doc.text('Page 1', pageW - margin - 30, pageH - 15);
 
@@ -132,10 +140,10 @@ export async function exportPDF(options = {}) {
           doc.addPage('letter', 'landscape');
           yOffset = margin + 26;
           doc.setFontSize(14);
-          doc.setTextColor(30, 41, 59);
+          doc.setTextColor(26, 26, 26);
           doc.text('Elevations & Sections', margin, margin + 8);
           doc.setFontSize(8);
-          doc.setTextColor(120, 130, 145);
+          doc.setTextColor(120, 120, 120);
           doc.text(`Scale: 1/2" = 1'-0"`, pageW - margin - 90, margin + 8);
         }
 
@@ -149,7 +157,7 @@ export async function exportPDF(options = {}) {
           doc.setFontSize(7);
           doc.setTextColor(150, 80, 80);
           doc.text('SCALE REDUCED TO FIT (NTS)', margin + (availW - drawW) / 2, yOffset + drawH + 8);
-          doc.setTextColor(148, 163, 184);
+          doc.setTextColor(138, 138, 138);
         }
         yOffset += drawH + 22;
       } catch (e) {
@@ -165,7 +173,7 @@ export async function exportPDF(options = {}) {
     for (let pp = 1; pp <= pageCount; pp++) {
       doc.setPage(pp);
       doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(138, 138, 138);
       doc.text('Eclipse Kitchen Designer — Pinnacle Sales — Eclipse Cabinetry', margin, pageH - 15);
       doc.text(`Page ${pp} of ${pageCount}`, pageW - margin - 50, pageH - 15);
     }
