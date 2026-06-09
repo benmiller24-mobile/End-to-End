@@ -34,11 +34,23 @@ async function uploadInitImage(buffer) {
 export default async (req) => {
   try {
     if (req.method === 'POST') {
-      const { prompt, initImage, controlnetWeight } = await req.json();
+      const { prompt, initImage, controlnetWeight, mode } = await req.json();
       if (!prompt) return json({ error: 'prompt required' }, 400);
 
       let body;
-      if (initImage) {
+      if (initImage && mode === 'img2img') {
+        // Photoreal pass over an accurate 3D render: image-to-image keeps the
+        // exact composition/geometry and only adds realism. Lower init_strength
+        // = closer to the 3D source.
+        const initImageId = await uploadInitImage(Buffer.from(initImage, 'base64'));
+        body = {
+          prompt, modelId: MODEL_KINO_XL, width: 1360, height: 768, num_images: 1,
+          alchemy: true, presetStyle: 'CINEMATIC',
+          negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, sketch, watermark, text, logo, extra cabinets, warped geometry',
+          init_image_id: initImageId,
+          init_strength: typeof controlnetWeight === 'number' ? controlnetWeight : 0.45,
+        };
+      } else if (initImage) {
         // Structure-locked (Edge ControlNet) — traces the uploaded elevation.
         const buffer = Buffer.from(initImage, 'base64');
         const initImageId = await uploadInitImage(buffer);

@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { buildPrompt } from './LeonardoRenderer.jsx';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
@@ -30,9 +31,46 @@ function woodColor(species, finish) {
   return '#c8a26a';
 }
 
-export default function Kitchen3DView({ solverResult, materials, construction, countertopColor, trim }) {
+export default function Kitchen3DView({ solverResult, materials, construction, countertopColor, trim, prefs, selectedAppliances }) {
   const mountRef = useRef(null);
   const [err, setErr] = useState(null);
+  const [aiUrl, setAiUrl] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiErr, setAiErr] = useState(null);
+  const [strength, setStrength] = useState(0.45);
+
+  // Photoreal pass: capture the accurate 3D render and img2img it through Leonardo
+  // (keeps geometry, adds realism). Server holds the key + does upload/poll proxy.
+  const generatePhotoreal = useCallback(async () => {
+    setAiErr(null); setAiUrl(null);
+    const three = mountRef.current && mountRef.current._three;
+    if (!three) { setAiErr('3D view not ready yet.'); return; }
+    setAiLoading(true);
+    try {
+      three.renderer.render(three.scene, three.camera);
+      const b64 = three.renderer.domElement.toDataURL('image/png').split(',')[1];
+      const prompt = buildPrompt({
+        solverResult, materials, appliances: selectedAppliances || [],
+        countertop: countertopColor, prefs: prefs || {}, trim, construction, viewpoint: 'three_quarter',
+      });
+      const cr = await fetch('/api/leonardo', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, initImage: b64, mode: 'img2img', controlnetWeight: strength }),
+      });
+      if (!cr.ok) { const e = await cr.json().catch(() => ({})); throw new Error(e.error || `Request failed (${cr.status})`); }
+      const { generationId } = await cr.json();
+      if (!generationId) throw new Error('No generation id');
+      for (let i = 0; i < 40; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const pr = await fetch(`/api/leonardo?id=${encodeURIComponent(generationId)}`);
+        if (!pr.ok) continue;
+        const pd = await pr.json();
+        if (pd.status === 'COMPLETE' && pd.url) { setAiUrl(pd.url); break; }
+        if (pd.status === 'FAILED') throw new Error('Leonardo generation failed');
+      }
+    } catch (e) { setAiErr(e.message); }
+    setAiLoading(false);
+  }, [solverResult, materials, construction, countertopColor, trim, prefs, selectedAppliances, strength]);
 
   useEffect(() => {
     if (!solverResult || !mountRef.current) return;
@@ -246,6 +284,35 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       <div ref={mountRef} style={{ width: '100%', minHeight: 480, borderRadius: 6, overflow: 'hidden' }} />
       <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>
         Deterministic massing from the solver — cabinet positions/sizes match the floor plan and elevations exactly. Drag to rotate, scroll to zoom.
+      </div>
+
+      {/* ── Photoreal AI pass (img2img over the accurate 3D) ── */}
+      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #334155' }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
+          Photoreal pass — orbit to the view you want, then generate. The AI keeps this 3D geometry and adds realism.
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <label style={{ fontSize: 11, color: '#64748b' }}>Realism strength {strength.toFixed(2)}</label>
+          <input type="range" min="0.2" max="0.75" step="0.05" value={strength}
+            onChange={e => setStrength(parseFloat(e.target.value))} style={{ flex: 1 }} />
+          <span style={{ fontSize: 9, color: '#64748b' }}>(lower = closer to 3D)</span>
+        </div>
+        <button onClick={generatePhotoreal} disabled={aiLoading}
+          style={{ width: '100%', padding: 11, border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600,
+            cursor: aiLoading ? 'wait' : 'pointer', color: '#fff',
+            background: aiLoading ? '#334155' : 'linear-gradient(135deg,#8b5cf6,#3b82f6)' }}>
+          {aiLoading ? 'Rendering photoreal… (30–60s)' : 'Generate photoreal from this view'}
+        </button>
+        {aiErr && <div style={{ marginTop: 10, padding: 10, background: '#451a1a', border: '1px solid #f59e0b', borderRadius: 6, fontSize: 12, color: '#fca5a5' }}>{aiErr}</div>}
+        {aiUrl && (
+          <div style={{ marginTop: 12 }}>
+            <img src={aiUrl} alt="Photoreal render" style={{ width: '100%', borderRadius: 8, border: '1px solid #334155' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+              <span style={{ fontSize: 10, color: '#64748b' }}>Photoreal (img2img) over your 3D geometry · Leonardo</span>
+              <a href={aiUrl} download="kitchen_photoreal.jpg" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600 }}>Download</a>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

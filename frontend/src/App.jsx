@@ -1056,6 +1056,8 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           construction={getConstruction(materials?.frameStyle)}
           countertopColor={countertopColor}
           trim={trimSelections}
+          prefs={prefs}
+          selectedAppliances={selectedAppliances}
         />
       )}
 
