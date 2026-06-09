@@ -186,6 +186,10 @@ function parseDoorDrawer(sku, width) {
   if (/^B2TD/.test(s)) return { doors: 0, drawers: 2 };
   // Sink bases: catalog SB cabinets have a FALSE drawer front on top + doors below
   // (the -FHD full-height-door variant handled above has none).
+  // Vanity COMBINATION cabinets — split into columns (sink door + drawer bank).
+  if (/^VCSD/.test(s)) return { combo: [{ kind: 'door' }, { kind: 'drawers', drawers: /-2D/.test(s) ? 2 : 3 }] };
+  if (/^VSD\d/.test(s)) return { combo: [{ kind: 'drawers', drawers: 2, wt: 0.7 }, { kind: 'door', wt: 1.1 }, { kind: 'drawers', drawers: 2, wt: 0.7 }] };
+  if (/^VCSB/.test(s)) return { combo: [{ kind: 'door' }, { kind: 'drawers', drawers: 3 }, { kind: 'door' }] };
   if (/^SB|^BSB|^IWS|^IBS|^DSB|^VSB|^VS\d/.test(s)) return { doors: doorCount(width), drawers: 1, falseFront: true };
   // Roll-out tray, pull-out shelf: door only
   if (/-RT/.test(s) || /^BPOS/.test(s)) return { doors: doorCount(width), drawers: 0 };
@@ -412,7 +416,7 @@ function drawGlassPanel(els, key, fx, fy, fw, fh, mullion) {
   els.push(<line key={`${key}rf`} x1={px + pw * 0.22} y1={py + 1.5} x2={px + pw * 0.05} y2={py + ph * 0.6} stroke="#ffffff" strokeWidth={0.5} opacity={0.4} strokeLinecap="round" />);
 }
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid', construction = null, blindCorner = false }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid', construction = null, blindCorner = false, comboCols = null }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -505,6 +509,57 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     // seam between access face and blind panel
     els.push(<line key="bsm" x1={blindLeft ? blindX + blindW : blindX} y1={y} x2={blindLeft ? blindX + blindW : blindX} y2={y + h}
       stroke={C.line} strokeWidth={0.6} opacity={0.7} />);
+    return <>{els}</>;
+  }
+
+  // ── VANITY COMBINATION (sink door + drawer bank[s]): render columns ──
+  if (comboCols && comboCols.length) {
+    const framed = !!(construction && construction.frame);
+    const stileS = framed ? (construction.stile || 1.5) * S : 0;
+    const gapS = (construction?.gap ?? 0.094) * S;
+    const overlayS = framed ? (construction.overlay || 0) * S : 0;
+    const inset = framed && construction.inset;
+    const lSh = (i) => i > 0, rSh = (i) => i < comboCols.length - 1;
+    const seat = (key, ox, oy, ow, oh, isDoor, leftShared, rightShared) => {
+      if (ow <= 2 || oh <= 2) return null;
+      let pL, pT, pW, pH;
+      if (framed) {
+        const sl = leftShared ? stileS / 2 : stileS, sr = rightShared ? stileS / 2 : stileS;
+        const oL = ox + sl, oT = oy + stileS, oW = ow - sl - sr, oH = oh - 2 * stileS;
+        if (oW > 1 && oH > 1) els.push(<rect key={`${key}fo`} x={oL} y={oT} width={oW} height={oH} fill="none" stroke={C.line} strokeWidth={0.5} />);
+        if (inset) { pL = oL + gapS; pT = oT + gapS; pW = oW - 2 * gapS; pH = oH - 2 * gapS; }
+        else { const g = Math.min(overlayS, Math.max(0, stileS - 0.6 * S)); pL = oL - g; pT = oT - g; pW = oW + 2 * g; pH = oH + 2 * g; }
+      } else { const r = 0.094 * S; pL = ox + r; pT = oy + r; pW = ow - 2 * r; pH = oh - 2 * r; }
+      if (pW <= 1 || pH <= 1) return null;
+      els.push(<rect key={key} x={pL} y={pT} width={pW} height={pH} fill={inset ? '#0000000a' : 'none'} stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+      pushStylePanel(els, `${key}p`, pL, pT, pW, pH, styleSpec, isDoor);
+      return { pL, pT, pW, pH };
+    };
+    const totalWt = comboCols.reduce((a, c) => a + (c.wt || 1), 0);
+    let cx0 = x;
+    comboCols.forEach((col, ci) => {
+      const cw = ((col.wt || 1) / totalWt) * w;
+      if (ci > 0) els.push(<line key={`cseam${ci}`} x1={cx0} y1={y} x2={cx0} y2={y + h} stroke={C.line} strokeWidth={0.5} opacity={0.6} />);
+      if (col.kind === 'drawers') {
+        const n = Math.max(1, col.drawers || 3);
+        for (let d = 0; d < n; d++) {
+          const fh = h / n;
+          const r = seat(`cd${ci}_${d}`, cx0, y + d * fh, cw, fh, false, lSh(ci), rSh(ci));
+          if (r) {
+            if (hardware === 'bar' || hardware === 'pull') { const pw2 = Math.min(r.pW * 0.3, 5 * S); els.push(<line key={`cdk${ci}_${d}`} x1={r.pL + r.pW / 2 - pw2 / 2} y1={r.pT + r.pH / 2} x2={r.pL + r.pW / 2 + pw2 / 2} y2={r.pT + r.pH / 2} stroke={C.hwColor} strokeWidth={0.5} strokeLinecap="round" />); }
+            else els.push(<circle key={`cdk${ci}_${d}`} cx={r.pL + r.pW / 2} cy={r.pT + r.pH / 2} r={0.9} fill={C.hwColor} />);
+          }
+        }
+      } else {
+        const r = seat(`cdoor${ci}`, cx0, y, cw, h, true, lSh(ci), rSh(ci));
+        if (r) {
+          const hingeLeft = ci === 0;
+          const hwX = hingeLeft ? r.pL + r.pW - 1.6 * S : r.pL + 1.6 * S;
+          els.push(<circle key={`cdh${ci}`} cx={hwX} cy={r.pT + r.pH - 3 * S} r={0.9} fill={C.hwColor} />);
+        }
+      }
+      cx0 += cw;
+    });
     return <>{els}</>;
   }
 
@@ -1386,7 +1441,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           y = tkTopY - h;
         }
 
-        let { doors, drawers, falseFront, blind } = parseDoorDrawer(sku, cab.width);
+        let { doors, drawers, falseFront, blind, combo } = parseDoorDrawer(sku, cab.width);
         // Sink base is a real cabinet: render it via CabFront (full-overlay
         // reveals + door style + wood), not the appliance glyph, so it matches
         // the rest of the run. Tilt-out false front on top, doors below.
@@ -1405,7 +1460,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} blindCorner={blind} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} blindCorner={blind} comboCols={combo} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
