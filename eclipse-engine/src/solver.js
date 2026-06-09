@@ -1621,6 +1621,37 @@ export function solve(input) {
 
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // Warn when a wall is fully consumed by corner units, leaving no standalone
+  // cabinetry (its elevation would be blank). General check for any layout — a wall
+  // between two corners must be long enough to hold cabinets between them.
+  for (const wl of wallLayouts) {
+    const standalone = (wl.cabinets || []).filter(c => c.type !== 'end_panel' && c.role !== 'corner-filler');
+    if (standalone.length === 0 && (wl.wallLength || 0) > 0) {
+      const consumed = (corners || []).reduce((sum, cn) =>
+        sum + (cn.wallA === wl.wallId ? (cn.wallAConsumption || 0) : 0)
+            + (cn.wallB === wl.wallId ? (cn.wallBConsumption || 0) : 0), 0);
+      if (consumed >= wl.wallLength - 1) {
+        validation.push({
+          severity: 'warning',
+          rule: 'wall_fully_corner_consumed',
+          message: `Wall ${wl.wallId} (${wl.wallLength}") is fully consumed by corner units, leaving no standalone cabinetry. Widen it to fit cabinets between the corners, or use a single corner on this wall.`,
+          wall: wl.wallId,
+        });
+      }
+    }
+  }
+
+  const ADVISORY_RULES = new Set([
+    'work_triangle_small', 'work_triangle_large', 'work_triangle_incomplete',
+    'work_triangle_leg_short', 'work_triangle_leg_long',
+    'work_triangle_sink_range', 'work_triangle_range_fridge', 'work_triangle_fridge_sink',
+    'NKBA-Landing-Range', 'NKBA-Landing-Sink', 'NKBA-Landing-Fridge', 'NKBA-DW-Sink',
+    'crown_spans_hood', 'audit_dishwasher', 'audit_workTriangle', 'audit_landing',
+  ]);
+  for (const v of validation) {
+    if (v && v.severity === 'error' && ADVISORY_RULES.has(v.rule)) { v.severity = 'warning'; v.advisory = true; }
+  }
+
   return {
     layoutType,
     roomType,

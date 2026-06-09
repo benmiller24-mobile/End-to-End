@@ -556,7 +556,10 @@ const TEMPLATES = [
       roomType: "kitchen",
       walls: [
         { id: "A", length: 144, role: "sink" },
-        { id: "B", length: 72, role: "general" },
+        // 120" back wall: two lazy-susan corners consume ~36" each, leaving ~48" of
+        // usable cabinetry between them. At 72" the corners consumed the whole wall,
+        // leaving its elevation blank.
+        { id: "B", length: 120, role: "general" },
         { id: "C", length: 144, role: "range" },
       ],
       appliances: [
@@ -879,7 +882,10 @@ const TEMPLATES = [
       layoutType: "single-wall",
       roomType: "vanity",
       walls: [
-        { id: "A", length: 84, role: "vanity" },
+        // 90" wall: two 30" sink bases + a 24" waste base = 84", leaving room for the
+        // end reveals/fillers. At 84" the run filled the wall exactly and overflowed
+        // once reveals were added.
+        { id: "A", length: 90, role: "vanity" },
       ],
       appliances: [
         { type: "sink", width: 30, wall: "A", position: "left" },

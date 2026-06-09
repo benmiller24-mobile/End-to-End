@@ -1,4 +1,7 @@
 export const RAW_SKU_DATA = `
+LBRK-SS|35|S|A
+LBRK-BK|28|S|A
+1 1/4" Edge Banded Shelf|145|S|A
 AGFDT|60|B2|A
 BLGFDT|60|B2|A
 MBGFDT|60|B2|A
