@@ -1040,11 +1040,29 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">CLG</text>
       </>)}
 
-      {/* Backsplash zone fill (stone tint if a countertop is selected) — wall only */}
-      {!isIsland && (
-        <rect x={0} y={upBotY} width={wW} height={ctrTopY - upBotY}
-          fill={stone ? ctrPat : C.backsplash} stroke="none" opacity={stone ? 0.5 : 0.2} />
-      )}
+      {/* Backsplash zone — standard 18" band OR full-height slab (current trend: the
+          countertop stone runs solid up the wall, with a feature slab rising to the
+          upper-cabinet tops behind the cooktop where there are no wall cabinets). */}
+      {!isIsland && (() => {
+        const slab = trim.backsplashStyle === 'full_slab';
+        const fill = stone ? ctrPat : (slab ? '#e7e2db' : C.backsplash);
+        const band = (
+          <rect x={0} y={upBotY} width={wW} height={ctrTopY - upBotY}
+            fill={fill} stroke={slab ? C.line : 'none'} strokeWidth={slab ? 0.4 : 0}
+            opacity={slab ? 1 : (stone ? 0.5 : 0.2)} />
+        );
+        if (!slab) return band;
+        const range = sortedBases.find(c => /range|cooktop/.test(c.applianceType || ''));
+        const feature = (range && range.width > 0) ? (
+          <rect x={range.position * S} y={upperTopY}
+            width={range.width * S} height={ctrTopY - upperTopY}
+            fill={fill} stroke={C.line} strokeWidth={0.4} opacity={1} />
+        ) : null;
+        return (<>{feature}{band}
+          <text x={3} y={upBotY - 2} fontSize={3.2} fill={C.annotColor}
+            fontFamily="Helvetica,Arial,sans-serif">FULL-HEIGHT SLAB BACKSPLASH</text>
+        </>);
+      })()}
 
       {/* ══════════ ELECTRICAL: backsplash receptacles (GFCI) ══════════ */}
       {!isIsland && validBases.length > 0 && (() => {

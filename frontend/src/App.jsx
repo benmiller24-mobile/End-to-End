@@ -725,6 +725,32 @@ function TrimPicker({ selections, onChange }) {
         </div>
       </div>
 
+      {/* Backsplash style — current high-end trend: full-height stone slab */}
+      <div style={{ marginTop: 8, padding: '8px 10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
+        <label style={{ ...labelStyle, marginBottom: 6 }}>Backsplash — counter-to-upper treatment</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { v: 'standard', label: 'Standard', desc: 'Short tile / 4" stone splash between counter and uppers' },
+            { v: 'full_slab', label: 'Full-Height Slab', desc: 'Countertop stone runs full-height; feature slab behind the cooktop (current trend)' },
+          ].map(o => {
+            const active = (selections.backsplashStyle || 'standard') === o.v;
+            return (
+              <button key={o.v} onClick={() => setField('backsplashStyle', o.v)} title={o.desc}
+                style={{ flex: 1, padding: '6px 4px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  border: `1px solid ${active ? C.primary : C.border}`,
+                  background: active ? '#c8a96e22' : 'transparent', color: active ? C.text : C.muted }}>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>
+          {(selections.backsplashStyle || 'standard') === 'full_slab'
+            ? 'The countertop material continues full-height as the backsplash, with a feature slab rising behind the cooktop — the dominant current look. Priced as added slab sq ft.'
+            : 'A standard short backsplash band (tile or a 4" stone splash) between the counter and the wall cabinets.'}
+        </div>
+      </div>
+
       {/* Crown profile sub-option */}
       {selections.crown && (selections.ceilingFit || 'crown') === 'crown' && (
         <div style={{ marginTop: 8, padding: '8px 10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
@@ -1406,6 +1432,7 @@ export default function App() {
     traditionalTrim: false,  // 7/8TD -8'
     countertopEdge: true,
     ceilingFit: 'crown', // 'crown' | 'fitted' (riser panel to ceiling) | 'open' (unfitted gap)
+    backsplashStyle: 'standard', // 'standard' (tile/short) | 'full_slab' (full-height stone slab — current trend)
   });
 
   // Results
