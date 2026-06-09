@@ -36,6 +36,7 @@ import {
 
 // ── Output view imports ──
 import { BRANDS, CONSTRUCTIONS, CONSTRUCTIONS_BY_BRAND, DEFAULT_CONSTRUCTION_BY_BRAND, getConstruction } from './constructionProfiles.js';
+import { findShilohSku, SHILOH_SKU_COUNT } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
 import ApplianceRecommendationPanel from './ApplianceRecommendationPanel.jsx';
@@ -59,8 +60,12 @@ function nearestInFamily(prefix, w) {
   return best || res[0];
 }
 
+let _pricingBrand = 'eclipse';
+export function setPricingBrand(b) { _pricingBrand = b === 'shiloh' ? 'shiloh' : 'eclipse'; }
+function _baseFind(sku) { return _pricingBrand === 'shiloh' ? findShilohSku(sku) : findSku(sku); }
+
 function findSkuNormalized(sku, _depth = 0) {
-  let r = findSku(sku); if (r) return r;
+  let r = _baseFind(sku); if (r) return r;
 
   // Hinge / handing suffix strip (W…R, B…-FHDL, B2HD24L, FLVSB9L, BWDMA42R, B9L, …):
   // the solver appends a hinge letter that the price catalog omits. Strip and recurse.
@@ -77,68 +82,68 @@ function findSkuNormalized(sku, _depth = 0) {
     for (const v of [...new Set(variants)]) { const rr = findSkuNormalized(v, _depth + 1); if (rr) return rr; }
   }
 
-  let s = sku.replace(/(\d+)\.5/g, '$1 1/2'); r = findSku(s); if (r) return r;
-  s = s.replace(/-PH([LR])$/, '-PH'); r = findSku(s); if (r) return r;
+  let s = sku.replace(/(\d+)\.5/g, '$1 1/2'); r = _baseFind(s); if (r) return r;
+  s = s.replace(/-PH([LR])$/, '-PH'); r = _baseFind(s); if (r) return r;
   // B-RT27 → B27-RT (solver puts width after suffix, catalog puts it before)
-  if (/^B-RT\d/.test(sku)) { const m = sku.match(/^B-RT(\d+)/); if (m) { r = findSku(`B${m[1]}-RT`); if (r) return r; r = findSku(`B${m[1]}-1DR-RT`); if (r) return r; } }
+  if (/^B-RT\d/.test(sku)) { const m = sku.match(/^B-RT(\d+)/); if (m) { r = _baseFind(`B${m[1]}-RT`); if (r) return r; r = _baseFind(`B${m[1]}-1DR-RT`); if (r) return r; } }
   // BEP3/4L-FTK → BEP3/4-FTK-L/R
-  if (/^BEP3\/4[LR]-FTK/.test(sku)) { r = findSku('BEP3/4-FTK-L/R'); if (r) return r; }
-  if (/^BEP3\/4[LR]$/.test(sku)) { r = findSku('BEP3/4-L/R'); if (r) return r; }
+  if (/^BEP3\/4[LR]-FTK/.test(sku)) { r = _baseFind('BEP3/4-FTK-L/R'); if (r) return r; }
+  if (/^BEP3\/4[LR]$/.test(sku)) { r = _baseFind('BEP3/4-L/R'); if (r) return r; }
   // FWEP3/4L or FWEP3/4R → FWEP3/4-L/R-27" (try common heights)
-  if (/^FWEP3\/4[LR]$/.test(sku)) { for (const h of [27,30,33,36,39,42]) { r = findSku(`FWEP3/4-L/R-${h}"`); if (r) return r; } }
+  if (/^FWEP3\/4[LR]$/.test(sku)) { for (const h of [27,30,33,36,39,42]) { r = _baseFind(`FWEP3/4-L/R-${h}"`); if (r) return r; } }
   // SCRIBE-8' → search for scribe
-  if (/^SCRIBE/i.test(sku)) { const results = searchSkus('SCRIBE'); if (results.length) return results[0]; r = findSku('3SRM3F-10\''); if (r) return r; }
+  if (/^SCRIBE/i.test(sku)) { const results = searchSkus('SCRIBE'); if (results.length) return results[0]; r = _baseFind('3SRM3F-10\''); if (r) return r; }
   // DWP-24 → search for DWP
   if (/^DWP/.test(sku)) { const results = searchSkus('DWP'); if (results.length) return results[0]; }
   if (/^S?WSC\d+/.test(sku)) {
     const b = sku.match(/^(S?WSC\d{2})/)?.[1];
     const dep = sku.match(/\((\d+)\)/)?.[1];
     if (b) {
-      if (dep) { r = findSku(`${b}--(${dep})`); if (r) return r; r = findSku(`${b} --(${dep})`); if (r) return r; }
-      r = findSku(b + '-PH'); if (r) return r;
-      r = findSku(b.replace(/^S/, '') + '-PH'); if (r) return r;   // SWSC24 → WSC24-PH
+      if (dep) { r = _baseFind(`${b}--(${dep})`); if (r) return r; r = _baseFind(`${b} --(${dep})`); if (r) return r; }
+      r = _baseFind(b + '-PH'); if (r) return r;
+      r = _baseFind(b.replace(/^S/, '') + '-PH'); if (r) return r;   // SWSC24 → WSC24-PH
       const res = searchSkus(b); if (res.length) return res[0];
     }
   }
-  if (/^W\d/.test(sku)) { const m = sku.match(/^W(\d+(?:\.\d+)?)(\d{2,3})$/); if (m) { const w = m[1].replace('.5', ''); r = findSku('W' + w + m[2]); if (r) return r; r = findSku('W' + w + '36'); if (r) return r; } }
+  if (/^W\d/.test(sku)) { const m = sku.match(/^W(\d+(?:\.\d+)?)(\d{2,3})$/); if (m) { const w = m[1].replace('.5', ''); r = _baseFind('W' + w + m[2]); if (r) return r; r = _baseFind('W' + w + '36'); if (r) return r; } }
   if (/^(OVF3|F3)\d{2}/.test(sku)) { const results = searchSkus(sku.startsWith('OVF3') ? 'OVF3' : 'F3'); if (results.length) return results[0]; }
-  if (/^REP/.test(sku)) { const m = sku.match(/^REP([\d./]+)\s*(\d{2,3})FTK-(\d+)/); if (m) { let t = m[1].replace('.5', ' 1/2'); r = findSku(`REP${t}-${m[3]}-L/R-${m[2]}"`); if (r) return r; const results = searchSkus('REP' + t.substring(0, 3)); const hm = results.find(x => x.s.includes(m[2] + '"')); if (hm) return hm; if (results.length) return results[0]; } }
-  if (/^F[BWS]?EP/.test(sku)) { const base = sku.replace(/\s+/g, '').replace(/-(L|R)$/, '-L/R'); r = findSku(base); if (r) return r; const results = searchSkus(sku.split(/[\s-]/)[0]); if (results.length) return results[0]; }
+  if (/^REP/.test(sku)) { const m = sku.match(/^REP([\d./]+)\s*(\d{2,3})FTK-(\d+)/); if (m) { let t = m[1].replace('.5', ' 1/2'); r = _baseFind(`REP${t}-${m[3]}-L/R-${m[2]}"`); if (r) return r; const results = searchSkus('REP' + t.substring(0, 3)); const hm = results.find(x => x.s.includes(m[2] + '"')); if (hm) return hm; if (results.length) return results[0]; } }
+  if (/^F[BWS]?EP/.test(sku)) { const base = sku.replace(/\s+/g, '').replace(/-(L|R)$/, '-L/R'); r = _baseFind(base); if (r) return r; const results = searchSkus(sku.split(/[\s-]/)[0]); if (results.length) return results[0]; }
   if (/^FC-[ST][BU]EP/.test(sku)) { const results = searchSkus(sku.match(/^FC-[A-Z]+/)?.[0] || sku.substring(0, 8)); if (results.length) return results[0]; }
-  if (/^RW\d+/.test(sku)) { const m = sku.match(/^(RW\d{2})(\d{2})?-?(\d{2})?/); if (m) { const d = m[3] || m[2] || ''; r = findSku(m[1] + d); if (r) return r; const results = searchSkus(m[1]); if (results.length) return results[0]; } }
-  if (/^P?RH\d/.test(sku)) { r = findSku(sku.split(/\s/)[0]); if (r) return r; }
-  if (/^FC-OM\d/.test(sku)) { const m = sku.match(/^(FC-OM\d{2})/); if (m) { r = findSku(m[1]); if (r) return r; const results = searchSkus(m[1]); if (results.length) return results[0]; } }
-  if (/^3SRM/.test(sku)) { r = findSku(sku.split('-')[0]); if (r) return r; }
+  if (/^RW\d+/.test(sku)) { const m = sku.match(/^(RW\d{2})(\d{2})?-?(\d{2})?/); if (m) { const d = m[3] || m[2] || ''; r = _baseFind(m[1] + d); if (r) return r; const results = searchSkus(m[1]); if (results.length) return results[0]; } }
+  if (/^P?RH\d/.test(sku)) { r = _baseFind(sku.split(/\s/)[0]); if (r) return r; }
+  if (/^FC-OM\d/.test(sku)) { const m = sku.match(/^(FC-OM\d{2})/); if (m) { r = _baseFind(m[1]); if (r) return r; const results = searchSkus(m[1]); if (results.length) return results[0]; } }
+  if (/^3SRM/.test(sku)) { r = _baseFind(sku.split('-')[0]); if (r) return r; }
   if (/^TU?K/.test(sku)) { const results = searchSkus(sku.substring(0, 3)); if (results.length) return results[0]; }
-  if (/^(FC-)?B3?D?9$/.test(sku)) { r = findSku('B9'); if (r) return r; }
+  if (/^(FC-)?B3?D?9$/.test(sku)) { r = _baseFind('B9'); if (r) return r; }
   const wm = sku.match(/^((?:FC-)?[A-Z]+\d*[A-Z]*)(\d{2})$/);
-  if (wm) { const sw = [9,12,15,18,21,24,27,30,33,36,39,42]; const w = parseInt(wm[2]); if (!sw.includes(w)) { const n = sw.reduce((a,b) => Math.abs(b-w) < Math.abs(a-w) ? b : a); r = findSku(wm[1] + n); if (r) return r; } }
-  if (/^BBC\d/.test(sku)) { const m = sku.match(/^(BBC\d{2})/); if (m) { r = findSku(m[1]); if (r) return r; } }
-  if (/^WND\d/.test(sku)) { const m = sku.match(/^(WND\d{2})/); if (m) { r = findSku(m[1]); if (r) return r; } }
-  if (/-FHD/.test(sku)) { r = findSku(sku); if (r) return r; const fm = sku.match(/^((?:FC-)?[A-Z]+)(\d{2})(-FHD)$/); if (fm) { const sw = [18,21,24,27,30,33,36,39,42]; const w = parseInt(fm[2]); if (!sw.includes(w)) { const n = sw.reduce((a,b) => Math.abs(b-w) < Math.abs(a-w) ? b : a); r = findSku(fm[1] + n + fm[3]); if (r) return r; } } }
+  if (wm) { const sw = [9,12,15,18,21,24,27,30,33,36,39,42]; const w = parseInt(wm[2]); if (!sw.includes(w)) { const n = sw.reduce((a,b) => Math.abs(b-w) < Math.abs(a-w) ? b : a); r = _baseFind(wm[1] + n); if (r) return r; } }
+  if (/^BBC\d/.test(sku)) { const m = sku.match(/^(BBC\d{2})/); if (m) { r = _baseFind(m[1]); if (r) return r; } }
+  if (/^WND\d/.test(sku)) { const m = sku.match(/^(WND\d{2})/); if (m) { r = _baseFind(m[1]); if (r) return r; } }
+  if (/-FHD/.test(sku)) { r = _baseFind(sku); if (r) return r; const fm = sku.match(/^((?:FC-)?[A-Z]+)(\d{2})(-FHD)$/); if (fm) { const sw = [18,21,24,27,30,33,36,39,42]; const w = parseInt(fm[2]); if (!sw.includes(w)) { const n = sw.reduce((a,b) => Math.abs(b-w) < Math.abs(a-w) ? b : a); r = _baseFind(fm[1] + n + fm[3]); if (r) return r; } } }
   if (/\|/.test(sku)) { const results = searchSkus(sku.split('|')[0]); if (results.length) return results[0]; }
   if (/^(LBRK|CRN|LB)-/.test(sku)) { const results = searchSkus(sku.split('-')[0]); if (results.length) return results[0]; }
   if (/^LR/.test(sku)) { const results = searchSkus('LR'); if (results.length) return results[0]; }
-  if (/^FC-/.test(sku)) { const stripped = sku.replace(/^FC-/, ''); r = findSku(stripped); if (r) return r; const sf = stripped.replace(/(\d+)\.5/g, '$1 1/2'); r = findSku(sf); if (r) return r; const results = searchSkus(stripped.substring(0, Math.min(stripped.length, 8))); if (results.length) return results[0]; }
+  if (/^FC-/.test(sku)) { const stripped = sku.replace(/^FC-/, ''); r = _baseFind(stripped); if (r) return r; const sf = stripped.replace(/(\d+)\.5/g, '$1 1/2'); r = _baseFind(sf); if (r) return r; const results = searchSkus(stripped.substring(0, Math.min(stripped.length, 8))); if (results.length) return results[0]; }
 
   // ── Family nearest-width fallbacks → map to an AVAILABLE catalog SKU ──
   const widthOf = (str) => { const m = str.match(/(\d{2})/); return m ? parseInt(m[1], 10) : null; };
   const nearestStd = (w) => [12,15,18,21,24,27,30,33,36,42,48].reduce((a, b) => Math.abs(b - w) < Math.abs(a - w) ? b : a, 24);
   if (/^B\d+-RT/.test(sku)) {
     const w = widthOf(sku), n = nearestStd(w);
-    r = findSku('B' + w + '-RT') || findSku('B' + n) || findSku('B' + n + '-1DR') || findSku('SB' + n + '-RT') || findSku('B3D' + n);
+    r = _baseFind('B' + w + '-RT') || _baseFind('B' + n) || _baseFind('B' + n + '-1DR') || _baseFind('SB' + n + '-RT') || _baseFind('B3D' + n);
     if (r) return r;
   }
-  if (/^SCRIBE/i.test(sku) || /^3SRM/.test(sku)) { r = findSku('3SRM3F') || searchSkus('3SRM')[0]; if (r) return r; }
+  if (/^SCRIBE/i.test(sku) || /^3SRM/.test(sku)) { r = _baseFind('3SRM3F') || searchSkus('3SRM')[0]; if (r) return r; }
   if (/^BWDMA\d/.test(sku)) { r = nearestInFamily('BWDMA', widthOf(sku)); if (r) return r; }
   if (/^FLVSB\d/.test(sku)) { r = nearestInFamily('FLVSB', widthOf(sku)); if (r) return r; }
-  if (/^BCF/.test(sku)) { r = findSku('BCF') || nearestInFamily('BCF', widthOf(sku)); if (r) return r; }
-  if (/^BWC/.test(sku)) { r = nearestInFamily('BWC', widthOf(sku)) || findSku('BWC30'); if (r) return r; }
+  if (/^BCF/.test(sku)) { r = _baseFind('BCF') || nearestInFamily('BCF', widthOf(sku)); if (r) return r; }
+  if (/^BWC/.test(sku)) { r = nearestInFamily('BWC', widthOf(sku)) || _baseFind('BWC30'); if (r) return r; }
   if (/^WGD/.test(sku)) { r = nearestInFamily('WGD', widthOf(sku)); if (r) return r; }
-  if (/^FIO/.test(sku)) { const w = widthOf(sku); r = findSku('FIO' + w + '-27') || findSku('FIO' + w) || nearestInFamily('FIO', w); if (r) return r; }
+  if (/^FIO/.test(sku)) { const w = widthOf(sku); r = _baseFind('FIO' + w + '-27') || _baseFind('FIO' + w) || nearestInFamily('FIO', w); if (r) return r; }
   if (/^S?UT\d/.test(sku)) { r = nearestInFamily('UT', widthOf(sku)); if (r) return r; }
   if (/^PBC/.test(sku)) { const w = widthOf(sku); r = nearestInFamily('PBC334 1/2-', w) || nearestInFamily('PBC', w); if (r) return r; }
-  if (/^BD\d/.test(sku)) { const w = widthOf(sku); r = findSku('B3D' + w) || nearestInFamily('B3D', w) || nearestInFamily('DRBDO', w); if (r) return r; }
+  if (/^BD\d/.test(sku)) { const w = widthOf(sku); r = _baseFind('B3D' + w) || nearestInFamily('B3D', w) || nearestInFamily('DRBDO', w); if (r) return r; }
   // Trim / panels / brackets / shelves with no exact catalog entry → a low-cost profile filler.
   if (/^(FDP|GRILLE|DWP|DW-?TK|DEP|LBRK)/i.test(sku) || /EDGE BANDED SHELF|SHELF/i.test(sku)) {
     r = searchSkus('PROFILE FILLER')[0] || searchSkus('FILLER')[0]; if (r) return r;
@@ -939,7 +944,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
 
       {materials?.brand === 'shiloh' && (
         <div style={{ marginBottom: 16, padding: '10px 12px', background: '#c8a96e22', border: `1px solid ${C.gold}`, borderRadius: 8, fontSize: 12, color: C.text }}>
-          <strong>Shiloh (framed) — {getConstruction(materials.frameStyle).label}.</strong> Cabinet pricing below is <strong>interim</strong>: it uses the Eclipse list as a placeholder pending the Shiloh price file. Construction, depths, and the elevation drawings are Shiloh-correct; only the dollar figures will change when the price spreadsheet is loaded.
+          <strong>Shiloh (framed) — {getConstruction(materials.frameStyle).label}.</strong> Cabinet pricing below is <strong>interim</strong>: cabinet bodies use <strong>Shiloh catalog v3.42 prices scraped from the spec book</strong> ({SHILOH_SKU_COUNT}{' '}SKUs); accessories/fillers/derived variants fall back to the Eclipse list. Construction, depths, and drawings are Shiloh-correct. Figures will be finalized against the official Shiloh price CSV.
         </div>
       )}
 
@@ -1554,6 +1559,7 @@ export default function App() {
       setTrainingScore(score);
 
       const pricingItems = buildPricingPlacements(result.placements || []);
+      setPricingBrand(materials.brand);
       const quoteResult = calculateLayoutPrice(pricingItems, {
         species: materials.species, construction: materials.construction,
         door: materials.door, drawerFront: 'DF-' + materials.door, drawerBox: '5/8-STD',
@@ -1668,7 +1674,7 @@ export default function App() {
                       {getConstruction(materials.frameStyle).frame
                         ? `Framed face-frame line. Doors ${getConstruction(materials.frameStyle).inset ? 'inset within the frame' : 'overlay the frame'}.`
                         : 'Frameless (full overlay) — European, no face frame, maximized openings.'}
-                      {materials.brand === 'shiloh' && <span style={{ color: C.accent }}>{'  · Pricing interim (pending Shiloh price file).'}</span>}
+                      {materials.brand === 'shiloh' && <span style={{ color: C.accent }}>{`  · Pricing from Shiloh catalog v3.42 (${SHILOH_SKU_COUNT} SKUs scraped) — interim, pending CSV verification.`}</span>}
                     </div>
                   </div>
 
