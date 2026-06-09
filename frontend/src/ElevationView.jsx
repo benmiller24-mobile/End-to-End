@@ -455,29 +455,43 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     const accessW = accessIn * S, blindW = w - accessW;
     const accessX = blindLeft ? x + blindW : x;
     const blindX = blindLeft ? x : x + accessW;
-    const rev = 0.094 * S;
+    // Construction-aware seating: framed draws a face frame + overlay/inset; frameless uses a 3/32" reveal.
+    const framed = !!(construction && construction.frame);
+    const stileS = framed ? (construction.stile || 1.5) * S : 0;
+    const gapS = (construction?.gap ?? 0.094) * S;
+    const overlayS = framed ? (construction.overlay || 0) * S : 0;
+    const inset = framed && construction.inset;
+    const seat = (key, ox, oy, ow, oh, isDoor) => {
+      if (ow <= 2 || oh <= 2) return null;
+      let pL, pT, pW, pH;
+      if (framed) {
+        const oL = ox + stileS, oT = oy + stileS, oW = ow - 2 * stileS, oH = oh - 2 * stileS;
+        if (oW > 1 && oH > 1) els.push(<rect key={`${key}fo`} x={oL} y={oT} width={oW} height={oH} fill="none" stroke={C.line} strokeWidth={0.5} />);
+        if (inset) { pL = oL + gapS; pT = oT + gapS; pW = oW - 2 * gapS; pH = oH - 2 * gapS; }
+        else { const g = Math.min(overlayS, Math.max(0, stileS - 0.6 * S)); pL = oL - g; pT = oT - g; pW = oW + 2 * g; pH = oH + 2 * g; }
+      } else { const r = 0.094 * S; pL = ox + r; pT = oy + r; pW = ow - 2 * r; pH = oh - 2 * r; }
+      if (pW <= 1 || pH <= 1) return null;
+      els.push(<rect key={key} x={pL} y={pT} width={pW} height={pH} fill={inset ? '#0000000a' : 'none'} stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+      pushStylePanel(els, `${key}p`, pL, pT, pW, pH, styleSpec, isDoor);
+      return { pL, pT, pW, pH };
+    };
     // blind (dead-corner) panel
-    els.push(<rect key="blindp" x={blindX + rev} y={y + rev} width={blindW - 2 * rev} height={h - 2 * rev}
-      fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+    seat('blindp', blindX, y, blindW, h, false);
     els.push(<text key="blindt" x={blindX + blindW / 2} y={y + h / 2} fill={C.dimText} fontSize={2.8}
       fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" opacity={0.45}>BLIND</text>);
     // access face: 6" drawer over a door
     const drawerH = drawers > 0 ? 6 * S : 0;
     if (drawerH) {
-      els.push(<rect key="bda" x={accessX + rev} y={y + rev} width={accessW - 2 * rev} height={drawerH - 2 * rev}
-        fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
-      pushStylePanel(els, 'bdp', accessX, y, accessW, drawerH, styleSpec, false);
-      els.push(<circle key="bdk" cx={accessX + accessW / 2} cy={y + drawerH / 2} r={0.9} fill={C.hwColor} />);
+      const dr = seat('bda', accessX, y, accessW, drawerH, false);
+      if (dr) els.push(<circle key="bdk" cx={dr.pL + dr.pW / 2} cy={dr.pT + dr.pH / 2} r={0.9} fill={C.hwColor} />);
     }
     const dY = y + drawerH, dH = h - drawerH;
-    els.push(<rect key="bdr" x={accessX + rev} y={dY + rev} width={accessW - 2 * rev} height={dH - 2 * rev}
-      fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
-    pushStylePanel(els, 'bdd', accessX, dY, accessW, dH, styleSpec, true);
-    // hinge toward the blind (corner) side so the door opens out into the room
-    const hwX = blindLeft ? accessX + 1.6 * S : accessX + accessW - 1.6 * S;
-    const hwY = dY + 3 * S;
-    els.push(<circle key="bdh" cx={hwX} cy={hwY} r={0.9} fill={C.hwColor} />);
-    // seam between access door and blind panel
+    const dr2 = seat('bdd', accessX, dY, accessW, dH, true);
+    if (dr2) {
+      const hwX = blindLeft ? dr2.pL + 1.6 * S : dr2.pL + dr2.pW - 1.6 * S;
+      els.push(<circle key="bdh" cx={hwX} cy={dr2.pT + 3 * S} r={0.9} fill={C.hwColor} />);
+    }
+    // seam between access face and blind panel
     els.push(<line key="bsm" x1={blindLeft ? blindX + blindW : blindX} y1={y} x2={blindLeft ? blindX + blindW : blindX} y2={y + h}
       stroke={C.line} strokeWidth={0.6} opacity={0.7} />);
     return <>{els}</>;
