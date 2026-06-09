@@ -132,7 +132,9 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       const roomW = maxX - minX || 144, roomD = (maxZ - minZ) || 120;
       // extend room interior for floor/back walls
       const cx0 = (minX + maxX) / 2, cz0 = (minZ + maxZ) / 2;
-      const CEIL = solverResult.metadata?.ceilingHeight || 96;
+      const CEIL = (solverResult._inputWalls && solverResult._inputWalls[0] && solverResult._inputWalls[0].ceilingHeight)
+        || (solverResult.walls && solverResult.walls[0] && solverResult.walls[0].ceilingHeight)
+        || (solverResult.metadata && solverResult.metadata.ceilingHeight) || 96;
 
       const root = new THREE.Group();
       // center the whole room at origin
@@ -193,13 +195,27 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
         });
       });
 
-      // ── UPPER cabinets ──
+      // ── UPPER cabinets ── (top-anchored to a common datum, like the elevation)
+      const UPPER_H_DEF = 36, TALL_H_DEF = 96;
+      const allUp = (solverResult.uppers || []).flatMap(u => (u.cabinets || []).filter(c =>
+        typeof c.position === 'number' && c.width > 0 &&
+        !(/^RH|range_hood|rangeHood/i.test(c.sku || '') || appType(c) === 'hood')));
+      const upperTops = allUp
+        .filter(c => !(c._elev?.zone === 'ABOVE_TALL' || (c._elev?.yMount || 0) > 60))
+        .map(c => (c._elev?.yMount ?? UPPER_BOT) + (c._elev?.height || c.height || UPPER_H_DEF));
+      const tallTops = (solverResult.talls || []).map(t => t._elev?.height || t.height || TALL_H_DEF);
+      const upperTopAFF = Math.min(CEIL, Math.max(UPPER_BOT + UPPER_H_DEF, ...upperTops, ...tallTops, 0));
       (solverResult.uppers || []).forEach(u => {
         const f = frameOf(u.wallId || u.id); if (!f) return;
         (u.cabinets || []).filter(c => typeof c.position === 'number' && c.width > 0).forEach(c => {
-          if (/^RH|range_hood|rangeHood/i.test(c.sku || '') || appType(c) === 'hood') return; // hood handled below
-          const h = c._elev?.height || c.height || 30;
-          placeOnWall(f, c.position, c.width, UPPER_D, UPPER_BOT, UPPER_BOT + h, woodMat);
+          if (/^RH|range_hood|rangeHood/i.test(c.sku || '') || appType(c) === 'hood') return; // hood below
+          const e = c._elev || {};
+          const aboveTall = e.zone === 'ABOVE_TALL' || (e.yMount || 0) > 60;
+          const isStack = c.role === 'stacked_main';
+          let bot, top;
+          if (isStack) { bot = e.yMount ?? UPPER_BOT; top = bot + (e.height || UPPER_H_DEF); }
+          else { bot = aboveTall ? (e.yMount || 84) : (e.yMount ?? UPPER_BOT); top = upperTopAFF; }
+          placeOnWall(f, c.position, c.width, UPPER_D, bot, top, woodMat);
         });
       });
 
