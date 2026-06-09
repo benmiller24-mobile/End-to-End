@@ -574,11 +574,14 @@ export function solve(input) {
     }
   }
 
-  // Phase 3: Generate island layout
+  // Phase 3: Generate island layout (room-aware sizing first)
+  const _islandFitWarnings = [];
+  const islandSized = island ? fitIslandToRoom(island, walls, layoutType, _islandFitWarnings) : null;
   let islandLayout = null;
-  if (island) {
+  if (islandSized) {
     const islandAppliances = appByWall["island"] || [];
-    islandLayout = solveIsland(island, islandAppliances, pf, golaPrefix);
+    islandLayout = solveIsland(islandSized, islandAppliances, pf, golaPrefix);
+    if (islandLayout) islandLayout._warnings = [..._islandFitWarnings, ...(islandLayout._warnings || [])];
   }
 
   // Phase 3b: Generate peninsula layout
@@ -772,6 +775,9 @@ export function solve(input) {
   }
   if (islandLayout && islandLayout._warnings) {
     solverWarnings.push(...islandLayout._warnings);
+  }
+  if (!islandLayout && _islandFitWarnings.length) {
+    solverWarnings.push(..._islandFitWarnings);
   }
 
   // Phase 6d: Ensure every kitchen has a trash/waste pull-out cabinet
@@ -999,7 +1005,7 @@ export function solve(input) {
     const layoutResult = {
       layoutType,
       walls,
-      island,
+      island: islandSized,
       peninsula,
       placements,
     };
@@ -5126,6 +5132,45 @@ function symmetricWidths(total) {
   return arr;
 }
 
+// ── Room-aware island sizing (NKBA Guideline 5/6 clearances) ──
+// A high-end designer sizes the island to the room, not the other way around. We compute
+// the clear width between the two opposing runs (for U/G the back wall sets it) and clamp
+// the island so every walkway is >=42" (work aisle) or, failing that, >=36" (min walkway).
+// Too shallow for a seating overhang -> single-sided prep island. Can't fit even that ->
+// omit it (the U/G perimeter already provides the work surface). Prevents the "designed
+// then flagged red" islands with sub-36" aisles.
+function fitIslandToRoom(island, walls, layoutType, warnings) {
+  if (!island || !Array.isArray(walls) || walls.length < 2) return island;
+  const BASE_D = 24, WORK_AISLE = 42, MIN_WALK = 36, SEAT_DEPTH = 42, MIN_DEPTH = 24, MIN_LEN = 36;
+  // Only U/G are bounded on the relevant axis by walls (L/single/galley islands float off
+  // one wall with the renderer's 42" offset, or need a room-width input we don't have).
+  if (layoutType !== 'u-shape' && layoutType !== 'g-shape') return island;
+  const lens = walls.map(w => w.length || 0).filter(x => x > 0).sort((a, b) => a - b);
+  if (lens.length < 3) return island;
+  const back = lens[0];                 // shortest wall = the U/G back
+  const leg = lens[lens.length - 1];    // longest = a leg
+  const clearWidth = back - 2 * BASE_D; // distance between the two opposing run faces
+  const runLength = leg - BASE_D;       // usable length along the island
+  if (!(clearWidth > 0)) return island;
+
+  let maxDepth = clearWidth - 2 * WORK_AISLE, aisle = WORK_AISLE;
+  if (maxDepth < MIN_DEPTH) { maxDepth = clearWidth - 2 * MIN_WALK; aisle = MIN_WALK; }
+  const maxLen = runLength - 2 * MIN_WALK;
+  if (maxDepth < MIN_DEPTH || maxLen < MIN_LEN) {
+    warnings.push({ type: 'island_omitted', severity: 'warning', message:
+      `Room too narrow for an island with NKBA walkways (only ${Math.round(clearWidth)}" clear between the runs; an island plus two ${MIN_WALK}" walkways needs >=${MIN_DEPTH + 2 * MIN_WALK}"). Island omitted — the ${layoutType === 'u-shape' ? 'U' : 'G'} perimeter provides the work surface.` });
+    return null;
+  }
+  const wantDepth = island.depth || 36, wantLen = island.length || 72;
+  const out = { ...island, depth: Math.min(wantDepth, Math.floor(maxDepth)), length: Math.min(wantLen, Math.floor(maxLen)) };
+  if (out.depth < SEAT_DEPTH) out.singleSided = true;   // no room for a seating overhang
+  if (out.depth < wantDepth || out.length < wantLen) {
+    warnings.push({ type: 'island_resized', severity: 'warning', message:
+      `Island sized to ${out.length}"x${out.depth}" to keep ${aisle}" walkways (requested ${wantLen}"x${wantDepth}").${out.singleSided ? ' Single-sided prep island — room too narrow for a seating overhang.' : ''}` });
+  }
+  return out;
+}
+
 function solveIsland(island, appliances, prefs, golaPrefix) {
   const { length, depth } = island;
   const _warnings = [];
@@ -5266,9 +5311,9 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
     }
   }
 
-  // Seating/back side
+  // Seating/back side (skipped for single-sided prep islands — too shallow for a knee-space overhang)
   const backCabs = [];
-  if (prefs.islandBackStyle === "fhd_seating") {
+  if (!island.singleSided && prefs.islandBackStyle === "fhd_seating") {
     // FHD at 13" depth — most common pattern (Imai Robin, OC Design, Kline Piazza)
     // Symmetric bank: equal flanking cabinets (+ centered unit) about the centerline.
     for (const w of symmetricWidths(length)) {
@@ -5280,7 +5325,7 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
         mods: ["13\" DEPTH OPTION", "FTK"],
       });
     }
-  } else if (prefs.islandBackStyle === "loose_doors") {
+  } else if (!island.singleSided && prefs.islandBackStyle === "loose_doors") {
     // Loose doors — Alix pattern
     const doorWidth = Math.round(length / 3 * 10) / 10;
     for (let i = 0; i < 3; i++) {
@@ -5306,7 +5351,7 @@ function solveIsland(island, appliances, prefs, golaPrefix) {
   // Calculate overhang data
   const seatingStyle = prefs.seatingStyle || "bar";
   const bracketStyle = prefs.bracketStyle || "SS";
-  const overhang = generateOverhangData(length, seatingStyle, bracketStyle);
+  const overhang = island.singleSided ? null : generateOverhangData(length, seatingStyle, bracketStyle);
 
   // ── Assign cumulative positions to island cabinets ──
   // Same pattern as fillWallSegment: position = running total from island start (0)

@@ -156,7 +156,7 @@ const TEMPLATES = [
       roomType: "kitchen",
       walls: [
         { id: "A", length: 180, ceilingHeight: 108, role: "sink" },
-        { id: "B", length: 144, ceilingHeight: 108, role: "general" },
+        { id: "B", length: 180, ceilingHeight: 108, role: "general" },
         { id: "C", length: 180, ceilingHeight: 108, role: "range" },
       ],
       island: {
@@ -320,7 +320,7 @@ const TEMPLATES = [
       roomType: "kitchen",
       walls: [
         { id: "A", length: 216, ceilingHeight: 108, role: "sink" },
-        { id: "B", length: 156, ceilingHeight: 108, role: "general" },
+        { id: "B", length: 192, ceilingHeight: 108, role: "general" },
         { id: "C", length: 216, ceilingHeight: 108, role: "range" },
       ],
       island: {
@@ -409,7 +409,7 @@ const TEMPLATES = [
       roomType: "kitchen",
       walls: [
         { id: "A", length: 192, ceilingHeight: 108, role: "sink" },
-        { id: "B", length: 156, ceilingHeight: 108, role: "general" },
+        { id: "B", length: 180, ceilingHeight: 108, role: "general" },
         { id: "C", length: 192, ceilingHeight: 108, role: "range" },
       ],
       island: {
