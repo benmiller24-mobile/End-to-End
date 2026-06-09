@@ -188,7 +188,7 @@ function parseDoorDrawer(sku, width) {
   // Range top base: open frame
   if (/^RTB/.test(s)) return { doors: 0, drawers: 0 };
   // Blind base corner: 1 door, 1 drawer on exposed face
-  if (/^BBC/.test(s)) return { doors: 1, drawers: 1 };
+  if (/^BBC/.test(s)) return { doors: 1, drawers: 1, blind: true };
   // Lazy Susan: 2 bi-fold doors, no drawer
   if (/^BL\d/.test(s)) return { doors: 2, drawers: 0 };
   // Tray base
@@ -404,7 +404,7 @@ function drawGlassPanel(els, key, fx, fy, fw, fh, mullion) {
   els.push(<line key={`${key}rf`} x1={px + pw * 0.22} y1={py + 1.5} x2={px + pw * 0.05} y2={py + ph * 0.6} stroke="#ffffff" strokeWidth={0.5} opacity={0.4} strokeLinecap="round" />);
 }
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid', construction = null }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid', construction = null, blindCorner = false }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -446,6 +446,42 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     if (n === 2) return [6, Math.max(6, boxIn - 6)];   // B2TD: small top, large bottom (catalog I13)
     return Array.from({ length: n }, () => boxIn / n);
   };
+
+  // ── BLIND CORNER: a ~24" access face (drawer over door) on the open side and a
+  //    flat BLIND panel over the dead corner — never a single wide door. ──
+  if (blindCorner && (w / S) > 26) {
+    const blindLeft = cornerSide === 'left';
+    const accessIn = Math.min(24, (w / S) - 18);
+    const accessW = accessIn * S, blindW = w - accessW;
+    const accessX = blindLeft ? x + blindW : x;
+    const blindX = blindLeft ? x : x + accessW;
+    const rev = 0.094 * S;
+    // blind (dead-corner) panel
+    els.push(<rect key="blindp" x={blindX + rev} y={y + rev} width={blindW - 2 * rev} height={h - 2 * rev}
+      fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+    els.push(<text key="blindt" x={blindX + blindW / 2} y={y + h / 2} fill={C.dimText} fontSize={2.8}
+      fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" opacity={0.45}>BLIND</text>);
+    // access face: 6" drawer over a door
+    const drawerH = drawers > 0 ? 6 * S : 0;
+    if (drawerH) {
+      els.push(<rect key="bda" x={accessX + rev} y={y + rev} width={accessW - 2 * rev} height={drawerH - 2 * rev}
+        fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+      pushStylePanel(els, 'bdp', accessX, y, accessW, drawerH, styleSpec, false);
+      els.push(<circle key="bdk" cx={accessX + accessW / 2} cy={y + drawerH / 2} r={0.9} fill={C.hwColor} />);
+    }
+    const dY = y + drawerH, dH = h - drawerH;
+    els.push(<rect key="bdr" x={accessX + rev} y={dY + rev} width={accessW - 2 * rev} height={dH - 2 * rev}
+      fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+    pushStylePanel(els, 'bdd', accessX, dY, accessW, dH, styleSpec, true);
+    // hinge toward the blind (corner) side so the door opens out into the room
+    const hwX = blindLeft ? accessX + 1.6 * S : accessX + accessW - 1.6 * S;
+    const hwY = dY + 3 * S;
+    els.push(<circle key="bdh" cx={hwX} cy={hwY} r={0.9} fill={C.hwColor} />);
+    // seam between access door and blind panel
+    els.push(<line key="bsm" x1={blindLeft ? blindX + blindW : blindX} y1={y} x2={blindLeft ? blindX + blindW : blindX} y2={y + h}
+      stroke={C.line} strokeWidth={0.6} opacity={0.7} />);
+    return <>{els}</>;
+  }
 
   // ── FRAMED constructions (Shiloh): draw a 1½" face frame, then seat each
   //    door/drawer OVER the frame (overlay) or INSIDE the opening (inset, 3/32"
@@ -1325,7 +1361,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           y = tkTopY - h;
         }
 
-        let { doors, drawers, falseFront } = parseDoorDrawer(sku, cab.width);
+        let { doors, drawers, falseFront, blind } = parseDoorDrawer(sku, cab.width);
         // Sink base is a real cabinet: render it via CabFront (full-overlay
         // reveals + door style + wood), not the appliance glyph, so it matches
         // the rest of the run. Tilt-out false front on top, doors below.
@@ -1344,7 +1380,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} blindCorner={blind} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
