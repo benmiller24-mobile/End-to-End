@@ -98,53 +98,76 @@ export async function exportPDF(options = {}) {
   doc.text('Eclipse Kitchen Designer — Pinnacle Sales — Eclipse Cabinetry', margin, pageH - 15);
   doc.text('Page 1', pageW - margin - 30, pageH - 15);
 
-  // ── Page 2+: Elevations ──
-  const elevationSvgs = document.querySelectorAll('[data-pdf="elevation"]');
-  if (elevationSvgs.length > 0) {
-    doc.addPage('letter', 'landscape');
+  // ── Page 2+: Elevations + section, composed at a CONSISTENT TRUE SCALE ──
+  // The elevation SVGs carry S = 2.2 px/inch internally. Target architectural scale
+  // 1/2" = 1'-0"  →  72 * (0.5 / 12) = 3 pt per real inch  →  3 / 2.2 pt per SVG unit.
+  // Every wall is drawn at this same factor so they're directly comparable across
+  // sheets (capped down only if a wall is too wide for the page — flagged NTS).
+  const S_INTERNAL = 2.2;
+  const TRUE_PT_PER_UNIT = 3 / S_INTERNAL;
+  const availW = pageW - 2 * margin;
 
-    doc.setFontSize(16);
-    doc.setTextColor(30, 41, 59);
-    doc.text('Wall Elevations', margin, margin + 10);
+  const sheets = [
+    ...Array.from(document.querySelectorAll('[data-pdf="elevation"]')).map(el => ({ el, kind: 'Wall Elevation' })),
+    ...Array.from(document.querySelectorAll('[data-pdf="section"]')).map(el => ({ el, kind: 'Typical Section' })),
+  ];
 
-    let yOffset = margin + 30;
-    const maxElevH = (pageH - margin * 2 - 40) / Math.min(elevationSvgs.length, 3);
+  if (sheets.length > 0) {
+    let yOffset = pageH; // force a new page on first item
+    let pageScale = 1;
 
-    for (let i = 0; i < elevationSvgs.length; i++) {
-      if (yOffset + maxElevH > pageH - 30) {
-        // New page
-        doc.addPage('letter', 'landscape');
-        yOffset = margin + 10;
-      }
-
+    for (let i = 0; i < sheets.length; i++) {
       try {
-        const svgClone = elevationSvgs[i].cloneNode(true);
+        const svgClone = sheets[i].el.cloneNode(true);
         const vb = svgClone.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 400, 200];
-        const availW = pageW - 2 * margin;
-        const svgAR = vb[2] / vb[3];
-        const fitW = Math.min(availW, maxElevH * svgAR);
-        const fitH = fitW / svgAR;
+        // True scale, capped so an oversized wall still fits the page width.
+        const fitToWidth = availW / vb[2];
+        const scale = Math.min(TRUE_PT_PER_UNIT, fitToWidth);
+        const isNTS = scale < TRUE_PT_PER_UNIT - 1e-6;
+        const drawW = vb[2] * scale;
+        const drawH = vb[3] * scale;
+
+        // Page break when the next drawing won't fit in the remaining height.
+        if (yOffset + drawH > pageH - 30) {
+          doc.addPage('letter', 'landscape');
+          yOffset = margin + 26;
+          doc.setFontSize(14);
+          doc.setTextColor(30, 41, 59);
+          doc.text('Elevations & Sections', margin, margin + 8);
+          doc.setFontSize(8);
+          doc.setTextColor(120, 130, 145);
+          doc.text(`Scale: 1/2" = 1'-0"`, pageW - margin - 90, margin + 8);
+        }
 
         await doc.svg(svgClone, {
-          x: margin + (availW - fitW) / 2,
+          x: margin + (availW - drawW) / 2,
           y: yOffset,
-          width: fitW,
-          height: fitH,
+          width: drawW,
+          height: drawH,
         });
-        yOffset += fitH + 15;
+        if (isNTS) {
+          doc.setFontSize(7);
+          doc.setTextColor(150, 80, 80);
+          doc.text('SCALE REDUCED TO FIT (NTS)', margin + (availW - drawW) / 2, yOffset + drawH + 8);
+          doc.setTextColor(148, 163, 184);
+        }
+        yOffset += drawH + 22;
       } catch (e) {
-        console.warn(`Elevation ${i} SVG export failed:`, e);
+        console.warn(`Sheet ${i} (${sheets[i].kind}) SVG export failed:`, e);
         yOffset += 30;
       }
     }
+  }
 
-    // Footer
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184);
+  // Page footers (numbered, across the whole set)
+  {
     const pageCount = doc.getNumberOfPages();
-    for (let p = 1; p <= pageCount; p++) {
-      doc.setPage(p);
-      doc.text(`Page ${p} of ${pageCount}`, pageW - margin - 50, pageH - 15);
+    for (let pp = 1; pp <= pageCount; pp++) {
+      doc.setPage(pp);
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Eclipse Kitchen Designer — Pinnacle Sales — Eclipse Cabinetry', margin, pageH - 15);
+      doc.text(`Page ${pp} of ${pageCount}`, pageW - margin - 50, pageH - 15);
     }
   }
 

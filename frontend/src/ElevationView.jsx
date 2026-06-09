@@ -1989,6 +1989,102 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 // MAIN EXPORT
 // ═══════════════════════════════════════════════════════════════════════
 
+// ─── SECTION VIEW (typical wall section / side cut) ──────────────────────────
+// One standardized vertical cut through a base + upper cabinet run, showing depths,
+// the countertop overhang, toe-kick recess, backsplash gap, upper clearance, crown,
+// and ceiling — fully dimensioned. NKBA/AWI sheets include at least one section.
+function SectionView({ ceilH = 96, upperH = 36, frontFill = C.fill, stoneFill = C.ctrFill }) {
+  const Sx = 2.2;
+  // Standard depths (inches, measured from the finished wall at depth 0, projecting out)
+  const BASE_D = 24, COUNTER_D = 25.5, UPPER_D = 13, TOE_RECESS = 3, TOE_H = 4.5;
+  const BASE_TOP = 34.5, CTR_TOP = 36, UP_BOT = 54, CTR_THK = 1.5, CROWN = 3.5, SPLASH = 4;
+  const upTop = Math.min(UP_BOT + upperH, ceilH - 1);
+  const maxD = COUNTER_D;
+  const padL = 78, padR = 150, padT = 28, padB = 40;
+  const W = maxD * Sx + padL + padR;
+  const H = ceilH * Sx + padT + padB;
+  // wall at x=0 (after padL); depth projects right; height AFF, y grows up → invert.
+  const X = (d) => padL + d * Sx;
+  const Y = (aff) => padT + (ceilH - aff) * Sx;
+  const els = [];
+  const k = (n) => `sec-${n}`;
+  // Floor + wall (heavy object lines)
+  els.push(<line key={k('floor')} x1={X(-6)} y1={Y(0)} x2={X(maxD + 6)} y2={Y(0)} stroke={C.floor} strokeWidth={2.2} />);
+  els.push(<line key={k('wall')} x1={X(0)} y1={Y(0)} x2={X(0)} y2={Y(ceilH)} stroke={C.line} strokeWidth={2.2} />);
+  els.push(<line key={k('ceil')} x1={X(0)} y1={Y(ceilH)} x2={X(maxD + 6)} y2={Y(ceilH)} stroke={C.line} strokeWidth={1.4} />);
+  // Toe board (recessed) + base cabinet body
+  els.push(<rect key={k('toe')} x={X(0)} y={Y(TOE_H)} width={(BASE_D - TOE_RECESS) * Sx} height={TOE_H * Sx} fill={C.toekick} />);
+  els.push(<rect key={k('base')} x={X(0)} y={Y(BASE_TOP)} width={BASE_D * Sx} height={(BASE_TOP - TOE_H) * Sx} fill={frontFill} stroke={C.line} strokeWidth={1.3} />);
+  // a shelf + a drawer hint inside the base
+  els.push(<line key={k('bsh')} x1={X(0)} y1={Y(19)} x2={X(BASE_D)} y2={Y(19)} stroke={C.thinLine} strokeWidth={0.7} strokeDasharray="3 2" />);
+  // Countertop slab with front overhang
+  els.push(<rect key={k('ctr')} x={X(0)} y={Y(CTR_TOP)} width={COUNTER_D * Sx} height={CTR_THK * Sx} fill={stoneFill} stroke={C.line} strokeWidth={1.1} />);
+  // Backsplash (4") at the wall
+  els.push(<rect key={k('splash')} x={X(0)} y={Y(CTR_TOP + SPLASH)} width={1.1 * Sx} height={SPLASH * Sx} fill={stoneFill} stroke={C.line} strokeWidth={0.8} />);
+  // Upper cabinet
+  els.push(<rect key={k('up')} x={X(0)} y={Y(upTop)} width={UPPER_D * Sx} height={(upTop - UP_BOT) * Sx} fill={frontFill} stroke={C.line} strokeWidth={1.3} />);
+  els.push(<line key={k('ush')} x1={X(0)} y1={Y(UP_BOT + (upTop - UP_BOT) / 2)} x2={X(UPPER_D)} y2={Y(UP_BOT + (upTop - UP_BOT) / 2)} stroke={C.thinLine} strokeWidth={0.7} strokeDasharray="3 2" />);
+  // Crown over the upper, to the ceiling if close
+  els.push(<rect key={k('crown')} x={X(0)} y={Y(upTop + CROWN)} width={(UPPER_D + 1) * Sx} height={CROWN * Sx} fill={C.crownFill} stroke={C.line} strokeWidth={0.9} />);
+  // Light rail under the upper
+  els.push(<rect key={k('lr')} x={X(0)} y={Y(UP_BOT)} width={UPPER_D * Sx} height={1.6 * Sx} fill={C.lrFill} stroke={C.line} strokeWidth={0.6} />);
+
+  // ── Vertical dimensions: incremental running chain (inner) + overall (outer) ──
+  const vdimAt = (vx, a1, a2, label, key2) => {
+    const y1 = Y(a1), y2 = Y(a2); const ym = (y1 + y2) / 2;
+    return [
+      <line key={k('v' + key2)} x1={vx} y1={y1} x2={vx} y2={y2} stroke={C.dimLine} strokeWidth={0.8} />,
+      <line key={k('vt1' + key2)} x1={vx - 3} y1={y1} x2={vx + 3} y2={y1} stroke={C.dimLine} strokeWidth={0.8} />,
+      <line key={k('vt2' + key2)} x1={vx - 3} y1={y2} x2={vx + 3} y2={y2} stroke={C.dimLine} strokeWidth={0.8} />,
+      <text key={k('vtx' + key2)} x={vx - 4} y={ym + 3} fontSize="9.5" fill={C.dimText} textAnchor="middle" transform={`rotate(-90 ${vx - 4} ${ym})`}>{label}</text>,
+    ];
+  };
+  const vIn = X(-9), vOut = X(-20);
+  // incremental chain (consecutive segments — no overlap)
+  els.push(...vdimAt(vIn, 0, TOE_H, fmt(TOE_H), 'toe'));
+  els.push(...vdimAt(vIn, TOE_H, CTR_TOP, fmt(CTR_TOP - TOE_H), 'box'));
+  els.push(...vdimAt(vIn, CTR_TOP, UP_BOT, `${fmt(UP_BOT - CTR_TOP)} CLR`, 'clr'));
+  els.push(...vdimAt(vIn, UP_BOT, upTop, `${fmt(upTop - UP_BOT)} CAB`, 'up'));
+  if (ceilH - upTop > 1) els.push(...vdimAt(vIn, upTop, ceilH, fmt(ceilH - upTop), 'abv'));
+  // overall ceiling height (outer column)
+  els.push(...vdimAt(vOut, 0, ceilH, `${fmt(ceilH)} CLG`, 'clg'));
+  // AFF callout ticks at the two key datums (right of the wall line)
+  els.push(<text key={k('aff36')} x={X(0) + 4} y={Y(CTR_TOP) - 2} fontSize="8.5" fill={C.annotColor}>36" AFF</text>);
+  els.push(<text key={k('aff54')} x={X(0) + 4} y={Y(UP_BOT) - 2} fontSize="8.5" fill={C.annotColor}>54" AFF</text>);
+
+  // ── Horizontal depth dimensions ──
+  const depthDim = (d, aff, label, key2, dir = 1) => {
+    const y = Y(aff); const x0 = X(0), x1 = X(d);
+    return [
+      <line key={k('h' + key2)} x1={x0} y1={y} x2={x1} y2={y} stroke={C.dimLine} strokeWidth={0.8} />,
+      <line key={k('ht1' + key2)} x1={x0} y1={y - 3} x2={x0} y2={y + 3} stroke={C.dimLine} strokeWidth={0.8} />,
+      <line key={k('ht2' + key2)} x1={x1} y1={y - 3} x2={x1} y2={y + 3} stroke={C.dimLine} strokeWidth={0.8} />,
+      <text key={k('htx' + key2)} x={(x0 + x1) / 2} y={y + (dir > 0 ? 12 : -5)} fontSize="10" fill={C.dimText} textAnchor="middle">{label}</text>,
+    ];
+  };
+  els.push(...depthDim(BASE_D, -3, `${fmt(BASE_D)} BASE`, 'based', 1));
+  els.push(...depthDim(COUNTER_D, CTR_TOP + 2.5, `${fmt(COUNTER_D)} CTR`, 'ctrd', -1));
+  els.push(...depthDim(UPPER_D, upTop + 2, `${fmt(UPPER_D)} UPPER`, 'upd', -1));
+
+  // Callout notes (leaders)
+  const note = (tx, ty, label, key2) => (
+    <text key={k('n' + key2)} x={tx} y={ty} fontSize="9.5" fill={C.annotColor}>{label}</text>
+  );
+  els.push(note(X(COUNTER_D) + 6, Y(CTR_TOP) + 2, '1½" STONE C-TOP, 1½" O.H.', 'cto'));
+  els.push(note(X(UPPER_D) + 6, Y((UP_BOT + upTop) / 2), 'WALL CAB — 13" DEEP', 'wc'));
+  els.push(note(X(BASE_D) + 6, Y(20), 'BASE CAB — 24" DEEP', 'bc'));
+  els.push(note(X(BASE_D - TOE_RECESS) + 6, Y(2.2), '4½"×3" TOE', 'toen'));
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} data-pdf="section" width={W} height={H}
+      style={{ background: C.bg, maxWidth: '100%', height: 'auto', border: '1px solid #ddd', marginTop: 18 }}>
+      <text x={padL} y={16} fontSize="13" fontWeight="700" fill={C.line}>TYPICAL SECTION</text>
+      <text x={padL + 132} y={16} fontSize="10" fill={C.dimText}>SCALE: ½" = 1'-0"</text>
+      {els}
+    </svg>
+  );
+}
+
 export default function ElevationView({ solverResult, trim = {}, debug = false, doorStyle = 'MET-V', species = 'White Oak', countertopColor = null, finishColor = null, grainHorizontal = false, titleBlock = {}, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [] }) {
   const styleSpec = doorStyleSpec(doorStyle);
   const stone = classifyStone(countertopColor);
@@ -2129,6 +2225,12 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
           />
         );
       })}
+      {wallData.length > 0 && (() => {
+        const _ch = wallData.find(w => !w.isIsland)?.ceilingHeight || wallData[0]?.ceilingHeight || 96;
+        const _ups = wallData.flatMap(w => (w.uppers || []).map(u => u.height || 0)).filter(h => h > 10 && h < 60);
+        const _uh = _ups.length ? Math.max(..._ups) : 36;
+        return <SectionView ceilH={_ch} upperH={_uh} />;
+      })()}
     </div>
   );
 }
