@@ -35,6 +35,42 @@ const DOOR_NAMES = {
   'OXRP': 'raised-panel', 'KENDALL': 'beaded shaker', 'MALIBU': 'reeded',
 };
 
+// Walk the actual solved walls and describe each run left-to-right (lengths,
+// sink/range/ovens/fridge/windows/tall units) so the prompt encodes the REAL
+// floor-plan + elevation composition, not just a generic layout.
+function describeWalls(sr) {
+  const walls = sr.walls || [];
+  const talls = sr.talls || [];
+  const name = (i, n) => n <= 1 ? 'the main wall'
+    : (['the left wall', 'the back wall', 'the right wall', 'the fourth wall'][i] || ('wall ' + (i + 1)));
+  const lines = [];
+  walls.forEach((w, i) => {
+    const len = w.length ? Math.round(w.length / 12) : null;
+    const wins = (w.openings || []).filter(o => /window/.test(o.type || 'window'));
+    const cabs = (w.cabinets || []).filter(c => typeof c.position === 'number' && c.width > 0).sort((a, b) => a.position - b.position);
+    const feats = [];
+    cabs.forEach(c => {
+      const at = (c.applianceType || '').toLowerCase(), sku = c.sku || '';
+      const wIn = Math.round(c.width);
+      if (/range|cooktop/.test(at)) feats.push(`a ${wIn}" ${/cooktop/.test(at) ? 'cooktop' : 'range'} under the hood`);
+      else if (/refrigerator|fridge/.test(at)) feats.push('the refrigerator');
+      else if (/dishwasher/.test(at)) feats.push('the dishwasher');
+      else if (/oven/.test(at)) feats.push('wall ovens');
+      else if (/^SB/i.test(sku) || /sink/.test(at)) feats.push(wins.length ? 'the sink centered under a window' : 'the sink');
+    });
+    talls.filter(t => (t.wall || t.wallId) === (w.wallId || w.id)).forEach(t => {
+      const at = (t.applianceType || '').toLowerCase();
+      if (/refrigerator|fridge/.test(at)) feats.push('a full-height refrigerator');
+      else if (/oven/.test(at)) feats.push('a tall cabinet with stacked wall ovens');
+      else feats.push('a tall floor-to-ceiling pantry');
+    });
+    const uniq = [...new Set(feats)];
+    if (uniq.length) lines.push(`${name(i, walls.length)}${len ? ` (about ${len} ft)` : ''} has, left to right, ${uniq.join(', then ')}`);
+    else if (len) lines.push(`${name(i, walls.length)} (about ${len} ft) is a continuous run of base and wall cabinets`);
+  });
+  return lines;
+}
+
 function buildPrompt({ solverResult, materials, appliances, countertop, prefs, trim, construction, viewpoint }) {
   const P = [];
   const layout = solverResult?.layoutType || 'l-shape';
@@ -69,6 +105,10 @@ function buildPrompt({ solverResult, materials, appliances, countertop, prefs, t
     'g-shape': 'G-shaped layout',
   }[layout] || layout;
   P.push(hasIsland && !/island|peninsula/.test(layout) ? `${layoutDesc} with a large central island` : layoutDesc);
+
+  // ── EXACT composition from the floor plan + elevations ──
+  const wallLines = describeWalls(solverResult);
+  if (wallLines.length) P.push('Layout detail: ' + wallLines.join('; '));
 
   // ── Cabinetry construction + door + finish ──
   const wood = (materials?.species || 'white oak').toLowerCase();
