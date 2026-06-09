@@ -751,6 +751,50 @@ function TrimPicker({ selections, onChange }) {
         </div>
       </div>
 
+      {/* Range-wall character — sculptural plaster hood + arched niche (warm-organic trend) */}
+      <div style={{ marginTop: 8, padding: '8px 10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
+        <label style={{ ...labelStyle, marginBottom: 6 }}>Range Wall — hood &amp; niche</label>
+        <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Hood style</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { v: 'steel', label: 'Steel / Insert', desc: 'Stainless chimney canopy or liner insert' },
+            { v: 'plaster', label: 'Sculptural Plaster', desc: 'Soft matte-plaster canopy flaring over the cooktop (warm-organic / Mediterranean)' },
+          ].map(o => {
+            const active = (selections.hoodStyle || 'steel') === o.v;
+            return (
+              <button key={o.v} onClick={() => setField('hoodStyle', o.v)} title={o.desc}
+                style={{ flex: 1, padding: '6px 4px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  border: `1px solid ${active ? C.primary : C.border}`,
+                  background: active ? '#c8a96e22' : 'transparent', color: active ? C.text : C.muted }}>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10, color: C.dim, margin: '8px 0 4px' }}>Range niche</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { v: 'none', label: 'None', desc: 'Flat wall behind the range' },
+            { v: 'arched', label: 'Arched Plaster', desc: 'Arched plaster alcove framing the range (Mediterranean look)' },
+          ].map(o => {
+            const active = (selections.rangeNiche || 'none') === o.v;
+            return (
+              <button key={o.v} onClick={() => setField('rangeNiche', o.v)} title={o.desc}
+                style={{ flex: 1, padding: '6px 4px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  border: `1px solid ${active ? C.primary : C.border}`,
+                  background: active ? '#c8a96e22' : 'transparent', color: active ? C.text : C.muted }}>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>
+          {(selections.hoodStyle || 'steel') === 'plaster' || (selections.rangeNiche || 'none') === 'arched'
+            ? 'Warm-organic range wall: a sculptural plaster hood and/or an arched plaster niche frame the cooktop — the Mediterranean look from the trend references.'
+            : 'Standard stainless hood on a flat range wall. Switch to plaster / arched for the warm-organic look.'}
+        </div>
+      </div>
+
       {/* Crown profile sub-option */}
       {selections.crown && (selections.ceilingFit || 'crown') === 'crown' && (
         <div style={{ marginTop: 8, padding: '8px 10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
@@ -1433,6 +1477,8 @@ export default function App() {
     countertopEdge: true,
     ceilingFit: 'crown', // 'crown' | 'fitted' (riser panel to ceiling) | 'open' (unfitted gap)
     backsplashStyle: 'standard', // 'standard' (tile/short) | 'full_slab' (full-height stone slab — current trend)
+    hoodStyle: 'steel',       // 'steel' (chimney/insert) | 'plaster' (sculptural plaster canopy — warm-organic)
+    rangeNiche: 'none',       // 'none' | 'arched' (arched plaster niche behind the range — Mediterranean)
   });
 
   // Results

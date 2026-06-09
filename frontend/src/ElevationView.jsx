@@ -1064,6 +1064,26 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         </>);
       })()}
 
+      {/* Arched plaster range niche (warm-organic / Mediterranean) — drawn behind the
+          cooktop (before the base run), so the range renders inside the alcove. */}
+      {!isIsland && trim.rangeNiche === 'arched' && (() => {
+        const range = sortedBases.find(c => /range|cooktop/.test(c.applianceType || ''));
+        if (!range || !(range.width > 0)) return null;
+        const m = 6;
+        const x0 = (range.position - m) * S, x1 = (range.position + range.width + m) * S;
+        const cx = (x0 + x1) / 2;
+        const springY = floorY - 72 * S;   // arch spring line ~72" AFF
+        const peakY = floorY - 90 * S;     // arch peak ~90" AFF
+        const d = `M ${x0} ${ctrTopY} L ${x0} ${springY} Q ${cx} ${peakY} ${x1} ${springY} L ${x1} ${ctrTopY} Z`;
+        return (<>
+          <path d={d} fill="#efe9e1" stroke={C.line} strokeWidth={0.6} opacity={0.96} />
+          <path d={`M ${x0 + 1.2} ${ctrTopY} L ${x0 + 1.2} ${springY} Q ${cx} ${peakY + 1.6} ${x1 - 1.2} ${springY} L ${x1 - 1.2} ${ctrTopY}`}
+            fill="none" stroke="#d8d1c5" strokeWidth={0.4} opacity={0.55} />
+          <text x={cx} y={peakY + 5} fill={C.annotColor} fontSize={2.8}
+            fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">ARCHED PLASTER NICHE</text>
+        </>);
+      })()}
+
       {/* ══════════ ELECTRICAL: backsplash receptacles (GFCI) ══════════ */}
       {!isIsland && validBases.length > 0 && (() => {
         const minX = Math.min(...sortedBases.map(b => b.position));
@@ -1439,6 +1459,28 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const taper = Math.min(6 * S, w * 0.18);
         const flueTopY = ceilY;                               // flue runs up to ceiling
         const flueW = Math.min(w * 0.4, 10 * S);
+        // ── Sculptural plaster hood (warm-organic / Mediterranean) ──
+        if ((trim.hoodStyle || 'steel') === 'plaster') {
+          const cx = x + w / 2;
+          const topHalf = Math.max(flueW, w * 0.30);
+          const botHalf = w / 2 + 3 * S;            // flares slightly past the range
+          const apronY = yBottom - 5 * S;
+          return (
+            <g>
+              <polygon
+                points={`${cx - topHalf},${ceilY} ${cx + topHalf},${ceilY} ${cx + botHalf},${apronY} ${cx + botHalf},${yBottom} ${cx - botHalf},${yBottom} ${cx - botHalf},${apronY}`}
+                fill="#efe9e1" stroke={C.line} strokeWidth={0.6} />
+              <line x1={cx - botHalf} y1={apronY} x2={cx + botHalf} y2={apronY} stroke="#d8d1c5" strokeWidth={0.5} opacity={0.7} />
+              <rect x={cx - botHalf} y={yBottom - 1.6 * S} width={2 * botHalf} height={1.6 * S} fill="#e2dccf" opacity={0.6} />
+              <text x={cx} y={(apronY + yBottom) / 2 + 1.5} fill={C.dimText} fontSize={3.4}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="700">PLASTER HOOD</text>
+              <text x={x + w + 2} y={yBottom - 4 * S} fill={C.annotColor} fontSize={3}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="start">{fmt(bottomAFF - COUNTER_AFF)} over counter</text>
+              <text x={cx} y={apronY - 2} fill={C.annotColor} fontSize={2.7}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">{`${hood.cfm || 600} CFM \u00b7 insert liner`}</text>
+            </g>
+          );
+        }
         return (
           <g>
             {/* Flue / chimney from the canopy top up to the ceiling */}
