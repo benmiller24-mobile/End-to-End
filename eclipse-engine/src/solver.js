@@ -485,6 +485,33 @@ export function solve(input) {
     }
   }
 
+  // ── Sink placement normalization (NKBA work-triangle + designer convention) ──
+  // Research-backed rules: the sink is a distinct work center and should not share
+  // the range's wall; classic placement is under a window; in open-concept kitchens
+  // with a generous island the main sink belongs ON the island (faces the room,
+  // separates wet/hot zones, lets the cooktop center for symmetry). We only relocate
+  // when there's a clearly better spot, so well-separated perimeter sinks are left be.
+  (function normalizeSinkPlacement() {
+    // Only fix the real defect: a sink that SHARES THE RANGE'S WALL (no work-triangle
+    // separation — the case that reads "weird"). Relocation priority follows designer
+    // convention: under a window → onto a generous island (open-concept faces-the-room)
+    // → the longest other wall. Sinks already separated from the range are left as-is.
+    const sink = assignedAppliances.find(a => a.type === 'sink');
+    if (!sink || sink.wall === 'island') return;
+    const range = assignedAppliances.find(a => a.type === 'range' || a.type === 'cooktop');
+    if (!range || sink.wall !== range.wall) return;          // already separated → keep
+    const dw = assignedAppliances.find(a => a.type === 'dishwasher');
+    const moveDW = (wallId) => { if (dw && dw.wall === sink.wall) dw.wall = wallId; };
+    const windowWall = (walls || []).find(w => w.openings?.some(o => o.type === 'window') && w.id !== range.wall);
+    const islandHasSink = assignedAppliances.some(a => a.type === 'sink' && a.wall === 'island' && a !== sink);
+    const islandFits = island && (island.length || 0) >= 96 && !islandHasSink;
+
+    if (windowWall) { sink.wall = windowWall.id; if (!sink.position) sink.position = 'center'; moveDW(windowWall.id); return; }
+    if (islandFits) { moveDW('island'); sink.wall = 'island'; if (!sink.position) sink.position = 'center'; return; }
+    const alt = (walls || []).filter(w => w.id !== range.wall).sort((a, b) => b.length - a.length)[0];
+    if (alt) { sink.wall = alt.id; moveDW(alt.id); }
+  })();
+
   // Build appliance lookup
   const appByWall = {};
   const appByType = {};
