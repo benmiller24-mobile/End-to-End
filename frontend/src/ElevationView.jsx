@@ -1069,18 +1069,55 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       {!isIsland && trim.rangeNiche === 'arched' && (() => {
         const range = sortedBases.find(c => /range|cooktop/.test(c.applianceType || ''));
         if (!range || !(range.width > 0)) return null;
-        const m = 6;
+        const id = `niche-${sfx}`;
+        const m = 7;                                       // niche reveal margin each side
+        const fw = 2.6 * S;                                // plaster reveal/jamb thickness
         const x0 = (range.position - m) * S, x1 = (range.position + range.width + m) * S;
         const cx = (x0 + x1) / 2;
-        const springY = floorY - 72 * S;   // arch spring line ~72" AFF
-        const peakY = floorY - 90 * S;     // arch peak ~90" AFF
-        const d = `M ${x0} ${ctrTopY} L ${x0} ${springY} Q ${cx} ${peakY} ${x1} ${springY} L ${x1} ${ctrTopY} Z`;
+        const baseY = ctrTopY;                             // tile starts at the counter
+        const wd = x1 - x0;                                // opening width (px)
+        const rise = Math.min(wd / 2, 22 * S);             // semicircle (narrow) → segmental (wide)
+        const springY = floorY - 58 * S;                   // jambs spring ~58" AFF
+        const peakY = springY - rise;
+        const R = (rise / 2) + (wd * wd) / (8 * rise);     // circular-segment radius
+        // opening (inner) and frame (outer) arched paths
+        const arch = (lx, rx, sy, rad) => `M ${lx} ${baseY} L ${lx} ${sy} A ${rad} ${rad} 0 0 1 ${rx} ${sy} L ${rx} ${baseY} Z`;
+        const inner = arch(x0, x1, springY, R);
+        const Ro = R + fw;
+        const outer = arch(x0 - fw, x1 + fw, springY, Ro);
+        const tile = 4 * S;                                // ~4" zellige tiles
         return (<>
-          <path d={d} fill="#efe9e1" stroke={C.line} strokeWidth={0.6} opacity={0.96} />
-          <path d={`M ${x0 + 1.2} ${ctrTopY} L ${x0 + 1.2} ${springY} Q ${cx} ${peakY + 1.6} ${x1 - 1.2} ${springY} L ${x1 - 1.2} ${ctrTopY}`}
-            fill="none" stroke="#d8d1c5" strokeWidth={0.4} opacity={0.55} />
-          <text x={cx} y={peakY + 5} fill={C.annotColor} fontSize={2.8}
-            fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">ARCHED PLASTER NICHE</text>
+          <defs>
+            <clipPath id={`${id}-clip`}><path d={inner} /></clipPath>
+            <pattern id={`${id}-zel`} width={2 * tile} height={2 * tile} patternUnits="userSpaceOnUse" x={x0} y={baseY}>
+              <rect width={2 * tile} height={2 * tile} fill="#efe7d5" />
+              <rect x={0} y={0} width={tile} height={tile} fill="#eaded9" />
+              <rect x={tile} y={tile} width={tile} height={tile} fill="#e7dccb" />
+              <rect x={tile} y={0} width={tile} height={tile} fill="#f1eadb" />
+              <rect x={0} y={tile} width={tile} height={tile} fill="#ece3d0" />
+              <path d={`M ${tile} 0 V ${2 * tile} M 0 ${tile} H ${2 * tile}`} stroke="#d8cbb2" strokeWidth={0.5} />
+              <path d={`M 0 0 H ${2 * tile} M 0 ${2 * tile} H ${2 * tile}`} stroke="#d8cbb2" strokeWidth={0.4} />
+            </pattern>
+            <radialGradient id={`${id}-shade`} cx="0.5" cy="0.92" r="0.95">
+              <stop offset="0.45" stopColor="#000000" stopOpacity="0" />
+              <stop offset="1" stopColor="#5a4a32" stopOpacity="0.34" />
+            </radialGradient>
+          </defs>
+          {/* plaster reveal / jamb frame (the wall thickness around the recess) */}
+          <path d={outer} fill="#ece3d4" stroke="#cdbfa6" strokeWidth={0.6} strokeLinejoin="round" />
+          {/* recess opening: zellige tile back */}
+          <path d={inner} fill={`url(#${id}-zel)`} />
+          {/* inner shadow giving the recess depth (dark at the top + sides) */}
+          <path d={inner} fill={`url(#${id}-shade)`} />
+          <g clipPath={`url(#${id}-clip)`}>
+            <path d={`M ${x0} ${baseY} L ${x0} ${springY} A ${R} ${R} 0 0 1 ${x1} ${springY} L ${x1} ${baseY}`}
+              fill="none" stroke="#000000" strokeWidth={2.2} opacity={0.16} />
+          </g>
+          {/* crisp reveal edge catching the light on the arch */}
+          <path d={`M ${x0} ${springY} A ${R} ${R} 0 0 1 ${x1} ${springY}`} fill="none" stroke="#fbf7ee" strokeWidth={0.6} opacity={0.5} />
+          {/* discreet note */}
+          <text x={cx} y={peakY - 1.5} fill={C.annotColor} fontSize={2.7}
+            fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">ARCHED PLASTER NICHE \u00b7 ZELLIGE</text>
         </>);
       })()}
 
@@ -1460,24 +1497,69 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const flueTopY = ceilY;                               // flue runs up to ceiling
         const flueW = Math.min(w * 0.4, 10 * S);
         // ── Sculptural plaster hood (warm-organic / Mediterranean) ──
+        // Monolithic matte-plaster canopy: a slim neck at the ceiling that swells
+        // through a soft bell-flare to a wide, gently rounded apron over the cooktop.
         if ((trim.hoodStyle || 'steel') === 'plaster') {
           const cx = x + w / 2;
-          const topHalf = Math.max(flueW, w * 0.30);
-          const botHalf = w / 2 + 3 * S;            // flares slightly past the range
-          const apronY = yBottom - 5 * S;
+          const gid = `phood-${sfx}`;
+          const neckHalf = Math.max(7 * S, w * 0.20);      // slim chimney at the ceiling
+          const baseHalf = w / 2 + 4.5 * S;                // generous apron past the range
+          const apronH   = 12 * S;                         // near-vertical apron face height
+          const apronTopY = yBottom - apronH;              // where the flare meets the apron
+          const shoulderY = yBottom - 30 * S;              // flare/neck transition
+          const r = 3.2 * S;                               // rounded apron corners
+          // Silhouette (clockwise from top-left of the neck). Cubic beziers give the
+          // bell-flare: concave out of the neck, easing to near-vertical at the apron.
+          const d = [
+            `M ${cx - neckHalf} ${ceilY}`,
+            `L ${cx - neckHalf} ${shoulderY}`,
+            `C ${cx - neckHalf} ${shoulderY + 12 * S} ${cx - baseHalf} ${apronTopY - 14 * S} ${cx - baseHalf} ${apronTopY}`,
+            `L ${cx - baseHalf} ${yBottom - r}`,
+            `Q ${cx - baseHalf} ${yBottom} ${cx - baseHalf + r} ${yBottom}`,
+            `L ${cx + baseHalf - r} ${yBottom}`,
+            `Q ${cx + baseHalf} ${yBottom} ${cx + baseHalf} ${yBottom - r}`,
+            `L ${cx + baseHalf} ${apronTopY}`,
+            `C ${cx + baseHalf} ${apronTopY - 14 * S} ${cx + neckHalf} ${shoulderY + 12 * S} ${cx + neckHalf} ${shoulderY}`,
+            `L ${cx + neckHalf} ${ceilY}`,
+            `Z`,
+          ].join(' ');
+          const linerY = yBottom - 2.4 * S;                // metal insert reveal under the plaster
           return (
             <g>
-              <polygon
-                points={`${cx - topHalf},${ceilY} ${cx + topHalf},${ceilY} ${cx + botHalf},${apronY} ${cx + botHalf},${yBottom} ${cx - botHalf},${yBottom} ${cx - botHalf},${apronY}`}
-                fill="#efe9e1" stroke={C.line} strokeWidth={0.6} />
-              <line x1={cx - botHalf} y1={apronY} x2={cx + botHalf} y2={apronY} stroke="#d8d1c5" strokeWidth={0.5} opacity={0.7} />
-              <rect x={cx - botHalf} y={yBottom - 1.6 * S} width={2 * botHalf} height={1.6 * S} fill="#e2dccf" opacity={0.6} />
-              <text x={cx} y={(apronY + yBottom) / 2 + 1.5} fill={C.dimText} fontSize={3.4}
-                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="700">PLASTER HOOD</text>
-              <text x={x + w + 2} y={yBottom - 4 * S} fill={C.annotColor} fontSize={3}
-                fontFamily="Helvetica,Arial,sans-serif" textAnchor="start">{fmt(bottomAFF - COUNTER_AFF)} over counter</text>
-              <text x={cx} y={apronY - 2} fill={C.annotColor} fontSize={2.7}
-                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">{`${hood.cfm || 600} CFM \u00b7 insert liner`}</text>
+              <defs>
+                <linearGradient id={gid} x1="0" y1={ceilY} x2="0" y2={yBottom} gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stopColor="#f4efe6" />
+                  <stop offset="0.55" stopColor="#ece5d8" />
+                  <stop offset="1" stopColor="#e0d6c4" />
+                </linearGradient>
+                <radialGradient id={`${gid}-c`} cx="0.5" cy="0.34" r="0.62">
+                  <stop offset="0" stopColor="#faf6ee" stopOpacity="0.85" />
+                  <stop offset="1" stopColor="#faf6ee" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              {/* soft contact shadow lifting the canopy off the wall */}
+              <path d={d} fill="#000000" opacity={0.06} transform="translate(1.6,1.8)" />
+              {/* plaster body */}
+              <path d={d} fill={`url(#${gid})`} stroke="#cdbfa6" strokeWidth={0.5} strokeLinejoin="round" />
+              {/* center light bloom (matte plaster, lit from the room) */}
+              <path d={d} fill={`url(#${gid}-c)`} />
+              {/* shaded undersides of the flare for volume */}
+              <path d={`M ${cx - baseHalf + 0.6} ${apronTopY} C ${cx - baseHalf + 0.6} ${apronTopY - 13 * S} ${cx - neckHalf} ${shoulderY + 11 * S} ${cx - neckHalf + 0.4} ${shoulderY}`}
+                fill="none" stroke="#d6cab2" strokeWidth={0.8} opacity={0.6} strokeLinecap="round" />
+              <path d={`M ${cx + baseHalf - 0.6} ${apronTopY} C ${cx + baseHalf - 0.6} ${apronTopY - 13 * S} ${cx + neckHalf} ${shoulderY + 11 * S} ${cx + neckHalf - 0.4} ${shoulderY}`}
+                fill="none" stroke="#d6cab2" strokeWidth={0.8} opacity={0.45} strokeLinecap="round" />
+              {/* metal liner reveal peeking below the plaster apron */}
+              <rect x={cx - baseHalf + 5 * S} y={linerY} width={2 * baseHalf - 10 * S} height={2.2 * S}
+                rx={0.6} fill="#3a3a3c" opacity={0.9} />
+              <rect x={cx - baseHalf + 5 * S} y={linerY} width={2 * baseHalf - 10 * S} height={0.7 * S}
+                fill="#ffffff" opacity={0.12} />
+              {/* discreet architectural note off to the side (leader) */}
+              <line x1={cx + baseHalf} y1={apronTopY + 3 * S} x2={x + w + 6} y2={apronTopY + 3 * S}
+                stroke={C.annotColor} strokeWidth={0.4} />
+              <text x={x + w + 7} y={apronTopY + 2 * S} fill={C.annotColor} fontSize={3}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="start" fontWeight="600">PLASTER HOOD</text>
+              <text x={x + w + 7} y={apronTopY + 5.4 * S} fill={C.annotColor} fontSize={2.7}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="start">{`${hood.cfm || 600} CFM insert \u00b7 ${fmt(bottomAFF - COUNTER_AFF)} o/counter`}</text>
             </g>
           );
         }
