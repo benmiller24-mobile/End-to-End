@@ -376,6 +376,7 @@ export function solve(input) {
     preferDrawerBases: prefs.preferDrawerBases !== false,
     preferSymmetry: prefs.preferSymmetry !== false,
     golaChannel: !!prefs.golaChannel,
+    featureHood: !!prefs.featureHood,  // drop flanking wall cabs on the range wall to feature the hood
     islandBackStyle: prefs.islandBackStyle || "fhd_seating",
     sophistication: prefs.sophistication || "high",
     designStyle: prefs.designStyle || null,        // "euro" → BookKitchen-EN-2025 behaviors (servant wall, tall consolidation)
@@ -613,6 +614,9 @@ export function solve(input) {
   // base-aligned upper skipped, leaving a gap; fill any real gap with a wall cabinet
   // (never over a window opening or a tall/fridge).
   closeUpperGaps(upperLayouts, wallLayouts, walls);
+
+  // Phase 4a-feature: optionally feature the hood by clearing the range wall’s field uppers
+  if (pf.featureHood) featureRangeWall(upperLayouts);
 
   // Phase 4b: Generate upper corner cabinets (WSC pairs + SA angle transitions)
   const upperCorners = pf.upperApproach !== "none" ? solveUpperCorners(corners, upperLayouts, pf, walls) : [];
@@ -3558,6 +3562,27 @@ export function selectMullionPattern(prefs) {
 }
 
 // ─── UPPER CABINET SOLVER ───────────────────────────────────────────────────
+
+// Feature the range hood: when prefs.featureHood is set, drop the FIELD wall
+// cabinets (and the WND flanking display shelves + any fillers) on the wall that
+// carries the hood, leaving the hood alone on open wall — the statement-hood look.
+// Removing them here also removes them from the BOM/price (pricing iterates the
+// cabinets that remain in upperLayouts). Corner uppers (a separate array) and the
+// hood itself are preserved.
+function featureRangeWall(upperLayouts) {
+  const isHood = (c) => /^RH\d/i.test(c.sku || '') || c.role === 'range_hood' || c.type === 'rangeHood' || c.applianceType === 'hood';
+  let featured = 0;
+  for (const ul of upperLayouts) {
+    const cabs = ul.cabinets || [];
+    if (!cabs.some(isHood)) continue;
+    const removed = cabs.filter(c => !isHood(c)).length;
+    ul.cabinets = cabs.filter(isHood);
+    ul._featuredHood = true;
+    ul._featuredHoodRemoved = removed;
+    featured++;
+  }
+  return featured;
+}
 
 function closeUpperGaps(upperLayouts, wallLayouts, walls) {
   const GAP_MIN = 6;

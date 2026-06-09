@@ -1453,7 +1453,7 @@ export default function App() {
   const [peninsula, setPeninsula] = useState(null);
   const [prefs, setPrefs] = useState({
     sophistication: 'standard', ceilingHeight: 96, cornerTreatment: 'auto',
-    preferDrawerBases: true, golaChannel: false,
+    preferDrawerBases: true, golaChannel: false, featureHood: false,
   });
 
   // Materials
@@ -1729,11 +1729,20 @@ export default function App() {
                         <input type="checkbox" checked={prefs.golaChannel} onChange={e => setPrefs(p => ({ ...p, golaChannel: e.target.checked }))} />
                         Gola / Handleless Channel
                       </label>
+                      <label style={{ fontSize: 12, color: prefs.featureHood ? C.gold : C.dim, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: prefs.featureHood ? 600 : 400 }} title="Removes the wall cabinets flanking the range so the hood stands on open wall as a feature. Lowers the cabinet count and the quote.">
+                        <input type="checkbox" checked={prefs.featureHood} onChange={e => setPrefs(p => ({ ...p, featureHood: e.target.checked }))} />
+                        Feature the hood (no flanking wall cabinets)
+                      </label>
                     </div>
                   </div>
                   {prefs.golaChannel && (
                     <div style={{ marginTop: 10, padding: '8px 10px', background: '#7a6f9b22', borderRadius: 6, border: `1px solid ${C.purple}`, fontSize: 11, color: '#c4b5fd' }}>
                       Gola mode: FC- prefix cabinets, no wall cabinets, B2TD drawer bases dominant, dishwasher door panel (DP) auto-included.
+                    </div>
+                  )}
+                  {prefs.featureHood && (
+                    <div style={{ marginTop: 10, padding: '8px 10px', background: '#c8a96e22', borderRadius: 6, border: `1px solid ${C.gold}`, fontSize: 11, color: C.text }}>
+                      Feature wall: the wall cabinets flanking the range are removed so the hood (esp. a sculptural plaster hood) stands on open wall. This lowers the cabinet count and the quote. Pair with a full-height slab backsplash for the current look.
                     </div>
                   )}
                 </div>
