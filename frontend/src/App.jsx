@@ -19,9 +19,13 @@ import { recommendAppliances } from '../../eclipse-engine/src/appliance-recommen
 import {
   findSku, searchSkus, calculateLayoutPrice, formatCurrency,
   SPECIES_PCT, CONSTRUCTION_PCT, DOORS, DRAWER_FRONTS, DRAWER_BOXES, FINISH_COLORS,
+  GLAZES, HIGHLIGHTS, CHAR_TECHNIQUES, INTERIORS,
   guessDoors, guessDrawerCount, guessBuiltInROT,
   FABRICATION_PREFIXES, priceFabricationItems, calculateDealerPrice,
 } from '../../eclipse-pricing/src/index.js';
+import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
+import { evaluateOrderReadiness } from './orderReadiness.js';
+import { parseAcknowledgment, reconcile } from './ackReconcile.js';
 
 // ── Template & data imports ──
 import { TEMPLATES, getTemplate, listTemplates, getTemplateCategories } from '../../eclipse-engine/src/templates.js';
@@ -68,7 +72,22 @@ let _pricingBrand = 'eclipse';
 export function setPricingBrand(b) { _pricingBrand = b === 'shiloh' ? 'shiloh' : 'eclipse'; }
 function _baseFind(sku) { return _pricingBrand === 'shiloh' ? findShilohSku(sku) : findSku(sku); }
 
-function findSkuNormalized(sku, _depth = 0) {
+// Strict-resolution wrapper (T4): every lookup is tagged with HOW it resolved —
+//   exact        → the catalog has this SKU verbatim (order-grade)
+//   normalized   → resolved via hinge-strip/width/family rules (review)
+//   substituted  → the universal filler catch-all fired for a non-filler SKU
+//                  (NOT order-grade; silent substitution kills dealer trust)
+// `_fallback` (Shiloh→Eclipse) propagates from the brand catalog separately.
+export function findSkuNormalized(sku, _depth = 0) {
+  const exact = _baseFind(sku);
+  if (exact) return { ...exact, _resolution: 'exact' };
+  const r = resolveSku(sku, _depth);
+  if (!r) return r;
+  const fillerSub = /FILL/i.test(r.s || '') && !/F\d|FILL|OVF|SCRIBE|3SRM/i.test(sku);
+  return { ...r, _resolution: fillerSub ? 'substituted' : 'normalized' };
+}
+
+function resolveSku(sku, _depth = 0) {
   let r = _baseFind(sku); if (r) return r;
 
   // Hinge / handing suffix strip (W…R, B…-FHDL, B2HD24L, FLVSB9L, BWDMA42R, B9L, …):
@@ -83,7 +102,7 @@ function findSkuNormalized(sku, _depth = 0) {
       sku.replace(/-[LR]$/, ''),
       sku.replace(/([0-9A-Z])[LR]$/, '$1'),
     ].filter(v => v && v !== sku);
-    for (const v of [...new Set(variants)]) { const rr = findSkuNormalized(v, _depth + 1); if (rr) return rr; }
+    for (const v of [...new Set(variants)]) { const rr = resolveSku(v, _depth + 1); if (rr) return rr; }
   }
 
   let s = sku.replace(/(\d+)\.5/g, '$1 1/2'); r = _baseFind(s); if (r) return r;
@@ -429,6 +448,44 @@ function WallEditor({ walls, onChange }) {
                 onChange={e => update(i, 'ceilingHeight', e.target.value === '' ? undefined : Number(e.target.value))} style={miniInput} />
             </div>
             <button onClick={() => remove(i)} style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 16 }}>x</button>
+          </div>
+
+          {/* Site-measure grade (T1): customer-supplied vs field-verified */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
+            <button onClick={() => update(i, 'fieldVerified', !w.fieldVerified)}
+              title={w.fieldVerified ? 'Field-verified: a professional measure was taken on site.' : 'Customer-supplied: budget grade until a professional field measure is recorded.'}
+              style={{ padding: '3px 9px', borderRadius: 4, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${w.fieldVerified ? '#1c7c45' : C.warn}`,
+                background: w.fieldVerified ? '#e7f5ec' : '#fdf3e0',
+                color: w.fieldVerified ? '#1c7c45' : C.warn }}>
+              {w.fieldVerified ? '✓ FIELD-VERIFIED' : 'CUSTOMER-SUPPLIED'}
+            </button>
+            {w.fieldVerified && (
+              <>
+                <span style={{ ...miniLabel, marginBottom: 0 }}>Ceiling @ 3 pts"</span>
+                {[0, 1, 2].map(ri => (
+                  <input key={ri} type="number" value={(w.ceilingReadings || [])[ri] || ''} placeholder={ri === 0 ? 'left' : ri === 1 ? 'mid' : 'right'}
+                    onChange={e => {
+                      const r = [...(w.ceilingReadings || [])]; r[ri] = e.target.value === '' ? undefined : Number(e.target.value);
+                      const valid = r.filter(v => v > 0);
+                      const ww = [...walls];
+                      ww[i] = { ...ww[i], ceilingReadings: r, ...(valid.length ? { ceilingHeight: Math.min(...valid) } : {}) };
+                      onChange(ww);
+                    }} style={{ ...miniInput, width: 52 }} />
+                ))}
+                <select value={w.cornerSquare || 'unknown'} onChange={e => update(i, 'cornerSquare', e.target.value)}
+                  title="3-4-5 / diagonal check at this wall's corners" style={{ ...miniInput, width: 124 }}>
+                  <option value="unknown">square: unchecked</option>
+                  <option value="square">square ✓</option>
+                  <option value="out">OUT of square</option>
+                </select>
+              </>
+            )}
+            {w.fieldVerified && (w.ceilingReadings || []).filter(v => v > 0).length >= 2 && (() => {
+              const v = w.ceilingReadings.filter(x => x > 0);
+              const spread = Math.max(...v) - Math.min(...v);
+              return spread > 0.5 ? <span style={{ fontSize: 10, color: C.danger }}>⚠ ceiling varies {spread.toFixed(2)}" — lowest ({Math.min(...v)}") governs</span> : null;
+            })()}
           </div>
 
           {/* Soffit */}
@@ -1035,6 +1092,83 @@ function ComparisonPricingPanel({ placements, frameStyle }) {
   );
 }
 
+// ==================== ACK RECONCILIATION (T3b) ====================
+// The dealer has 24 hours to review the W.W. Wood confirmation. Paste its
+// text (open the PDF → select all → copy) and diff it against this quote.
+function AckCheckPanel({ quote }) {
+  const [text, setText] = useState('');
+  const [result, setResult] = useState(null);
+
+  const run = () => {
+    const ack = parseAcknowledgment(text);
+    setResult({ ack, rec: reconcile(ack, quote) });
+  };
+
+  return (
+    <div style={panelStyle}>
+      <div style={sectionTitle}>Acknowledgment Check — 24-hour review window</div>
+      <p style={{ fontSize: 12, color: C.muted, margin: '0 0 8px' }}>
+        When the order confirmation arrives, open the PDF, select all, copy, and paste it here. Every line is diffed against this quote so corrections can go back to orders@wwinc.com the same day.
+      </p>
+      <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
+        placeholder="Paste the full text of the W.W. Wood order confirmation here…"
+        style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }} />
+      <button onClick={run} disabled={!text.trim()} style={{ ...btnPrimary, marginTop: 8, opacity: text.trim() ? 1 : 0.5 }}>
+        Reconcile against quote
+      </button>
+
+      {result && (() => {
+        const { rec, ack } = result;
+        return (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ padding: '10px 12px', borderRadius: 6, fontWeight: 700, fontSize: 13,
+              background: rec.clean ? '#e7f5ec' : '#fdecea',
+              border: `1px solid ${rec.clean ? '#1c7c45' : C.danger}`,
+              color: rec.clean ? '#1c7c45' : C.danger }}>
+              {rec.clean
+                ? `✓ CLEAN — ${rec.matched.length} line${rec.matched.length === 1 ? '' : 's'} match${ack.orderNumber ? ` (order #${ack.orderNumber})` : ''}. Subtotal agrees${rec.ackTotals.cabinetTotal != null ? ` at ${formatCurrency(rec.ackTotals.cabinetTotal)}` : ''}.`
+                : `✗ VARIANCES FOUND${ack.orderNumber ? ` (order #${ack.orderNumber})` : ''} — mark these on the acknowledgment and resend within 24 hours.`}
+            </div>
+            {rec.totalDelta != null && Math.abs(rec.totalDelta) > 0.02 && (
+              <div style={{ marginTop: 8, fontSize: 13 }}>
+                <strong>Cabinet Total:</strong> acknowledgment {formatCurrency(rec.ackTotals.cabinetTotal)} vs quote {formatCurrency(rec.quoteSubtotal)} —{' '}
+                <span style={{ color: rec.totalDelta > 0 ? C.danger : '#1c7c45', fontWeight: 700 }}>
+                  {rec.totalDelta > 0 ? '+' : '−'}{formatCurrency(Math.abs(rec.totalDelta))}
+                </span>
+              </div>
+            )}
+            {rec.priceDiffs.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Price differences</div>
+                {rec.priceDiffs.map((d, i) => (
+                  <div key={i} style={{ fontSize: 12, padding: '4px 0', borderBottom: `1px solid ${C.border}`, fontFamily: 'monospace' }}>
+                    {d.sku}: ack {formatCurrency(d.ack)} vs quote {formatCurrency(d.quote)} ({d.delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(d.delta))})
+                  </div>
+                ))}
+              </div>
+            )}
+            {rec.onlyQuote.length > 0 && (
+              <div style={{ marginTop: 10, fontSize: 12 }}>
+                <strong style={{ color: C.danger }}>On the quote but NOT acknowledged:</strong>{' '}
+                {rec.onlyQuote.map(q => q.sku).join(', ')}
+              </div>
+            )}
+            {rec.onlyAck.length > 0 && (
+              <div style={{ marginTop: 6, fontSize: 12 }}>
+                <strong style={{ color: C.warn }}>Acknowledged but NOT on the quote:</strong>{' '}
+                {rec.onlyAck.map(a => `${a.sku} (${formatCurrency(a.total)})`).join(', ')}
+              </div>
+            )}
+            <p style={{ fontSize: 10, color: C.dim, marginTop: 8 }}>
+              Parsed {ack.parsedLines} priced line(s) from the paste. Text-layer parsing is best-effort — always sight-check species, door style, and ship date on the acknowledgment itself.
+            </p>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 // ==================== RESULTS VIEW ====================
 const DEALER_SETTINGS_KEY = 'ekd.dealerSettings';
 const DEALER_DEFAULTS = { multiplier: 1.0, marginPct: 0, marginMethod: 'markup', taxPct: 0, freight: 0, install: 0 };
@@ -1055,7 +1189,7 @@ function loadDealerSettings() {
 
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
-  projectMeta = {}, revisions = [], onRestoreRevision }) {
+  projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {} }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1132,6 +1266,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           { id: '3d', label: '3D View' },
           { id: 'layout', label: 'Cabinet List' },
           { id: 'quote', label: 'Quote' },
+          { id: 'order', label: 'Order' },
           { id: 'revisions', label: `Revisions${revisions.length ? ` (${revisions.length})` : ''}` },
           { id: 'training', label: 'Training' },
           { id: 'compare', label: 'Compare' },
@@ -1754,6 +1889,91 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         </div>
       )}
 
+      {/* ── ORDER tab: readiness gate → W.W. Wood order package → ack reconciliation ── */}
+      {tab === 'order' && (() => {
+        const construction = getConstruction(materials?.frameStyle);
+        const readiness = evaluateOrderReadiness({
+          solverResult, quote, walls, selectedAppliances, projectMeta, orderSpec, construction,
+        });
+        const handleGenerate = () => {
+          const { rows, cutouts } = buildOrderItems(placements, quote, { inset: !!construction.inset });
+          const appliancesByType = {};
+          for (const a of selectedAppliances) if (a.type && !appliancesByType[a.type]) appliancesByType[a.type] = { ...a, brandName: getBrandName(a.brand) || a.brand };
+          const customQuoteItems = (quote?.fabrication?.items || []).filter(i => i.needsQuote);
+          const cover = {
+            businessName: orderSpec.businessName, customerNumber: orderSpec.customerNumber,
+            po: projectMeta.jobNumber || '', jobName: projectMeta.name || projectMeta.customer || '',
+            species: materials.species, color: materials.finishColor || 'Natural',
+            glaze: (GLAZES.find(g => g.v === orderSpec.glaze) || {}).l, highlight: (HIGHLIGHTS.find(g => g.v === orderSpec.highlight) || {}).l,
+            upperDoor: orderSpec.upperDoor || materials.door, lowerDoor: materials.door,
+            edgeProfile: orderSpec.edgeProfile, drawerBox: orderSpec.drawerBox,
+            drawerFrontStyle: 'DF-' + materials.door, drawerGuide: orderSpec.drawerGuide,
+            tipOn: orderSpec.tipOn, materialType: materials.construction,
+            interiorFinish: (INTERIORS.find(g => g.v === orderSpec.interiorFinish) || {}).l,
+            constructionNote: construction.note || construction.label,
+            charTechniques: orderSpec.charTechniques !== 'NONE' ? (CHAR_TECHNIQUES.find(g => g.v === orderSpec.charTechniques) || {}).l : 'None',
+            orderDate: new Date().toLocaleDateString('en-US'),
+            salesperson: projectMeta.designer || '', contactPhone: orderSpec.contactPhone, contactEmail: orderSpec.contactEmail,
+            pageCount: `${Math.max(1, Math.ceil(rows.length / 30)) + cutouts.length + (customQuoteItems.length ? 1 : 0)}`,
+            specialInstructions: orderSpec.specialInstructions,
+          };
+          generateOrderPackage({
+            brand: materials.brand, cover, items: rows, cutouts, customQuoteItems, appliancesByType,
+            orderReady: readiness.ready,
+            readinessIssues: readiness.checks.filter(c => !c.pass && c.severity === 'blocker').map(c => c.label),
+            fmtMoney: formatCurrency,
+          });
+        };
+        return (
+          <div>
+            {/* Grade banner */}
+            <div style={{ marginBottom: 14, padding: '12px 16px', borderRadius: 8, fontWeight: 700, fontSize: 14,
+              background: readiness.ready ? '#e7f5ec' : '#fdf3e0',
+              border: `1px solid ${readiness.ready ? '#1c7c45' : C.warn}`,
+              color: readiness.ready ? '#1c7c45' : C.warn }}>
+              {readiness.ready ? '✓ ORDER GRADE — all checks pass; the package below is submission-ready.'
+                : `BUDGET GRADE — ${readiness.blockers.length} blocking item${readiness.blockers.length === 1 ? '' : 's'} before this can be ordered. The package generates with a NOT-FOR-ORDER watermark.`}
+            </div>
+
+            {/* Readiness checklist */}
+            <div style={panelStyle}>
+              <div style={sectionTitle}>Order Readiness — Dealer Hub SOP checks</div>
+              {readiness.checks.map(c => (
+                <div key={c.id} style={{ display: 'flex', gap: 10, padding: '7px 4px', borderBottom: `1px solid ${C.border}`, alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 14, width: 18 }}>{c.pass ? '✅' : c.severity === 'blocker' ? '🛑' : '⚠️'}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{c.label}</div>
+                    <div style={{ fontSize: 11, color: c.pass ? C.dim : (c.severity === 'blocker' ? C.danger : C.warn) }}>{c.detail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Package generation */}
+            <div style={panelStyle}>
+              <div style={sectionTitle}>W.W. Wood Order Package</div>
+              <p style={{ fontSize: 12, color: C.muted, margin: '0 0 10px' }}>
+                One PDF in the manufacturer's format: cover sheet ({materials.brand === 'shiloh' ? 'SHI' : 'ECL'}-SO-CS) · item list with drawing-matched cab numbers · pre-filled appliance cutout sheets · custom-quote worksheet. Submit to Orders@wwinc.com{readiness.ready ? '.' : ' — after clearing the blockers above.'}
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button onClick={handleGenerate} style={{ ...btnPrimary, background: readiness.ready ? '#1c7c45' : C.warn }}>
+                  {readiness.ready ? 'Generate Order Package' : 'Generate (BUDGET watermark)'}
+                </button>
+                <button onClick={() => window.open('https://pinnaclesales.biz/dealer-hub/submit', '_blank', 'noopener')} style={btnOutline}
+                  title="Per the Dealer Hub SOP, email your first 3-4 projects to Pinnacle for pre-order review. Attach the order package PDF and your project file.">
+                  Submit to Pinnacle for Review
+                </button>
+              </div>
+              <p style={{ fontSize: 10.5, color: C.dim, marginTop: 8 }}>
+                Reminder: cutout sheets require the manufacturer's appliance installation specs attached. Changes after the confirmation are allowed for 24 hours only.
+              </p>
+            </div>
+
+            <AckCheckPanel quote={quote} />
+          </div>
+        );
+      })()}
+
       {/* Revisions tab — every solve is a snapshot; restore loads it back into the designer */}
       {tab === 'revisions' && (
         <div style={panelStyle}>
@@ -1857,6 +2077,23 @@ export default function App() {
   const [selectedBrandAppliances, setSelectedBrandAppliances] = useState([]);
   const [applianceTier, setApplianceTier] = useState(null);  // which recommended package was adopted (null = custom)
 
+  // ── Order spec (W.W. Wood cover-sheet fields). Dealer-constant identity
+  //    fields persist in localStorage; style fields travel with the project. ──
+  const ORDER_SPEC_DEFAULTS = {
+    businessName: '', customerNumber: '', contactPhone: '', contactEmail: '',
+    glaze: 'NONE', highlight: 'NONE', charTechniques: 'NONE', interiorFinish: 'STD-MAPL',
+    edgeProfile: 'MATCH', tipOn: false, upperDoor: '', drawerBox: '5/8" Hdwd Dovetail',
+    drawerGuide: 'Blum FEG Full Extension (soft-close)', specialInstructions: '',
+  };
+  const [orderSpec, setOrderSpec] = useState(() => {
+    try { return { ...ORDER_SPEC_DEFAULTS, ...(JSON.parse(localStorage.getItem('ekd.orderSpec')) || {}) }; }
+    catch { return { ...ORDER_SPEC_DEFAULTS }; }
+  });
+  useEffect(() => {
+    const { businessName, customerNumber, contactPhone, contactEmail } = orderSpec;
+    try { localStorage.setItem('ekd.orderSpec', JSON.stringify({ businessName, customerNumber, contactPhone, contactEmail })); } catch { /* private mode */ }
+  }, [orderSpec]);
+
   // Countertop selections
   const [countertopSelection, setCountertopSelection] = useState({ sqft: 40, edge: 'straight', cutouts: 1, colorId: null, brand: null, thickness: null });
 
@@ -1892,7 +2129,7 @@ export default function App() {
   // Full designer state snapshot — everything needed to reproduce a design.
   const collectState = () => ({
     layoutType, roomType, walls, appliances, island, peninsula, prefs,
-    materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate,
+    materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, orderSpec,
   });
   const applyState = (s) => {
     if (!s) return;
@@ -1905,6 +2142,7 @@ export default function App() {
     setCountertopSelection(c => ({ ...c, ...(s.countertopSelection || {}) }));
     setTrimSelections(t => ({ ...t, ...(s.trimSelections || {}) }));
     setSelectedTemplate(s.selectedTemplate || null);
+    if (s.orderSpec) setOrderSpec(o => ({ ...o, ...s.orderSpec }));
     setSolverResult(null); setQuote(null); setView('designer');
   };
 
@@ -2095,6 +2333,7 @@ export default function App() {
             countertopColor={countertopSelection.colorId ? getColorById(countertopSelection.colorId) : null}
             prefs={prefs} trimSelections={trimSelections}
             projectMeta={projectMeta} revisions={revisions} onRestoreRevision={handleRestoreRevision}
+            walls={walls} orderSpec={orderSpec}
             onBack={() => { setView('designer'); setStep(5); }} />
         ) : (
           <>
@@ -2309,6 +2548,59 @@ export default function App() {
                       Feature wall: the wall cabinets flanking the range are removed so the hood (esp. a sculptural plaster hood) stands on open wall. This lowers the cabinet count and the quote. Pair with a full-height slab backsplash for the current look.
                     </div>
                   )}
+                </div>
+
+                {/* ── W.W. Wood cover-sheet spec: the global style rules the order form requires ── */}
+                <div style={panelStyle}>
+                  <div style={sectionTitle}>Order Spec — Cover Sheet Fields</div>
+                  <p style={{ fontSize: 11, color: C.dim, margin: '0 0 10px' }}>
+                    These complete the W.W. Wood standard order cover sheet ({materials.brand === 'shiloh' ? 'SHI-SO-CS' : 'ECL-SO-CS'}). Defaults match the most common spec.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    <div><label style={labelStyle}>Glaze</label>
+                      <select value={orderSpec.glaze} onChange={e => setOrderSpec(o => ({ ...o, glaze: e.target.value }))} style={inputStyle}>
+                        {GLAZES.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
+                      </select></div>
+                    <div><label style={labelStyle}>Highlight</label>
+                      <select value={orderSpec.highlight} onChange={e => setOrderSpec(o => ({ ...o, highlight: e.target.value }))} style={inputStyle}>
+                        {HIGHLIGHTS.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
+                      </select></div>
+                    <div><label style={labelStyle}>Character Technique</label>
+                      <select value={orderSpec.charTechniques} onChange={e => setOrderSpec(o => ({ ...o, charTechniques: e.target.value }))} style={inputStyle}>
+                        {CHAR_TECHNIQUES.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
+                      </select></div>
+                    <div><label style={labelStyle}>Interior Finish</label>
+                      <select value={orderSpec.interiorFinish} onChange={e => setOrderSpec(o => ({ ...o, interiorFinish: e.target.value }))} style={inputStyle}>
+                        {INTERIORS.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
+                      </select></div>
+                    <div><label style={labelStyle}>Upper Door (if different)</label>
+                      <select value={orderSpec.upperDoor} onChange={e => setOrderSpec(o => ({ ...o, upperDoor: e.target.value }))} style={inputStyle}>
+                        <option value="">Same as lower ({materials.door})</option>
+                        {doorOptions.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                      </select></div>
+                    <div><label style={labelStyle}>Edge Profile / Banding</label>
+                      <input value={orderSpec.edgeProfile} onChange={e => setOrderSpec(o => ({ ...o, edgeProfile: e.target.value }))} style={inputStyle} /></div>
+                    <div><label style={labelStyle}>Drawer Box</label>
+                      <input value={orderSpec.drawerBox} onChange={e => setOrderSpec(o => ({ ...o, drawerBox: e.target.value }))} style={inputStyle} /></div>
+                    <div><label style={labelStyle}>Drawer Guide</label>
+                      <input value={orderSpec.drawerGuide} onChange={e => setOrderSpec(o => ({ ...o, drawerGuide: e.target.value }))} style={inputStyle} /></div>
+                    <div style={{ display: 'flex', alignItems: 'end', paddingBottom: 8 }}>
+                      <label style={{ fontSize: 12, color: C.text, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={!!orderSpec.tipOn} onChange={e => setOrderSpec(o => ({ ...o, tipOn: e.target.checked }))} />
+                        Tip-On (all doors &amp; drawers)
+                      </label>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+                    <div><label style={labelStyle}>Dealership (Business Name)</label>
+                      <input value={orderSpec.businessName} placeholder="Your dealership" onChange={e => setOrderSpec(o => ({ ...o, businessName: e.target.value }))} style={inputStyle} /></div>
+                    <div><label style={labelStyle}>W.W. Wood Customer #</label>
+                      <input value={orderSpec.customerNumber} placeholder="e.g. 5028" onChange={e => setOrderSpec(o => ({ ...o, customerNumber: e.target.value }))} style={inputStyle} /></div>
+                    <div><label style={labelStyle}>Contact Phone</label>
+                      <input value={orderSpec.contactPhone} onChange={e => setOrderSpec(o => ({ ...o, contactPhone: e.target.value }))} style={inputStyle} /></div>
+                    <div><label style={labelStyle}>Contact Email</label>
+                      <input value={orderSpec.contactEmail} onChange={e => setOrderSpec(o => ({ ...o, contactEmail: e.target.value }))} style={inputStyle} /></div>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
