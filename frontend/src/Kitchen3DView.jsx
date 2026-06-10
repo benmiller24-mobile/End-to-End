@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { buildPrompt } from './LeonardoRenderer.jsx';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 // ── Deterministic 3D view built straight from the solver geometry. Every cabinet
 //    is a box at its exact solved position/size, so the massing is 100% faithful
@@ -90,6 +91,11 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       mount.innerHTML = '';
       mount.appendChild(renderer.domElement);
+
+      // Environment map: without one, metallic materials (steel appliances,
+      // hardware) have nothing to reflect and render nearly black.
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
       // ── Materials ──
       const woodCol = woodColor(materials?.species, materials?.finishColor);
@@ -357,7 +363,23 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       (solverResult.talls || []).forEach(t => {
         if (typeof t.position !== 'number') return;
         const f = frameOf(t.wall || t.wallId); if (!f) return;
-        const h = t._elev?.height || t.height || 90;
+        const e = t._elev || {};
+        // Over-fridge cabinets (RW / fridge_wall_cab) live in the talls array
+        // but mount ON TOP of the fridge (yMount ~84) — never floor-anchor them
+        // or they read as a base cabinet under the appliance.
+        const aboveTall = e.zone === 'ABOVE_TALL' || (e.yMount || 0) > 60 ||
+          /^RW/i.test(t.sku || '') || t.role === 'fridge_wall_cab';
+        if (aboveTall) {
+          const bot = e.yMount || 84;
+          const top = Math.min(CEIL, bot + (e.height || t.height || 21));
+          const dep = e.depth || 27;
+          placeOnWall(f, t.position, t.width || 36, dep, bot, top, woodMat);
+          if (!isPlainPanelSku(t.sku) && top - bot > 8) {
+            addDoors(f, t.position, t.width || 36, bot, top, dep, woodMat, recessMat, 'bottom');
+          }
+          return;
+        }
+        const h = e.height || t.height || 90;
         const isFridge = /refrigerator|fridge/.test(appType(t));
         placeOnWall(f, t.position, t.width || 24, BASE_D, 0, h, isFridge ? steelMat : woodMat);
         if (!isFridge && !isPlainPanelSku(t.sku) && (t.width || 24) >= 12) {
@@ -440,7 +462,7 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
 
       return () => {
         cancelAnimationFrame(raf); window.removeEventListener('resize', onResize);
-        controls?.dispose(); renderer?.dispose();
+        controls?.dispose(); pmrem?.dispose(); renderer?.dispose();
         if (mount) mount.innerHTML = '';
       };
     } catch (e) { setErr(e.message); }
