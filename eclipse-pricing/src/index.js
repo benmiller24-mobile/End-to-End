@@ -58,3 +58,9 @@ export {
   FABRICATION_PREFIXES, isFabricationSku,
   priceFabricationItem, priceFabricationItems,
 } from './fabricationPricing.js';
+
+// Official Eclipse v8.8 data: per-SKU door/drawer/box counts + dims, and
+// door×species/finish/drawer-front style-compatibility rules.
+export {
+  OFFICIAL_V88, findOfficial, OFFICIAL_SKU_COUNT, checkStyleCompat,
+} from './officialV88.js';

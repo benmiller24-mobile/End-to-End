@@ -22,6 +22,7 @@ import {
   GLAZES, HIGHLIGHTS, CHAR_TECHNIQUES, INTERIORS,
   guessDoors, guessDrawerCount, guessBuiltInROT,
   FABRICATION_PREFIXES, priceFabricationItems, calculateDealerPrice,
+  findOfficial, checkStyleCompat,
 } from '../../eclipse-pricing/src/index.js';
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
 import { evaluateOrderReadiness } from './orderReadiness.js';
@@ -200,9 +201,15 @@ function buildPricingPlacements(placements) {
       // Sq-in-priced items (REF/BCF panels, finished ply) need real dimensions:
       // catalog price is $/sq-in (e.g. BCF $1.00/sq-in → 24×30.5 = $732).
       const h = p._elev?.height || p.height;
+      // Official v8.8 carries the manufacturer's own door/drawer counts per
+      // SKU — use them when present so door/drawer-front/box charges use the
+      // factory's numbers; the guess heuristics remain the fallback.
+      const off = findOfficial(p.sku);
       return { sku: p.sku, qty: p.qty || 1, wall: p.wall || 'other',
         sqin: (p.width && h) ? p.width * h : undefined,
-        doorCount: guessDoors(p.sku, tc), drawerCount: guessDrawerCount(p.sku, tc), builtInROT: guessBuiltInROT(p.sku) };
+        doorCount: off ? off.dc : guessDoors(p.sku, tc),
+        drawerCount: off ? off.drc : guessDrawerCount(p.sku, tc),
+        builtInROT: guessBuiltInROT(p.sku) };
     });
   return { cabinets, fabrication };
 }
@@ -1893,7 +1900,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {tab === 'order' && (() => {
         const construction = getConstruction(materials?.frameStyle);
         const readiness = evaluateOrderReadiness({
-          solverResult, quote, walls, selectedAppliances, projectMeta, orderSpec, construction,
+          solverResult, quote, walls, selectedAppliances, projectMeta, orderSpec, construction, materials,
         });
         const handleGenerate = () => {
           const { rows, cutouts } = buildOrderItems(placements, quote, { inset: !!construction.inset });

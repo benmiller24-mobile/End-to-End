@@ -7,11 +7,12 @@
  * what's missing — the same discipline a careful designer applies by hand.
  */
 import { cutoutFormFor } from './orderPackage.js';
+import { checkStyleCompat } from '../../eclipse-pricing/src/officialV88.js';
 
 /**
  * @returns {{ ready: boolean, grade: 'order'|'budget', checks: [{id,label,pass,detail,severity}] }}
  */
-export function evaluateOrderReadiness({ solverResult, quote, walls = [], selectedAppliances = [], projectMeta = {}, orderSpec = {}, construction = {} }) {
+export function evaluateOrderReadiness({ solverResult, quote, walls = [], selectedAppliances = [], projectMeta = {}, orderSpec = {}, construction = {}, materials = null }) {
   const checks = [];
   const add = (id, label, pass, detail, severity = 'blocker') => checks.push({ id, label, pass: !!pass, detail, severity });
   const placements = solverResult?.placements || [];
@@ -77,6 +78,19 @@ export function evaluateOrderReadiness({ solverResult, quote, walls = [], select
   const errs = (solverResult?.validation || []).filter(v => v.severity === 'error' && !v.advisory);
   add('validation', 'No unresolved design errors', errs.length === 0,
     errs.length ? errs.map(e => e.rule).join(', ') : 'Validation clean');
+
+  // 8b. Style compatibility (official v8.8 rules): the chosen door must be
+  // offered in the chosen species/finish, and the drawer front must pair
+  // with the door. Eclipse-only data — skip for Shiloh.
+  if (materials && materials.brand !== 'shiloh') {
+    const styleIssues = checkStyleCompat({
+      door: materials.door, species: materials.species,
+      finish: materials.finishColor, drawerFront: 'DF-' + (materials.door || ''),
+    });
+    add('style', 'Door × species × finish combination is offered',
+      styleIssues.length === 0,
+      styleIssues.length ? styleIssues.join(' · ') : 'Spec valid per Eclipse v8.8 style rules');
+  }
 
   // 9. Cover sheet complete.
   const coverMissing = [];

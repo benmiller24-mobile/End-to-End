@@ -103,6 +103,32 @@ adders (Cost Plus same-design comparison); Shiloh inset ≈ +17% (Dolfin Isle).
 - `SHI*` — Shiloh framed (overlay + inset variants)
 - `NEV*` — economy line (Ward kitchen; ~35–40% below Eclipse line-for-line) — **not in the app**
 
+## Official Eclipse v8.8 ingestion (June 2026)
+
+The official W.W. Wood "Eclipse v8.8 Pricing_Data" workbooks are now ingested:
+- **Catalog prices reconciled**: 34 line corrections applied (notably O3093
+  oven talls — archive orders already showed $1,715 vs our scraped $1,505 —
+  plus SB/B-RT rollout swaps, vanity 2D variants, BA angle bases, FC-BO gola
+  ovens). Every real-order anchor (B3D21 $610, W3036 $599, SB36 $761,
+  B27-RT $1,121) matches the official file exactly. Zero remaining diffs on
+  shared SKUs.
+- **Official counts** (`officialV88.js`, 23,252 SKUs): manufacturer
+  door/drawer/box counts + W/D/H now drive door/drawer charges when the SKU
+  is in the official set (guess heuristics remain the fallback).
+- **Style rules**: door×species (1,618 pairs), door×finish (11,733),
+  species×finish (951), door×drawer-front (171) — wired into the
+  order-readiness gate as a spec-compliance check.
+- **Accessories file confirms every Soderstrom-derived rate to the penny**:
+  TUK $31.63, TUB $70, 3 1/2CRN @10' = $173.90 ($17.39/ft), 3SRM3F-5' =
+  $150 ($30/ft), 7/8TD @8' = $88.56 ($11.07/ft).
+- MOD workbooks (mod codes, prices, per-family applicability) parked for a
+  future modifications feature; source zip: ~/Downloads/Eclipse v8.8
+  Pricing_Data.zip.
+- **Shiloh official CSV will NOT be available** (per Ben) — the
+  quote-verified interim Shiloh catalog (scrape + 27 Soderstrom-verified
+  SKUs + FOVL/inset adders) is the standing source, with the
+  Shiloh→Eclipse fallback flag as the guard.
+
 ## Open items
 
 - Official Shiloh price CSV still pending — will supersede the scrape + the

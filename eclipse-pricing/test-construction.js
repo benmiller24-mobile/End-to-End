@@ -8,6 +8,7 @@ import { calculateItemPrice, calculateLayoutPrice } from './src/pricingEngine.js
 import { findShilohSku } from './src/shilohSkuCatalog.js';
 import { findSku } from './src/skuCatalog.js';
 import { SPECIES_PCT } from './src/finishData.js';
+import { findOfficial, OFFICIAL_SKU_COUNT, checkStyleCompat } from './src/officialV88.js';
 import { priceFabricationItem, priceFabricationItems, isFabricationSku } from './src/fabricationPricing.js';
 
 let pass = 0, fail = 0;
@@ -178,6 +179,21 @@ assert(approx(fovl.overlayChg, 7 * 26 + 8 * 67), `FOVL 7 doors + 8 fronts = $718
 for (const [sp, pct] of [['Cherry', 10], ['Alder', 12], ['QS White Oak', 16], ['Rustic Walnut', 25], ['TFL', -25], ['Hickory', 0]]) {
   assert(SPECIES_PCT[sp] === pct, `${sp} = ${pct}% (corpus-confirmed)`);
 }
+
+console.log('\n═══ Official Eclipse v8.8 data (manufacturer workbooks) ═══');
+assert(OFFICIAL_SKU_COUNT > 23000, `official set carries ${OFFICIAL_SKU_COUNT} SKUs (>23k)`);
+// Real-order anchors must agree with the patched catalog AND the official file
+for (const [sku, price] of [['B3D21', 610], ['W3036', 599], ['SB36', 761], ['B27-RT', 1121], ['O3093', 1715]]) {
+  assert(findSku(sku)?.p === price, `catalog ${sku} = $${price} (official v8.8)`);
+}
+// Official counts replace guesses: B3D21 = 0 doors / 3 drawer fronts
+const offB3D = findOfficial('B3D21');
+assert(offB3D && offB3D.dc === 0 && offB3D.drc === 3, `official B3D21 counts: 0 doors, 3 drawers (got ${JSON.stringify(offB3D)})`);
+const offB9 = findOfficial('B9R');
+assert(offB9 && offB9.dc === 1 && offB9.drc === 1 && offB9.w === 9, `official B9R: 1 door, 1 drawer, 9" wide`);
+// Style rules: a mainstream combo passes; a nonsense one is flagged
+assert(checkStyleCompat({ door: 'AFP', species: 'Maple' }).length === 0, 'AFP door offered in Maple');
+assert(checkStyleCompat({ door: 'AFP', species: 'NOT-A-SPECIES' }).length > 0, 'invalid species flagged by style rules');
 
 console.log(`\n${'═'.repeat(50)}\nConstruction pricing tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
