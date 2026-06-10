@@ -48,7 +48,7 @@ export default async (req) => {
         body = {
           prompt, modelId: MODEL_KINO_XL, width: 1360, height: 768, num_images: 1,
           alchemy: true, presetStyle: 'CINEMATIC',
-          negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, sketch, watermark, text, logo, extra cabinets, warped geometry',
+          negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, sketch, watermark, text, logo, extra cabinets, warped geometry, crooked cabinet lines, floating cabinets, duplicate island, extra windows, extra doors, mismatched hardware, people, clutter',
           init_image_id: initImageId,
           init_strength: typeof controlnetWeight === 'number' ? controlnetWeight : 0.45,
         };
@@ -60,7 +60,7 @@ export default async (req) => {
           prompt, modelId: MODEL_KINO_XL,
           width: 1536, height: 640,          // wide, matches an elevation
           num_images: 1, alchemy: true, presetStyle: 'CINEMATIC',
-          negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, sketch, watermark, text, logo, dimension lines, annotations',
+          negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, sketch, watermark, text, logo, dimension lines, annotations, crooked cabinet lines, floating cabinets, duplicate island, extra windows, extra doors, mismatched hardware, people, clutter',
           controlnets: [{
             initImageId, initImageType: 'UPLOADED',
             preprocessorId: 19,               // Edge to Image (Canny), SDXL
@@ -73,7 +73,7 @@ export default async (req) => {
           prompt, modelId: MODEL_KINO_XL,
           width: 1360, height: 768, num_images: 1, guidance_scale: 7,
           alchemy: true, photoReal: true, photoRealVersion: 'v2', presetStyle: 'CINEMATIC',
-          negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, painting, sketch, watermark, text, logo',
+          negative_prompt: 'blurry, low quality, distorted, cartoon, anime, illustration, painting, sketch, watermark, text, logo, crooked cabinet lines, floating cabinets, duplicate island, extra windows, extra doors, mismatched hardware, people, clutter',
         };
       }
 

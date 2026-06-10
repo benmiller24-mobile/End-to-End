@@ -102,6 +102,17 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       const wallMat = new THREE.MeshStandardMaterial({ color: '#efece6', roughness: 0.95 });
       const floorMat = new THREE.MeshStandardMaterial({ color: '#b08a5e', roughness: 0.7 });
       const plasterMat = new THREE.MeshStandardMaterial({ color: '#efe9e1', roughness: 0.9 });
+      const toeMat = new THREE.MeshStandardMaterial({ color: '#26201b', roughness: 0.9 });
+      // Shaker recess: a slightly darker inset on the door face reads as the
+      // 5-piece center panel without heavy geometry.
+      const shade = (hex, k) => '#' + [1, 3, 5].map(i => Math.max(0, Math.round(parseInt(hex.slice(i, i + 2), 16) * k)).toString(16).padStart(2, '0')).join('');
+      const recessMat = new THREE.MeshStandardMaterial({ color: shade(woodCol, 0.9), roughness: 0.68, metalness: 0.03 });
+      const recessIslandMat = new THREE.MeshStandardMaterial({ color: shade(islandCol, 0.9), roughness: 0.68, metalness: 0.03 });
+      const HW_HEX = { 'brushed nickel': '#b9bdc1', 'matte black': '#2b2b2b', 'brass': '#b08d57', 'satin brass': '#ab8a50', 'antique brass': '#9a7b48', 'chrome': '#dde1e4', 'polished chrome': '#dde1e4', 'oil rubbed bronze': '#4a3a2e' };
+      const hwMat = new THREE.MeshStandardMaterial({ color: HW_HEX[(materials?.hardwareFinish || '').toLowerCase()] || '#b9bdc1', roughness: 0.28, metalness: 0.92 });
+      // Door style: slab (Metro/Napa vertical-grain etc.) vs 5-piece shaker-type.
+      const slabDoor = /MET|NAPA|^S\b|SLAB/i.test(materials?.door || '');
+      const barPull = materials?.hardware === 'bar';
 
       // ── Wall world frames (matches FloorPlanView) ──
       const walls = (solverResult.walls || []).map(w => ({ id: w.wallId || w.id, length: w.length || 0, cabinets: w.cabinets || [], openings: w.openings || [] }));
@@ -158,6 +169,79 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
         return addBox(widthInch, yTop - yBot, depthInch, cx, (yBot + yTop) / 2, cz, -a, mat);
       };
 
+      // ── Front detailing: doors/drawers with reveals, shaker recess, hardware ──
+      const REVEAL = 0.16, FRONT_T = 0.8;
+      const wallXZ = (f, alongInch, depthInch) => {
+        const a = f.angle * Math.PI / 180, nx = -Math.sin(a), nz = Math.cos(a);
+        return { x: f.x + Math.cos(a) * alongInch + nx * depthInch, z: f.y + Math.sin(a) * alongInch + nz * depthInch, a };
+      };
+      // pull: bar (along-wall cylinder look via thin box) or knob (sphere)
+      const addPull = (f, alongCenter, y, faceDepth, horizontal = true, len = 5) => {
+        const p = wallXZ(f, alongCenter, faceDepth + 0.55);
+        if (barPull) {
+          const m = addBox(horizontal ? len : 0.55, horizontal ? 0.55 : len, 0.7, p.x, y, p.z, -p.a, hwMat);
+          if (m) m.castShadow = false;
+        } else {
+          const k = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 10), hwMat);
+          k.position.set(p.x, y, p.z); k.castShadow = false; root.add(k);
+        }
+      };
+      // one front panel (door or drawer face), proud of the box, with recess inset
+      const addPanel = (f, x0, w, yBot, yTop, boxDepth, mat, rMat) => {
+        if (w <= REVEAL * 3 || yTop - yBot <= REVEAL * 3) return;
+        const p = wallXZ(f, x0 + w / 2, boxDepth + FRONT_T / 2);
+        addBox(w - REVEAL * 2, (yTop - yBot) - REVEAL * 2, FRONT_T, p.x, (yBot + yTop) / 2, p.z, -p.a, mat);
+        const stile = 2.4;
+        if (!slabDoor && w > 2 * stile + 3 && (yTop - yBot) > 2 * stile + 3) {
+          const p2 = wallXZ(f, x0 + w / 2, boxDepth + FRONT_T + 0.03);
+          addBox(w - 2 * stile, (yTop - yBot) - 2 * stile, 0.06, p2.x, (yBot + yTop) / 2, p2.z, -p2.a, rMat, false);
+        }
+      };
+      // doors across a span: respect the "no door wider than 24" rule
+      const addDoors = (f, x0, w, yBot, yTop, boxDepth, mat, rMat, pullAt /* 'top'|'bottom' */) => {
+        const n = w > 24 ? 2 : 1;
+        const dw = w / n;
+        for (let i = 0; i < n; i++) {
+          addPanel(f, x0 + i * dw, dw, yBot, yTop, boxDepth, mat, rMat);
+          // door pulls sit near the meeting stile (or latch side), vertical bars
+          const edgeIn = 2.2;
+          const px = n === 2 ? (i === 0 ? x0 + dw - edgeIn : x0 + dw + edgeIn) : x0 + dw - edgeIn;
+          const py = pullAt === 'top' ? yTop - 3.2 : yBot + 3.2;
+          addPull(f, px, py, boxDepth + FRONT_T, false, 5);  // vertical bar at the latch stile (knobs ignore orientation)
+        }
+      };
+      const addDrawers = (f, x0, w, yBot, yTop, boxDepth, mat, rMat, n) => {
+        const dh = (yTop - yBot) / n;
+        for (let i = 0; i < n; i++) {
+          const b = yBot + i * dh;
+          addPanel(f, x0, w, b, b + dh, boxDepth, mat, rMat);
+          addPull(f, x0 + w / 2, b + dh / 2, boxDepth + FRONT_T, true, Math.min(8, w * 0.4));
+        }
+      };
+      // SKU → front configuration (heuristic mirror of the elevation family rules)
+      const drawerCountOf = (sku) => {
+        const s = (sku || '').toUpperCase();
+        let m = s.match(/^V?T?B(\d)D/); if (m) return parseInt(m[1]);
+        m = s.match(/-(\d)\b/); if (m && parseInt(m[1]) >= 2 && parseInt(m[1]) <= 5) return parseInt(m[1]);
+        if (/2TD/.test(s)) return 2;
+        return 0;
+      };
+      const isPlainPanelSku = (sku) => /^(F\d|OVF|SCRIBE|3SRM|.?[BWR]?EP|REP|FWEP|FBEP|EDG|PNL|DWP|FDP|GRILLE|TK)/.test((sku || '').toUpperCase());
+      const addBaseFronts = (f, c, mat, rMat) => {
+        const sku = (c.sku || '').toUpperCase();
+        if (isPlainPanelSku(sku)) return;
+        const x0 = c.position, w = c.width;
+        const n = drawerCountOf(sku);
+        if (n >= 2) { addDrawers(f, x0, w, TOE, BASE_TOP, BASE_D, mat, rMat, n); return; }
+        if (/^SB|^VSB|^SBA|^FLVSB/.test(sku)) {
+          // sink base: false front strip + doors below, pulls at the top rail
+          addPanel(f, x0, w, BASE_TOP - 7, BASE_TOP, BASE_D, mat, rMat);
+          addDoors(f, x0, w, TOE, BASE_TOP - 7 - REVEAL, BASE_D, mat, rMat, 'top');
+          return;
+        }
+        addDoors(f, x0, w, TOE, BASE_TOP, BASE_D, mat, rMat, 'top');
+      };
+
       // floor + a couple of back walls
       const floorPad = 40;
       const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomW + roomD + 240, roomD + roomW + 240), floorMat);
@@ -174,26 +258,71 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       const isApp = c => !!(c.applianceType || c.type === 'appliance');
       const appType = c => (c.applianceType || '').toLowerCase();
 
+      // Panel-ready fridge? (selected appliance set to panel finish → wood fronts)
+      const fridgePaneled = (selectedAppliances || []).some(a =>
+        /refrigerator|fridge/i.test(a.type || '') && a.finish === 'panel');
+
+      // counter front edge: eased/bullnose reading via a small along-wall cylinder
+      const addCounterEdge = (f, x0, w, depth, y) => {
+        const p = wallXZ(f, x0 + w / 2, depth);
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(CTR / 2, CTR / 2, w, 12), stoneMat);
+        m.position.set(p.x, y, p.z);
+        m.rotation.set(0, -p.a, Math.PI / 2);
+        m.castShadow = false; m.receiveShadow = true;
+        root.add(m);
+      };
+
       // ── BASE cabinets + appliances + counters ──
       walls.forEach(wd => {
         const f = frameOf(wd.id); if (!f) return;
         (wd.cabinets || []).filter(c => typeof c.position === 'number' && c.width > 0).forEach(c => {
           const at = appType(c);
           if (/refrigerator|fridge/.test(at)) {
-            placeOnWall(f, c.position, c.width, BASE_D, 0, 84, (construction && materials && /panel/.test(materials?.fridge || '')) ? woodMat : steelMat);
+            placeOnWall(f, c.position, c.width, BASE_D, 0, 84, fridgePaneled ? woodMat : steelMat);
+            if (fridgePaneled) {
+              // paneled built-in: two tall door panels + long vertical bars
+              const half = c.width / 2;
+              addPanel(f, c.position, half, 1, 83, BASE_D, woodMat, recessMat);
+              addPanel(f, c.position + half, half, 1, 83, BASE_D, woodMat, recessMat);
+              addPull(f, c.position + half - 2, 46, BASE_D + FRONT_T, false, 14);
+              addPull(f, c.position + half + 2, 46, BASE_D + FRONT_T, false, 14);
+            } else {
+              // stainless: door seam + pro handles
+              addPull(f, c.position + c.width / 2 - 1.6, 46, BASE_D, false, 16);
+              addPull(f, c.position + c.width / 2 + 1.6, 46, BASE_D, false, 16);
+            }
             return;
           }
           if (/range|cooktop|dishwasher|oven/.test(at)) {
             const top = /dishwasher/.test(at) ? BASE_TOP : (/range/.test(at) ? 36 : BASE_TOP);
             placeOnWall(f, c.position, c.width, BASE_D, TOE, top, steelMat);
-            if (!/range|cooktop/.test(at)) placeOnWall(f, c.position, c.width, BASE_D, BASE_TOP, COUNTER_AFF, stoneMat); // counter over DW
+            if (/dishwasher/.test(at)) addPull(f, c.position + c.width / 2, BASE_TOP - 2.5, BASE_D, true, Math.min(14, c.width * 0.6));
+            if (!/range|cooktop/.test(at)) {
+              placeOnWall(f, c.position, c.width, BASE_D, BASE_TOP, COUNTER_AFF, stoneMat); // counter over DW
+              addCounterEdge(f, c.position, c.width, BASE_D + 1, BASE_TOP + CTR / 2);
+            }
             return;
           }
-          // wood base cabinet box (toe recess) + counter slab
+          // wood base cabinet: dark toe kick recess + box + detailed fronts + counter
+          placeOnWall(f, c.position + 0.4, c.width - 0.8, BASE_D - 3, 0, TOE, toeMat);
           placeOnWall(f, c.position, c.width, BASE_D, TOE, BASE_TOP, woodMat);
+          addBaseFronts(f, c, woodMat, recessMat);
           placeOnWall(f, c.position - 0.5, c.width + 1, BASE_D + 1, BASE_TOP, COUNTER_AFF, stoneMat);
+          addCounterEdge(f, c.position - 0.5, c.width + 1, BASE_D + 1, BASE_TOP + CTR / 2);
         });
       });
+
+      // Backsplash: full-height slab option carries the stone up the wall 36"→54".
+      if (trim && trim.backsplashStyle === 'full_slab') {
+        walls.forEach(wd => {
+          const f = frameOf(wd.id); if (!f) return;
+          const baseRun = (wd.cabinets || []).filter(c => typeof c.position === 'number' && c.width > 0 && !/refrigerator|fridge/.test(appType(c)));
+          if (!baseRun.length) return;
+          const x0 = Math.min(...baseRun.map(c => c.position));
+          const x1 = Math.max(...baseRun.map(c => c.position + c.width));
+          placeOnWall(f, x0, x1 - x0, 0.6, COUNTER_AFF, UPPER_BOT, stoneMat);
+        });
+      }
 
       // ── UPPER cabinets ── (top-anchored to a common datum, like the elevation)
       const UPPER_H_DEF = 36, TALL_H_DEF = 96;
@@ -217,6 +346,10 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
           else { bot = aboveTall ? (e.yMount || 84) : (e.yMount ?? UPPER_BOT); top = upperTopAFF; }
           const dep = e.depth || UPPER_D;   // over-fridge (RW) cabs carry a deeper (~24-27") depth
           placeOnWall(f, c.position, c.width, dep, bot, top, woodMat);
+          // upper fronts: doors with pulls at the BOTTOM rail (the convention)
+          if (!isPlainPanelSku(c.sku) && top - bot > 8) {
+            addDoors(f, c.position, c.width, bot, top, dep, woodMat, recessMat, 'bottom');
+          }
         });
       });
 
@@ -225,7 +358,14 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
         if (typeof t.position !== 'number') return;
         const f = frameOf(t.wall || t.wallId); if (!f) return;
         const h = t._elev?.height || t.height || 90;
-        placeOnWall(f, t.position, t.width || 24, BASE_D, 0, h, /refrigerator|fridge/.test(appType(t)) ? steelMat : woodMat);
+        const isFridge = /refrigerator|fridge/.test(appType(t));
+        placeOnWall(f, t.position, t.width || 24, BASE_D, 0, h, isFridge ? steelMat : woodMat);
+        if (!isFridge && !isPlainPanelSku(t.sku) && (t.width || 24) >= 12) {
+          // utility/pantry: lower doors (pull top) + upper doors (pull bottom), split at counter-ish height
+          const split = Math.min(h - 10, Math.max(40, h * 0.45));
+          addDoors(f, t.position, t.width || 24, TOE, split, BASE_D, woodMat, recessMat, 'top');
+          addDoors(f, t.position, t.width || 24, split + REVEAL, h, BASE_D, woodMat, recessMat, 'bottom');
+        }
       });
 
       // ── HOOD (plaster or steel) over the range ──
@@ -248,8 +388,23 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
           const along = f.length / 2;
           const cx = f.x + Math.cos(a) * along + nx * offset;
           const cz = f.y + Math.sin(a) * along + nz * offset;
-          addBox(il, BASE_TOP - 0, idp, cx, BASE_TOP / 2, cz, -a, islandMat);
+          addBox(il, BASE_TOP - TOE, idp, cx, (TOE + BASE_TOP) / 2, cz, -a, islandMat);
+          addBox(il - 2, TOE, idp - 3, cx, TOE / 2, cz, -a, toeMat);
           addBox(il + 2, CTR, idp + (isl.overhang || 12), cx, BASE_TOP + CTR / 2, cz - nz * ((isl.overhang || 12) / 2), -a, stoneMat);
+          // Work-side fronts: a virtual wall frame on the island's aisle face
+          // (rotated 180° so panels project toward the aisle, not into the box).
+          const faceAlong0 = along - il / 2;
+          const fIsland = {
+            id: '__island', angle: f.angle + 180, length: il,
+            x: f.x + Math.cos(a) * (faceAlong0 + il) + nx * (offset - idp / 2),
+            y: f.y + Math.sin(a) * (faceAlong0 + il) + nz * (offset - idp / 2),
+          };
+          const nPan = Math.max(2, Math.round(il / 30));
+          const pw = il / nPan;
+          for (let i = 0; i < nPan; i++) {
+            if (i % 2 === 0) addDrawers(fIsland, i * pw, pw, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, 3);
+            else addDoors(fIsland, i * pw, pw, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, 'top');
+          }
         }
       }
 

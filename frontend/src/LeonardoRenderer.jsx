@@ -126,6 +126,19 @@ function buildPrompt({ solverResult, materials, appliances, countertop, prefs, t
   const doorName = DOOR_NAMES[materials?.door] || 'shaker';
   P.push(`${constr}, ${doorName} ${wood} doors${finish}`);
 
+  // ── Hardware (Leonardo loves to default to stainless knobs — be explicit) ──
+  if (!prefs?.golaChannel) {
+    const hwFinish = (materials?.hardwareFinish || 'brushed nickel').toLowerCase();
+    P.push(materials?.hardware === 'bar'
+      ? `slim ${hwFinish} bar pulls on every door and drawer, mounted horizontally on drawers and vertically on doors, no other hardware styles`
+      : `small round ${hwFinish} knobs on every door and drawer, no bar pulls`);
+  }
+
+  // ── Two-tone: make the contrast explicit or the model averages the colors ──
+  if (materials?.islandSpecies && materials.islandSpecies.toLowerCase() !== wood) {
+    P.push(`two-tone scheme: ${wood} perimeter cabinets with a contrasting ${materials.islandSpecies.toLowerCase()} island`);
+  }
+
   // ── Hood (the focal point) ──
   const hs = trim?.hoodStyle;
   let hood;
