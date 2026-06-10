@@ -54,8 +54,8 @@ function Category({ title, hint, options }) {
   );
 }
 
-export default function ApplianceRecommendationPanel({ solverResult, style }) {
-  const rec = solverResult && solverResult.applianceRecommendation;
+export default function ApplianceRecommendationPanel({ solverResult, recommendation, onUsePackage, selectedTier, style }) {
+  const rec = recommendation || (solverResult && solverResult.applianceRecommendation);
   if (!rec) return null;
   const { cooking, ventilation: vent, refrigeration, dishwasher, island, packageByTier } = rec;
 
@@ -120,10 +120,20 @@ export default function ApplianceRecommendationPanel({ solverResult, style }) {
         {['value', 'luxury', 'ultra'].map(t => {
           const pk = packageByTier && packageByTier[t];
           if (!pk) return null;
+          const active = selectedTier === t;
           return (
-            <div key={t} style={{ flex: 1, textAlign: 'center', background: '#0f172a', borderRadius: 6, padding: '8px 4px' }}>
+            <div key={t} style={{ flex: 1, textAlign: 'center', background: '#0f172a', borderRadius: 6, padding: '8px 4px',
+              border: `1px solid ${active ? TIER[t].color : 'transparent'}` }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: TIER[t].color, textTransform: 'uppercase', letterSpacing: 0.5 }}>{TIER[t].label}</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginTop: 2 }}>{money(pk.estTotal)}</div>
+              {onUsePackage && (
+                <button onClick={() => onUsePackage(t)}
+                  style={{ marginTop: 6, width: '100%', padding: '4px 0', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                    border: 'none', borderRadius: 4, color: active ? '#0f172a' : '#fff',
+                    background: active ? TIER[t].color : P.surface2 }}>
+                  {active ? 'Selected ✓' : 'Use package'}
+                </button>
+              )}
             </div>
           );
         })}

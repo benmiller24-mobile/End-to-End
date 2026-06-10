@@ -15,6 +15,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // ── Direct solver/pricing imports ──
 import { solve, scoreAgainstTraining } from '../../eclipse-engine/src/solver.js';
+import { recommendAppliances } from '../../eclipse-engine/src/appliance-recommender.js';
 import {
   findSku, searchSkus, calculateLayoutPrice, formatCurrency,
   SPECIES_PCT, CONSTRUCTION_PCT, DOORS, DRAWER_FRONTS, DRAWER_BOXES, FINISH_COLORS,
@@ -1212,7 +1213,6 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                 date: new Date().toLocaleDateString('en-US'),
               }} />
           </div>
-          <ApplianceRecommendationPanel solverResult={solverResult} style={{ flex: '0 0 340px', maxWidth: 360 }} />
         </div>
       )}
 
@@ -1855,6 +1855,7 @@ export default function App() {
 
   // Appliance selections
   const [selectedBrandAppliances, setSelectedBrandAppliances] = useState([]);
+  const [applianceTier, setApplianceTier] = useState(null);  // which recommended package was adopted (null = custom)
 
   // Countertop selections
   const [countertopSelection, setCountertopSelection] = useState({ sqft: 40, edge: 'straight', cutouts: 1, colorId: null, brand: null, thickness: null });
@@ -2318,15 +2319,34 @@ export default function App() {
             )}
 
             {/* ═══ STEP 2: APPLIANCES ═══ */}
-            {step === 2 && (
-              <div style={{ maxWidth: 800, margin: '0 auto' }}>
-                <ApplianceBrandPicker selectedAppliances={selectedBrandAppliances} onChange={setSelectedBrandAppliances} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                  <button onClick={() => setStep(1)} style={btnOutline}>&larr; Materials</button>
-                  <button onClick={() => setStep(3)} style={btnPrimary}>Next: Countertops &rarr;</button>
+            {step === 2 && (() => {
+              // Layout-driven recommendation, computed live from the current room
+              // (no solve needed) so the user can adopt a whole package per tier.
+              const rec = recommendAppliances({ layoutType, walls, island });
+              const usePackage = (tier) => {
+                const items = rec?.packageByTier?.[tier]?.items || [];
+                const picked = items
+                  .map(it => APPLIANCES.find(a => a.brand === it.brandId && a.model === it.model))
+                  .filter(Boolean)
+                  .map(app => ({ ...app, finish: app.panelReady ? 'panel' : 'ss' }));
+                if (picked.length) {
+                  setSelectedBrandAppliances(picked);
+                  setApplianceTier(tier);
+                }
+              };
+              return (
+                <div style={{ maxWidth: 1180, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
+                  <div>
+                    <ApplianceBrandPicker selectedAppliances={selectedBrandAppliances} onChange={(v) => { setSelectedBrandAppliances(v); setApplianceTier(null); }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                      <button onClick={() => setStep(1)} style={btnOutline}>&larr; Materials</button>
+                      <button onClick={() => setStep(3)} style={btnPrimary}>Next: Countertops &rarr;</button>
+                    </div>
+                  </div>
+                  <ApplianceRecommendationPanel recommendation={rec} onUsePackage={usePackage} selectedTier={applianceTier} />
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ═══ STEP 3: COUNTERTOPS ═══ */}
             {step === 3 && (
