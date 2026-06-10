@@ -5012,8 +5012,12 @@ export const SHILOH_CATALOG = (() => {
 export function findShilohSku(sku) {
   const hit = SHILOH_CATALOG.get(sku);
   if (hit) return hit;
-  // fall back to the Eclipse catalog (flagged interim) so pricing always resolves
-  return findEclipseSku(sku);
+  // Fall back to the Eclipse catalog so pricing always resolves — but FLAG the
+  // substitution. Shiloh framed cabinets typically list 5–15% above Eclipse
+  // frameless, so a silent fallback understates the quote. The pricing engine
+  // counts `_fallback` items and the quote UI marks them for the dealer.
+  const ec = findEclipseSku(sku);
+  return ec ? { ...ec, _fallback: 'eclipse' } : null;
 }
 
 export const SHILOH_SKU_COUNT = 4989;

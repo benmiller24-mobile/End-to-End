@@ -52,3 +52,9 @@ export {
 export {
   calculateDealerPrice, buildProposal, quickEstimate,
 } from './marginCalculator.js';
+
+// Fabrication, Trim & Panel Pricing
+export {
+  FABRICATION_PREFIXES, isFabricationSku,
+  priceFabricationItem, priceFabricationItems,
+} from './fabricationPricing.js';

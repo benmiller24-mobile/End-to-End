@@ -19,6 +19,7 @@ import {
   findSku, searchSkus, calculateLayoutPrice, formatCurrency,
   SPECIES_PCT, CONSTRUCTION_PCT, DOORS, DRAWER_FRONTS, DRAWER_BOXES, FINISH_COLORS,
   guessDoors, guessDrawerCount, guessBuiltInROT,
+  FABRICATION_PREFIXES, priceFabricationItems, calculateDealerPrice,
 } from '../../eclipse-pricing/src/index.js';
 
 // ── Template & data imports ──
@@ -161,29 +162,35 @@ function findSkuNormalized(sku, _depth = 0) {
 }
 
 function buildPricingPlacements(placements) {
-  // Include all items with SKUs. Appliances WITHOUT a sku (range, fridge, DW) are excluded.
-  // Appliances WITH a sku (sink base = SB36-FHD) ARE real cabinets that must be priced.
-  //
-  // Exclude fabrication/labor items that don't have catalog entries:
-  // TK (toe kick), CRN (crown), LR (light rail), SCRIBE, DWP (DW panel),
-  // FDP/FZP (fridge panels), GRILLE, TUK (touch-up), STK-BOX, FTP, PLN,
-  // FBM (furniture legs), PTKL, CEIL, VLN, LB (light bridge), DW-TK
-  const FABRICATION_PREFIXES = [
-    'TK-', 'CRN-', 'LR-', 'SCRIBE', 'DWP-', 'DW-TK', 'FDP-', 'FZP-',
-    'GRILLE-', 'TUK-', 'STK-BOX', 'FTP-', 'PLN-', 'FBM-', 'PTKL',
-    'CEIL-', 'VLN-', 'LB-', 'RH', '3SRM', 'SFLS',
-  ];
-  return placements.filter(p => {
-    if (!p.sku) return false;
-    // Skip fabrication/labor SKUs that aren't in the catalog
-    if (FABRICATION_PREFIXES.some(pfx => p.sku.startsWith(pfx))) return false;
-    return true;
-  }).map(p => {
-    const ce = findSku(p.sku);
-    const tc = ce?.t || (p.sku.match(/^W/) ? 'W' : p.sku.match(/^[UOT]/) ? 'T' : 'B');
-    return { sku: p.sku, qty: p.qty || 1, wall: p.wall || 'other',
-      doorCount: guessDoors(p.sku, tc), drawerCount: guessDrawerCount(p.sku, tc), builtInROT: guessBuiltInROT(p.sku) };
-  });
+  // Split placements into two priced streams:
+  //  - cabinets → C3 catalog pricing (calculateLayoutPrice)
+  //  - fabrication/trim/panels (toe kick, crown, light rail, scribe, appliance
+  //    panels, hoods, touch-up) → priceFabricationItems, so nothing the design
+  //    shows is silently zero-priced.
+  // Appliances WITHOUT a sku (range, fridge, DW) are excluded from both.
+  // Appliances WITH a sku (sink base = SB36-FHD) ARE real cabinets.
+  const withSku = placements.filter(p => p.sku);
+  const fabrication = withSku.filter(p => FABRICATION_PREFIXES.some(pfx => p.sku.startsWith(pfx)));
+  const cabinets = withSku
+    .filter(p => !FABRICATION_PREFIXES.some(pfx => p.sku.startsWith(pfx)))
+    .map(p => {
+      const ce = findSku(p.sku);
+      const tc = ce?.t || (p.sku.match(/^W/) ? 'W' : p.sku.match(/^[UOT]/) ? 'T' : 'B');
+      return { sku: p.sku, qty: p.qty || 1, wall: p.wall || 'other',
+        doorCount: guessDoors(p.sku, tc), drawerCount: guessDrawerCount(p.sku, tc), builtInROT: guessBuiltInROT(p.sku) };
+    });
+  return { cabinets, fabrication };
+}
+
+// Map a construction profile (constructionProfiles.js) to the pricing engine's
+// profile config. Eclipse frameless yields all zeros — pricing unchanged.
+function pricingProfileOf(frameStyle) {
+  const c = getConstruction(frameStyle);
+  return {
+    overlayDoorChg: c.overlayCharge?.door || 0,
+    overlayDrawerChg: c.overlayCharge?.drawer || 0,
+    insetPremiumPct: c.insetPremiumPct || 0,
+  };
 }
 
 // ==================== THEME ====================
@@ -875,17 +882,19 @@ function TrainingScorePanel({ score }) {
 }
 
 // ==================== COMPARISON PRICING ====================
-function ComparisonPricingPanel({ placements }) {
+function ComparisonPricingPanel({ placements, frameStyle }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const runComparison = () => {
     setLoading(true);
-    const pricingItems = buildPricingPlacements(placements);
+    const { cabinets } = buildPricingPlacements(placements);
+    const profile = pricingProfileOf(frameStyle);
     const comparisons = COMPARE_COMBOS.map(combo => {
-      const q = calculateLayoutPrice(pricingItems, {
+      const q = calculateLayoutPrice(cabinets, {
         species: combo.species, construction: combo.construction,
         door: combo.door, drawerFront: 'DF-' + combo.door, drawerBox: '5/8-STD',
+        profile,
       }, findSkuNormalized);
       return { ...combo, subtotal: q.subtotal, items: q.items.length, found: q.items.filter(i => !i.error).length };
     });
@@ -924,11 +933,22 @@ function ComparisonPricingPanel({ placements }) {
 }
 
 // ==================== RESULTS VIEW ====================
+const DEALER_SETTINGS_KEY = 'ekd.dealerSettings';
+const DEALER_DEFAULTS = { marginPct: 0, marginMethod: 'markup', taxPct: 0, freight: 0, install: 0 };
+function loadDealerSettings() {
+  try { return { ...DEALER_DEFAULTS, ...(JSON.parse(localStorage.getItem(DEALER_SETTINGS_KEY)) || {}) }; }
+  catch { return { ...DEALER_DEFAULTS }; }
+}
+
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
   materials, selectedAppliances, countertopColor, prefs, trimSelections }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dealer, setDealer] = useState(loadDealerSettings);
+  useEffect(() => {
+    try { localStorage.setItem(DEALER_SETTINGS_KEY, JSON.stringify(dealer)); } catch { /* private mode */ }
+  }, [dealer]);
   if (!solverResult) return null;
 
   const placements = solverResult.placements || [];
@@ -936,7 +956,18 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
   placements.forEach(p => { const wall = p.wall || p.zone || 'other'; (wallGroups[wall] = wallGroups[wall] || []).push(p); });
 
   const cabinetTotal = quote?.subtotal || 0;
-  const grandTotal = cabinetTotal + (applianceTotal || 0) + (countertopEstimate?.totalLow ? (countertopEstimate.totalLow + countertopEstimate.totalHigh) / 2 : 0);
+  const fabricationTotal = quote?.fabrication?.subtotal || 0;
+  const fallbackCount = quote?.fallbackCount || 0;
+  const countertopMid = countertopEstimate?.totalLow ? (countertopEstimate.totalLow + countertopEstimate.totalHigh) / 2 : 0;
+
+  // Customer-ready math: dealer margin on cabinetry+fabrication list, flat
+  // freight & install, tax on materials (not install labor).
+  const listSubtotal = cabinetTotal + fabricationTotal;
+  const cabinetSell = calculateDealerPrice(listSubtotal, dealer.marginPct || 0, dealer.marginMethod).sellPrice;
+  const taxableBase = cabinetSell + (dealer.freight || 0) + (applianceTotal || 0) + countertopMid;
+  const taxAmt = taxableBase * ((dealer.taxPct || 0) / 100);
+  const customerTotal = taxableBase + (dealer.install || 0) + taxAmt;
+  const grandTotal = customerTotal;
   const isGola = placements.some(p => p.sku?.startsWith('FC-'));
 
   return (
@@ -946,6 +977,11 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {materials?.brand === 'shiloh' && (
         <div style={{ marginBottom: 16, padding: '10px 12px', background: '#c8a96e22', border: `1px solid ${C.gold}`, borderRadius: 8, fontSize: 12, color: C.text }}>
           <strong>Shiloh (framed) — {getConstruction(materials.frameStyle).label}.</strong> Cabinet pricing below is <strong>interim</strong>: cabinet bodies use <strong>Shiloh catalog v3.42 prices scraped from the spec book</strong> ({SHILOH_SKU_COUNT}{' '}SKUs); accessories/fillers/derived variants fall back to the Eclipse list. Construction, depths, and drawings are Shiloh-correct. Figures will be finalized against the official Shiloh price CSV.
+          {fallbackCount > 0 && (
+            <div style={{ marginTop: 6, fontWeight: 600, color: C.warn }}>
+              ⚠ {fallbackCount} of {(quote?.items || []).length} line items priced from the <u>Eclipse</u> list (no Shiloh match — marked "≈ Eclipse" below). Shiloh framed typically lists 5–15% higher; review before quoting.
+            </div>
+          )}
         </div>
       )}
 
@@ -957,9 +993,10 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           { label: 'Style', value: isGola ? 'Gola' : 'Standard' },
           { label: 'Training Match', value: trainingScore ? `${trainingScore.confidence}%` : 'N/A' },
           { label: 'Cabinetry', value: formatCurrency(cabinetTotal), accent: true },
+          { label: 'Trim & Fabrication', value: fabricationTotal > 0 ? formatCurrency(fabricationTotal) : 'Included' },
           { label: 'Appliances', value: applianceTotal > 0 ? formatCurrency(applianceTotal) : 'N/A' },
           { label: 'Countertops', value: countertopEstimate ? `${formatCurrency(countertopEstimate.totalLow)}-${formatCurrency(countertopEstimate.totalHigh)}` : 'N/A' },
-          { label: 'Est. Grand Total', value: formatCurrency(grandTotal), accent: true },
+          { label: 'Est. Customer Total', value: formatCurrency(grandTotal), accent: true },
         ].map((s, i) => (
           <div key={i} style={{ background: C.surface, borderRadius: 8, padding: 14, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 11, color: C.dim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{s.label}</div>
@@ -1401,7 +1438,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                      {['SKU', 'Qty', 'Doors', 'Dwrs', 'Stock', 'Door Chg', 'Unit Price'].map(h => (
+                      {['SKU', 'Qty', 'Doors', 'Dwrs', 'Stock', 'Door Chg', 'Constr.', 'Unit Price'].map(h => (
                         <th key={h} style={{ padding: '6px 8px', textAlign: h === 'SKU' ? 'left' : 'right', color: C.dim, fontSize: 10, textTransform: 'uppercase' }}>{h}</th>
                       ))}
                     </tr>
@@ -1409,15 +1446,26 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                   <tbody>
                     {items.map((item, i) => (
                       <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 11, color: item.error ? C.warn : C.text }}>{item.sku}</td>
+                        <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 11, color: item.error ? C.warn : C.text }}>
+                          {item.sku}
+                          {item._fallback && (
+                            <span title="No Shiloh catalog match — priced from the Eclipse list. Review before quoting."
+                              style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, fontSize: 9, fontFamily: 'inherit', fontWeight: 700, background: '#fdf3e0', color: C.warn, border: `1px solid ${C.warn}` }}>
+                              ≈ ECLIPSE
+                            </span>
+                          )}
+                        </td>
                         {item.error ? (
-                          <td colSpan={6} style={{ padding: '5px 8px', color: C.warn, fontStyle: 'italic', fontSize: 11 }}>{item.error}</td>
+                          <td colSpan={7} style={{ padding: '5px 8px', color: C.warn, fontStyle: 'italic', fontSize: 11 }}>{item.error}</td>
                         ) : (<>
                           <td style={{ padding: '5px 8px', textAlign: 'right' }}>{item.qty || 1}</td>
                           <td style={{ padding: '5px 8px', textAlign: 'right' }}>{item.doorCount || 0}</td>
                           <td style={{ padding: '5px 8px', textAlign: 'right' }}>{item.drawerCount || 0}</td>
                           <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(item.stockBase || 0)}</td>
                           <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{item.doorChg > 0 ? formatCurrency(item.doorChg) : '—'}</td>
+                          <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            {item.overlayChg > 0 ? `+${formatCurrency(item.overlayChg)}` : item.insetPct > 0 ? `+${item.insetPct}%` : '—'}
+                          </td>
                           <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(item.unitPrice || 0)}</td>
                         </>)}
                       </tr>
@@ -1427,15 +1475,113 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               </div>
             );
           })}
-          <div style={{ ...panelStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `2px solid ${C.primary}` }}>
-            <span style={{ fontWeight: 700, fontSize: 16 }}>ESTIMATED TOTAL ({(quote.items || []).length} items)</span>
-            <span style={{ color: C.accent, fontSize: 22, fontWeight: 700 }}>{formatCurrency(quote.subtotal || 0)}</span>
+
+          {/* Trim, panels & fabrication — explicit line items, never silently $0 */}
+          {quote.fabrication?.items?.length > 0 && (
+            <div style={panelStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Trim, Panels &amp; Fabrication</h4>
+                <span style={{ color: C.accent, fontWeight: 700, fontSize: 14 }}>{formatCurrency(fabricationTotal)}</span>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                    {['SKU', 'Description', 'Qty', 'Unit', 'Ext.'].map(h => (
+                      <th key={h} style={{ padding: '6px 8px', textAlign: ['Qty', 'Unit', 'Ext.'].includes(h) ? 'right' : 'left', color: C.dim, fontSize: 10, textTransform: 'uppercase' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {quote.fabrication.items.map((f, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 11 }}>{f.sku}</td>
+                      <td style={{ padding: '5px 8px', fontSize: 11, color: C.muted }}>
+                        {f.label}
+                        {f.estimate && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: C.warn }}>EST.</span>}
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }}>{f.qty}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {f.included ? <span style={{ color: C.dim, fontStyle: 'italic' }}>Included</span>
+                          : f.needsQuote ? <span style={{ color: C.warn, fontStyle: 'italic' }}>Quote separately</span>
+                          : formatCurrency(f.unitPrice)}
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                        {f.included || f.needsQuote ? '—' : formatCurrency(f.totalPrice)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {quote.fabrication.needsQuoteCount > 0 && (
+                <div style={{ marginTop: 8, fontSize: 11, color: C.warn }}>
+                  ⚠ {quote.fabrication.needsQuoteCount} item{quote.fabrication.needsQuoteCount > 1 ? 's' : ''} need{quote.fabrication.needsQuoteCount > 1 ? '' : 's'} a separate quote — not included in totals.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Dealer pricing — margin, freight, install, tax → customer total */}
+          <div style={panelStyle}>
+            <div style={sectionTitle}>Dealer Pricing</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
+              <div>
+                <label style={labelStyle}>Margin %</label>
+                <input type="number" min="0" max="80" step="1" value={dealer.marginPct}
+                  onChange={e => setDealer(d => ({ ...d, marginPct: Math.max(0, Number(e.target.value) || 0) }))} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Method</label>
+                <select value={dealer.marginMethod} onChange={e => setDealer(d => ({ ...d, marginMethod: e.target.value }))} style={inputStyle}>
+                  <option value="markup">Markup (cost × 1.X)</option>
+                  <option value="margin">Margin (cost ÷ (1−X))</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Freight $</label>
+                <input type="number" min="0" step="25" value={dealer.freight}
+                  onChange={e => setDealer(d => ({ ...d, freight: Math.max(0, Number(e.target.value) || 0) }))} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Install $</label>
+                <input type="number" min="0" step="100" value={dealer.install}
+                  onChange={e => setDealer(d => ({ ...d, install: Math.max(0, Number(e.target.value) || 0) }))} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Sales Tax %</label>
+                <input type="number" min="0" max="15" step="0.1" value={dealer.taxPct}
+                  onChange={e => setDealer(d => ({ ...d, taxPct: Math.max(0, Number(e.target.value) || 0) }))} style={inputStyle} />
+              </div>
+            </div>
+            {[
+              { label: `Cabinetry list (${(quote.items || []).length} items)`, value: cabinetTotal },
+              { label: 'Trim & fabrication', value: fabricationTotal },
+              ...(dealer.marginPct > 0 ? [{ label: `Dealer ${dealer.marginMethod} ${dealer.marginPct}%`, value: cabinetSell - listSubtotal }] : []),
+              ...(applianceTotal > 0 ? [{ label: 'Appliances (MSRP)', value: applianceTotal }] : []),
+              ...(countertopMid > 0 ? [{ label: 'Countertops (est. midpoint)', value: countertopMid }] : []),
+              ...(dealer.freight > 0 ? [{ label: 'Freight', value: dealer.freight }] : []),
+              ...(dealer.install > 0 ? [{ label: 'Installation (not taxed)', value: dealer.install }] : []),
+              ...(taxAmt > 0 ? [{ label: `Sales tax ${dealer.taxPct}%`, value: taxAmt }] : []),
+            ].map((row, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, borderBottom: `1px solid ${C.border}` }}>
+                <span style={{ color: C.muted }}>{row.label}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(row.value)}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12 }}>
+              <span style={{ fontWeight: 700, fontSize: 16 }}>CUSTOMER TOTAL</span>
+              <span style={{ color: C.accent, fontSize: 22, fontWeight: 700 }}>{formatCurrency(customerTotal)}</span>
+            </div>
+            {(dealer.marginPct === 0 && dealer.taxPct === 0 && !dealer.freight && !dealer.install) && (
+              <div style={{ marginTop: 8, fontSize: 11, color: C.warn }}>
+                Margin, freight, install, and tax are all zero — this total is manufacturer list cost, not a customer-ready price.
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {tab === 'training' && <TrainingScorePanel score={trainingScore} />}
-      {tab === 'compare' && <ComparisonPricingPanel placements={placements} />}
+      {tab === 'compare' && <ComparisonPricingPanel placements={placements} frameStyle={materials?.frameStyle} />}
     </div>
   );
 }
@@ -1575,12 +1721,14 @@ export default function App() {
       const score = scoreAgainstTraining(result);
       setTrainingScore(score);
 
-      const pricingItems = buildPricingPlacements(result.placements || []);
+      const { cabinets, fabrication } = buildPricingPlacements(result.placements || []);
       setPricingBrand(materials.brand);
-      const quoteResult = calculateLayoutPrice(pricingItems, {
+      const quoteResult = calculateLayoutPrice(cabinets, {
         species: materials.species, construction: materials.construction,
         door: materials.door, drawerFront: 'DF-' + materials.door, drawerBox: '5/8-STD',
+        profile: pricingProfileOf(materials.frameStyle),
       }, findSkuNormalized);
+      quoteResult.fabrication = priceFabricationItems(fabrication);
       setQuote(quoteResult);
 
       setView('results');

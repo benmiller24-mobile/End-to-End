@@ -9,14 +9,24 @@
  *   + drawerFrontGroupCharge × drawerCount
  *   + drawerBoxUpcharge × (drawers + ROTs + builtInROTs)
  *   + RBS charge ($87)
+ *   + overlayCharge.door × doorCount + overlayCharge.drawer × drawerCount   [framed lines, e.g. Shiloh 1¼" overlay]
  *   = prePly
+ *   × (1 + insetPremiumPct/100)                                             [framed inset constructions]
  *   × (1 + constructionPct/100)
  *   = UNIT PRICE
+ *
+ * The overlay/inset terms come from the selected construction profile
+ * (constructionProfiles.js). Eclipse frameless passes zeros, so Eclipse
+ * pricing is bit-for-bit unchanged.
  */
 
 import { SPECIES_PCT, CONSTRUCTION_PCT } from './finishData.js';
 import { DOOR_GROUP_CHARGES, DOORS, DRAWER_FRONTS, DRAWER_BOXES } from './doorData.js';
 import { isSqIn, isCO, isCustom, isFlat, isREF, REF_ICE_CUTOUT } from './helpers.js';
+
+// Type codes that take construction-profile charges (cabinet boxes only —
+// mouldings, fillers, accessories, and misc items never carry overlay/inset).
+const CABINET_TYPES = new Set(['B', 'W', 'T', 'V', 'C', 'D']);
 
 /**
  * Calculate the price for a single line item.
@@ -32,9 +42,12 @@ import { isSqIn, isCO, isCustom, isFlat, isREF, REF_ICE_CUTOUT } from './helpers
  * @param {string} globalDoor - Global door style code (default)
  * @param {string} globalDrawerFront - Global drawer front style code (default)
  * @param {string} globalDrawerBox - Global drawer box code (default)
- * @returns {Object} { unitPrice, totalPrice, stockBase, prePly, doorChg, dfChg, dbChg, isSqInItem, rbsChg, plyPct }
+ * @param {Object} [profile] - Construction-profile charges (from constructionProfiles.js):
+ *   { overlayDoorChg: $/door, overlayDrawerChg: $/drawer, insetPremiumPct: % }
+ *   Omit (or pass zeros) for Eclipse frameless — pricing is then unchanged.
+ * @returns {Object} { unitPrice, totalPrice, stockBase, prePly, doorChg, dfChg, dbChg, isSqInItem, rbsChg, plyPct, overlayChg, insetPct }
  */
-export function calculateItemPrice(item, species, construction, globalDoor = "HNVR", globalDrawerFront = "DF-HNVR", globalDrawerBox = "5/8-STD") {
+export function calculateItemPrice(item, species, construction, globalDoor = "HNVR", globalDrawerFront = "DF-HNVR", globalDrawerBox = "5/8-STD", profile = null) {
   // Custom items — pass-through pricing
   if (isCustom(item.s)) {
     const u = item.p || 0;
@@ -88,11 +101,20 @@ export function calculateItemPrice(item, species, construction, globalDoor = "HN
   // Step 5: RBS charge
   const rbsChg = item.rbs ? 87 : 0;
 
-  // Step 6: Pre-plywood subtotal
-  const prePly = stockBase + doorChg + dfChg + dbChg + rbsChg;
+  // Step 5b: Construction-profile charges — cabinet boxes only.
+  // Shiloh 1¼" overlay carries a per-door/per-drawer charge; Shiloh inset
+  // constructions carry a percentage premium over the overlay list price.
+  const isCabinet = CABINET_TYPES.has(item.t);
+  const overlayChg = (profile && isCabinet)
+    ? (profile.overlayDoorChg || 0) * (item.dc || 0) + (profile.overlayDrawerChg || 0) * drc
+    : 0;
+  const insetPct = (profile && isCabinet) ? (profile.insetPremiumPct || 0) : 0;
 
-  // Step 7: Apply construction multiplier (plywood upgrade)
-  const unitPrice = prePly * (1 + cm / 100);
+  // Step 6: Pre-plywood subtotal
+  const prePly = stockBase + doorChg + dfChg + dbChg + rbsChg + overlayChg;
+
+  // Step 7: Apply inset premium, then construction multiplier (plywood upgrade)
+  const unitPrice = prePly * (1 + insetPct / 100) * (1 + cm / 100);
 
   return {
     unitPrice,
@@ -105,20 +127,22 @@ export function calculateItemPrice(item, species, construction, globalDoor = "HN
     isSqInItem: itemSQ,
     rbsChg,
     plyPct: cm,
+    overlayChg,
+    insetPct,
   };
 }
 
 /**
  * Calculate total price for an array of line items (a room or full order)
  * @param {Array} items - Array of item objects with catalog data and quantities
- * @param {Object} config - { species, construction, door, drawerFront, drawerBox }
+ * @param {Object} config - { species, construction, door, drawerFront, drawerBox, profile? }
  * @returns {Object} { items: [...pricedItems], subtotal, itemCount }
  */
 export function calculateOrderTotal(items, config) {
-  const { species, construction, door, drawerFront, drawerBox } = config;
+  const { species, construction, door, drawerFront, drawerBox, profile } = config;
   let subtotal = 0;
   const pricedItems = items.map(item => {
-    const pricing = calculateItemPrice(item, species, construction, door, drawerFront, drawerBox);
+    const pricing = calculateItemPrice(item, species, construction, door, drawerFront, drawerBox, profile);
     subtotal += pricing.totalPrice;
     return { ...item, ...pricing };
   });
@@ -130,20 +154,24 @@ export function calculateOrderTotal(items, config) {
  * Takes simplified cabinet placement data and resolves against the catalog.
  *
  * @param {Array} placements - Array of { sku, qty, wall, position, mods, doorOverride, ... }
- * @param {Object} config - { species, construction, door, drawerFront, drawerBox }
+ * @param {Object} config - { species, construction, door, drawerFront, drawerBox, profile? }
  * @param {Function} skuLookup - Function to look up SKU in catalog (sku => catalogEntry)
- * @returns {Object} { items, subtotal, byWall: { wallId: wallSubtotal }, byType: { typeCode: typeSubtotal } }
+ * @returns {Object} { items, subtotal, byWall, byType, fallbackCount }
+ *   Items whose catalog entry carries `_fallback` (e.g. a Shiloh SKU priced
+ *   from the Eclipse list) keep that flag, and fallbackCount totals them.
  */
 export function calculateLayoutPrice(placements, config, skuLookup) {
   const byWall = {};
   const byType = {};
   let subtotal = 0;
+  let fallbackCount = 0;
 
   const pricedItems = placements.map(placement => {
     const catalogEntry = skuLookup(placement.sku);
     if (!catalogEntry) {
       return { ...placement, error: `SKU not found: ${placement.sku}`, unitPrice: 0, totalPrice: 0 };
     }
+    if (catalogEntry._fallback) fallbackCount++;
 
     // Merge catalog data with placement overrides
     const item = {
@@ -165,7 +193,7 @@ export function calculateLayoutPrice(placements, config, skuLookup) {
       refIce: placement.refIce,
     };
 
-    const pricing = calculateItemPrice(item, config.species, config.construction, config.door, config.drawerFront, config.drawerBox);
+    const pricing = calculateItemPrice(item, config.species, config.construction, config.door, config.drawerFront, config.drawerBox, config.profile);
 
     // Aggregate by wall
     const wall = placement.wall || "unassigned";
@@ -180,5 +208,5 @@ export function calculateLayoutPrice(placements, config, skuLookup) {
     return { ...placement, ...catalogEntry, ...pricing };
   });
 
-  return { items: pricedItems, subtotal, byWall, byType };
+  return { items: pricedItems, subtotal, byWall, byType, fallbackCount };
 }
