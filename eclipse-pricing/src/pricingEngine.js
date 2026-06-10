@@ -69,12 +69,15 @@ export function calculateItemPrice(item, species, construction, globalDoor = "HN
   const refIceCost = isREF(item.s) && item.refIce ? REF_ICE_CUTOUT : 0;
   const isCOItem = isCO(item.s);
 
-  // Step 1: Stock base price with species markup
-  const stockBase = isCOItem
-    ? item.p * (item.sqH || 0) * (1 + sm / 100)       // Column overlays: price × linear inches × species
-    : itemSQ
-      ? item.p * sqin * (1 + sm / 100) + refIceCost    // Sq-in items: price × sq.in × species + ice cutout
-      : item.p * len * (1 + sm / 100);                  // Standard: price × length × species
+  // Step 1: Stock base price with species markup.
+  // Modifications (item.mods = [{code, flat, pct}]) join the base BEFORE the
+  // species multiplier — real W.W. Wood confirmations apply the species
+  // adjustment to base+mod (e.g. #45923: BEP 145 + FTK mod 43.50 = 188.50,
+  // then PV −10% on the 188.50). Percentage mods (MOD/SQ30 = 0.30) compute
+  // on the raw list base.
+  const rawBase = isCOItem ? item.p * (item.sqH || 0) : itemSQ ? item.p * sqin : item.p * len;
+  const modChg = (item.mods || []).reduce((s, m) => s + (m.pct ? rawBase * m.pct : (m.flat || m.price || 0)), 0);
+  const stockBase = (rawBase + modChg) * (1 + sm / 100) + (itemSQ ? refIceCost : 0);
 
   // Step 2: Door style upcharge
   const ds = item.ds || globalDoor;
@@ -129,6 +132,7 @@ export function calculateItemPrice(item, species, construction, globalDoor = "HN
     plyPct: cm,
     overlayChg,
     insetPct,
+    modChg,
   };
 }
 
@@ -191,6 +195,7 @@ export function calculateLayoutPrice(placements, config, skuLookup) {
       rot2: placement.rot2,
       rot2Q: placement.rot2Qty,
       refIce: placement.refIce,
+      mods: placement.mods,
     };
 
     const pricing = calculateItemPrice(item, config.species, config.construction, config.door, config.drawerFront, config.drawerBox, config.profile);

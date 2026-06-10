@@ -22,7 +22,7 @@ import {
   GLAZES, HIGHLIGHTS, CHAR_TECHNIQUES, INTERIORS,
   guessDoors, guessDrawerCount, guessBuiltInROT,
   FABRICATION_PREFIXES, priceFabricationItems, calculateDealerPrice,
-  findOfficial, checkStyleCompat,
+  findOfficial, checkStyleCompat, applicableMods, findMod,
 } from '../../eclipse-pricing/src/index.js';
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
 import { evaluateOrderReadiness } from './orderReadiness.js';
@@ -183,7 +183,7 @@ function resolveSku(sku, _depth = 0) {
   return null;
 }
 
-function buildPricingPlacements(placements) {
+function buildPricingPlacements(placements, lineMods = {}) {
   // Split placements into two priced streams:
   //  - cabinets → C3 catalog pricing (calculateLayoutPrice)
   //  - fabrication/trim/panels (toe kick, crown, light rail, scribe, appliance
@@ -211,6 +211,16 @@ function buildPricingPlacements(placements) {
         drawerCount: off ? off.drc : guessDrawerCount(p.sku, tc),
         builtInROT: guessBuiltInROT(p.sku) };
     });
+  // Stable per-line keys (wall::sku::occurrence) carry user-selected
+  // modifications into pricing; stale keys from a prior solve are ignored.
+  const occ = {};
+  for (const c of cabinets) {
+    const base = `${c.wall}::${c.sku}`;
+    occ[base] = (occ[base] || 0) + 1;
+    c.lineKey = `${base}::${occ[base]}`;
+    const codes = lineMods[c.lineKey] || [];
+    if (codes.length) c.mods = codes.map(code => findMod(code)).filter(Boolean);
+  }
   return { cabinets, fabrication };
 }
 
@@ -1099,6 +1109,48 @@ function ComparisonPricingPanel({ placements, frameStyle }) {
   );
 }
 
+// ==================== LINE MODIFICATIONS (official v8.8 codes) ====================
+// Per-cabinet modification picker: only the codes the official applicability
+// matrix allows for that SKU. Charges are flat $ or % of the line's list base.
+function LineModEditor({ item, lineMods, onChange }) {
+  const avail = applicableMods(item.sku);
+  const applied = lineMods[item.lineKey] || [];
+  if (!avail.length && !applied.length) return null;
+  const addable = avail.filter(m => !applied.includes(m.code));
+  return (
+    <tr style={{ background: '#faf8f3' }}>
+      <td colSpan={8} style={{ padding: '4px 8px 6px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 9.5, color: C.dim, textTransform: 'uppercase', letterSpacing: 0.5 }}>Mods</span>
+          {applied.map(code => {
+            const m = findMod(code);
+            return (
+              <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, background: '#fff', border: `1px solid ${C.gold}`, borderRadius: 4, padding: '2px 7px' }}>
+                <strong>{code}</strong>
+                <span style={{ color: C.dim }}>{m ? (m.pct ? `+${Math.round(m.pct * 100)}%` : m.flat ? `+${formatCurrency(m.flat)}` : 'N/C') : ''}</span>
+                <button onClick={() => onChange({ ...lineMods, [item.lineKey]: applied.filter(c => c !== code) })}
+                  style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 11, padding: 0 }}>✕</button>
+              </span>
+            );
+          })}
+          {addable.length > 0 && (
+            <select value="" onChange={e => { if (e.target.value) onChange({ ...lineMods, [item.lineKey]: [...applied, e.target.value] }); }}
+              style={{ ...inputStyle, width: 'auto', maxWidth: 360, padding: '3px 6px', fontSize: 11 }}>
+              <option value="">+ add modification ({addable.length} available)…</option>
+              {addable.map(m => (
+                <option key={m.code} value={m.code}>
+                  {m.code} — {m.desc} ({m.pct ? `+${Math.round(m.pct * 100)}%` : m.flat ? `+$${m.flat}` : 'N/C'})
+                </option>
+              ))}
+            </select>
+          )}
+          {item.modChg > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, marginLeft: 'auto' }}>mods +{formatCurrency(item.modChg)}</span>}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ==================== ACK RECONCILIATION (T3b) ====================
 // The dealer has 24 hours to review the W.W. Wood confirmation. Paste its
 // text (open the PDF → select all → copy) and diff it against this quote.
@@ -1196,7 +1248,8 @@ function loadDealerSettings() {
 
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
-  projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {} }) {
+  projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {},
+  lineMods = {}, onChangeLineMods }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1744,7 +1797,8 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                   </thead>
                   <tbody>
                     {items.map((item, i) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <React.Fragment key={i}>
+                      <tr style={{ borderBottom: `1px solid ${C.border}` }}>
                         <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 11, color: item.error ? C.warn : C.text }}>
                           {item.sku}
                           {item._fallback && (
@@ -1768,6 +1822,10 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                           <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(item.unitPrice || 0)}</td>
                         </>)}
                       </tr>
+                      {!item.error && onChangeLineMods && (
+                        <LineModEditor item={item} lineMods={lineMods} onChange={onChangeLineMods} />
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -2121,6 +2179,7 @@ export default function App() {
   // Results
   const [solverResult, setSolverResult] = useState(null);
   const [quote, setQuote] = useState(null);
+  const [lineMods, setLineMods] = useState({});   // lineKey -> [mod codes]
   const [trainingScore, setTrainingScore] = useState(null);
   const [solving, setSolving] = useState(false);
   const [error, setError] = useState(null);
@@ -2136,7 +2195,7 @@ export default function App() {
   // Full designer state snapshot — everything needed to reproduce a design.
   const collectState = () => ({
     layoutType, roomType, walls, appliances, island, peninsula, prefs,
-    materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, orderSpec,
+    materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, orderSpec, lineMods,
   });
   const applyState = (s) => {
     if (!s) return;
@@ -2150,6 +2209,7 @@ export default function App() {
     setTrimSelections(t => ({ ...t, ...(s.trimSelections || {}) }));
     setSelectedTemplate(s.selectedTemplate || null);
     if (s.orderSpec) setOrderSpec(o => ({ ...o, ...s.orderSpec }));
+    setLineMods(s.lineMods || {});
     setSolverResult(null); setQuote(null); setView('designer');
   };
 
@@ -2205,6 +2265,25 @@ export default function App() {
     }
   }, []);
 
+  // Price (or re-price) a solved design — used by handleSolve and whenever
+  // per-line modifications change (mods reprice without a re-solve).
+  const priceDesign = useCallback((result, mods) => {
+    const { cabinets, fabrication } = buildPricingPlacements(result.placements || [], mods);
+    setPricingBrand(materials.brand);
+    const quoteResult = calculateLayoutPrice(cabinets, {
+      species: materials.species, construction: materials.construction,
+      door: materials.door, drawerFront: 'DF-' + materials.door, drawerBox: '5/8-STD',
+      profile: pricingProfileOf(materials.frameStyle),
+    }, findSkuNormalized);
+    quoteResult.fabrication = priceFabricationItems(fabrication);
+    return quoteResult;
+  }, [materials]);
+
+  useEffect(() => {
+    if (solverResult) setQuote(priceDesign(solverResult, lineMods));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lineMods]);
+
   const handleSolve = useCallback(() => {
     setSolving(true);
     setError(null);
@@ -2241,14 +2320,7 @@ export default function App() {
       const score = scoreAgainstTraining(result);
       setTrainingScore(score);
 
-      const { cabinets, fabrication } = buildPricingPlacements(result.placements || []);
-      setPricingBrand(materials.brand);
-      const quoteResult = calculateLayoutPrice(cabinets, {
-        species: materials.species, construction: materials.construction,
-        door: materials.door, drawerFront: 'DF-' + materials.door, drawerBox: '5/8-STD',
-        profile: pricingProfileOf(materials.frameStyle),
-      }, findSkuNormalized);
-      quoteResult.fabrication = priceFabricationItems(fabrication);
+      const quoteResult = priceDesign(result, lineMods);
       setQuote(quoteResult);
 
       // Record this solve as a revision (newest first). Persists when a
@@ -2270,7 +2342,7 @@ export default function App() {
     }
     setSolving(false);
   }, [layoutType, roomType, walls, appliances, prefs, materials, island, peninsula,
-      selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, projectId]);
+      selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, projectId, lineMods, priceDesign]);
 
   const STEPS = ['Layout', 'Materials', 'Appliances', 'Countertops', 'Trim & Molding', 'Review'];
 
@@ -2341,6 +2413,7 @@ export default function App() {
             prefs={prefs} trimSelections={trimSelections}
             projectMeta={projectMeta} revisions={revisions} onRestoreRevision={handleRestoreRevision}
             walls={walls} orderSpec={orderSpec}
+            lineMods={lineMods} onChangeLineMods={setLineMods}
             onBack={() => { setView('designer'); setStep(5); }} />
         ) : (
           <>

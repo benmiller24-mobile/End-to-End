@@ -89,12 +89,18 @@ export function buildOrderItems(placements, quote, { inset = false } = {}) {
   const rows = [];
   const cutouts = [];
   let tag = 1;
+  const occ = {};
   for (const wall of Object.keys(wallGroups)) {
     for (const p of wallGroups[wall]) {
       const isApp = p.type === 'appliance';
       if (isApp && !p.sku) continue;                       // freestanding appliances aren't order lines
       const cabNo = `KD${String(tag++).padStart(2, '0')}`;
-      const priced = quote?.items?.find(qi => qi.sku === p.sku);
+      // Match the priced quote line by the same wall::sku::occurrence key the
+      // pricing path uses, so per-line modifications land on the right row.
+      const base = `${p.wall || p.zone || 'other'}::${p.sku}`;
+      occ[base] = (occ[base] || 0) + 1;
+      const lineKey = `${base}::${occ[base]}`;
+      const priced = quote?.items?.find(qi => qi.lineKey === lineKey) || quote?.items?.find(qi => qi.sku === p.sku);
       const fabPriced = quote?.fabrication?.items?.find(fi => fi.sku === p.sku);
       const w = p.width || 0;
       rows.push({
@@ -108,6 +114,8 @@ export function buildOrderItems(placements, quote, { inset = false } = {}) {
         needsQuote: !!fabPriced?.needsQuote,
         resolution: priced?._resolution || null,
         fallback: !!priced?._fallback,
+        mods: (priced?.mods || []).map(m => ({ code: m.code, desc: m.desc, charge: m.pct ? null : (m.flat || 0), pct: m.pct || 0 })),
+        modChg: priced?.modChg || 0,
       });
       const cf = cutoutFormFor(p.sku, inset);
       if (cf) cutouts.push({ cabNo, sku: (p.sku || '').replace(/^FC-/, ''), ...cf });
@@ -249,6 +257,17 @@ export function generateOrderPackage({ brand, cover, items, cutouts, customQuote
     doc.setDrawColor(...LINE); doc.setLineWidth(0.4);
     doc.line(margin, y + rowH, pageW - margin, y + rowH);
     y += rowH;
+    // Modification sub-lines (the confirmation format prints these under the cabinet)
+    for (const mod of (row.mods || [])) {
+      if (y + rowH > pageH - 60) { wm(); y = newItemPage(); }
+      doc.setFontSize(7.5); doc.setTextColor(...MUT);
+      doc.text(`↳ MOD ${mod.code} — ${mod.desc}`, margin + 92, y + 10, { maxWidth: 300 });
+      doc.text(mod.pct ? `+${Math.round(mod.pct * 100)}% of list` : (mod.charge ? fmtMoney(mod.charge) : 'N/C'),
+        margin + 460 + 64, y + 10, { align: 'right' });
+      doc.setDrawColor(...LINE); doc.setLineWidth(0.3);
+      doc.line(margin + 88, y + rowH, pageW - margin, y + rowH);
+      y += rowH;
+    }
   }
   const subtotal = items.reduce((s, r) => s + (r.needsQuote ? 0 : (r.price || 0) * (r.qty || 1)), 0);
   doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.setTextColor(...INK);

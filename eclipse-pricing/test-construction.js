@@ -183,6 +183,32 @@ for (const [sp, pct] of [['Cherry', 10], ['Alder', 12], ['QS White Oak', 16], ['
   assert(SPECIES_PCT[sp] === pct, `${sp} = ${pct}% (corpus-confirmed)`);
 }
 
+console.log('\n═══ Official v8.8 modifications ═══');
+const { MODS, applicableMods, findMod, MOD_SKU_COUNT } = await import('./src/modsV88.js');
+assert(MODS.length > 700, `${MODS.length} official mod codes loaded (>700)`);
+assert(MOD_SKU_COUNT > 20000, `${MOD_SKU_COUNT} SKUs carry applicability rules (>20k)`);
+assert(findMod('MOD/SQ30')?.pct === 0.3, 'MOD/SQ30 = 30% of list (matches order confirmations)');
+const b24mods = applicableMods('B24R');
+assert(b24mods.length > 0 && b24mods.some(m => /DEPTH OPTION/.test(m.code)), `B24R has applicable mods incl. depth options (got ${b24mods.length})`);
+
+// Real-confirmation anchor (#45923): BEP 145 list + FTK mod 89×?… the Eclipse
+// confirmation shows base+mod summed BEFORE the species adjustment:
+// 145 + 43.50 = 188.50, then PV −10% → 169.65. Reproduce with a flat mod.
+const modItem = calculateItemPrice(
+  { s: 'BEP-TEST', p: 145, r: 'S6', t: 'A', dc: 0, drc: 0, len: 1, q: 1, mods: [{ code: 'FTK', flat: 43.50 }] },
+  'PV', 'Standard', 'HNVR', 'DF-HNVR', '5/8-STD',
+);
+assert(approx(modItem.unitPrice, 169.65), `base+mod then species: (145+43.50)×0.90 = $169.65 as confirmed (got ${modItem.unitPrice.toFixed(2)})`);
+// Percentage mod: MOD/SQ30 on a $656 list = $196.80 (Soderstrom kitchen line 4.1.1)
+const sqItem = calculateItemPrice(
+  { s: 'INFBDEPL', p: 656, r: 'SHILOH', t: 'A', dc: 0, drc: 0, len: 1, q: 1, mods: [{ code: 'MOD/SQ30', pct: 0.3 }] },
+  'White Oak', 'Standard',
+);
+assert(approx(sqItem.modChg, 196.80), `MOD/SQ30 on $656 = $196.80 as quoted (got ${sqItem.modChg.toFixed(2)})`);
+// No mods → bit-identical pricing (regression)
+const noMod = calculateItemPrice(ITEM, SPECIES, CONSTR);
+assert(approx(noMod.unitPrice, base.unitPrice) && noMod.modChg === 0, 'mods absent → pricing unchanged');
+
 console.log('\n═══ Official Eclipse v8.8 data (manufacturer workbooks) ═══');
 assert(OFFICIAL_SKU_COUNT > 23000, `official set carries ${OFFICIAL_SKU_COUNT} SKUs (>23k)`);
 // Real-order anchors must agree with the patched catalog AND the official file

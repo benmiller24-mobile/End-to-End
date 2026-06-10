@@ -64,3 +64,9 @@ export {
 export {
   OFFICIAL_V88, findOfficial, OFFICIAL_SKU_COUNT, checkStyleCompat,
 } from './officialV88.js';
+
+// Official Eclipse v8.8 modifications: codes, charges (flat or % of list),
+// and the per-SKU applicability matrix.
+export {
+  MODS, applicableMods, findMod, MOD_SKU_COUNT,
+} from './modsV88.js';
