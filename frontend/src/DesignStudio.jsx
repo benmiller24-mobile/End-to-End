@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { OFFICIAL_V88 } from '../../eclipse-pricing/src/officialV88.js';
 import { SHILOH_CATALOG } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
 import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
+import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
 import { makeItem, makeAppliance, settleItem, skuInfo, priceLookup, manualChecks } from './manualDesign.js';
 
 /**
@@ -64,8 +65,7 @@ function catalogList(brand) {
   }
   const rows = [];
   for (const [sku, e] of OFFICIAL_V88) {
-    const price = findSku(sku)?.p ?? null;
-    rows.push({ sku, price, w: e.w, h: e.h, zone: ({ W: 'upper', WC: 'upper', T: 'tall', GT: 'tall', BK: 'tall' })[e.cat] || 'base',
+    rows.push({ sku, w: e.w, h: e.h, zone: ({ W: 'upper', WC: 'upper', T: 'tall', GT: 'tall', BK: 'tall' })[e.cat] || 'base',
       cat: ({ B: 'Base', BC: 'Base Corner', T: 'Tall', W: 'Wall', WC: 'Wall Corner', V: 'Vanity', BK: 'Bookcase', GB: 'Gola Base', GBC: 'Gola Corner', GT: 'Gola Tall', GV: 'Gola Vanity' })[e.cat] || 'Other',
       sub: e.sub || '' });
   }
@@ -96,8 +96,19 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     let rows = all.filter(r => r.cat === cat);
     if (search) { const q = search.toUpperCase(); rows = all.filter(r => r.sku.toUpperCase().includes(q)); }
     if (widthF) rows = rows.filter(r => Math.abs((r.w || 0) - Number(widthF)) < 0.6);
-    return rows.slice(0, 60);
-  }, [all, cat, search, widthF]);
+    rows = rows.slice(0, 60);
+    // Price just the visible slice with the SAME normalizer the quote uses —
+    // what you see is exactly what placing it will cost. ≈ = family-resolved.
+    if (brand !== 'shiloh') {
+      setPricingBrand('eclipse');
+      rows = rows.map(r => {
+        if (r.price != null) return r;
+        const hit = findSkuNormalized(r.sku);
+        return { ...r, price: hit?.p ?? null, approx: hit ? hit._resolution !== 'exact' : false };
+      });
+    }
+    return rows;
+  }, [all, cat, search, widthF, brand]);
 
   // viewBox
   const vb = useMemo(() => {
@@ -346,7 +357,9 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                 background: armed?.sku === r.sku ? '#c8a96e22' : 'transparent', borderBottom: '1px solid #f1ece4' }}>
               <span style={{ fontFamily: 'monospace', fontWeight: 600, flex: 1 }}>{r.sku}</span>
               <span style={{ color: '#999', fontSize: 10 }}>{r.w ? `${r.w}w` : ''}{r.h ? `×${r.h}h` : ''}</span>
-              <span style={{ color: '#777', fontVariantNumeric: 'tabular-nums' }}>{r.price != null ? `$${Number(r.price).toLocaleString()}` : '—'}</span>
+              <span style={{ color: '#777', fontVariantNumeric: 'tabular-nums' }}
+                title={r.approx ? 'Family-resolved price — exact catalog row not found; verify before ordering' : undefined}>
+                {r.price != null ? `${r.approx ? '≈' : ''}$${Number(r.price).toLocaleString()}` : '—'}</span>
             </div>
           ))}
           {!list.length && <div style={{ padding: 12, fontSize: 12, color: '#999' }}>No matches — adjust search or category.</div>}
