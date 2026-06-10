@@ -1,6 +1,7 @@
 // Leonardo AI image generation — server-side proxy.
-// Key lives here (env LEONARDO_API_KEY with an embedded fallback); never shipped
-// to the browser, and this also fixes the CORS block on cloud.leonardo.ai.
+// Key comes from the LEONARDO_API_KEY env var (set in Netlify site settings);
+// it is never shipped to the browser, and the proxy also fixes the CORS block
+// on cloud.leonardo.ai.
 //
 // POST /api/leonardo  { prompt, initImage?, controlnetWeight? }  -> { generationId }
 //   - initImage (base64 PNG, no data: prefix) → structure-locked render: the
@@ -9,7 +10,7 @@
 //   - no initImage → standard PhotoReal perspective render.
 // GET  /api/leonardo?id=<generationId>  -> { status, url? }
 
-const LEONARDO_KEY = process.env.LEONARDO_API_KEY || '02287e55-c723-4d62-965d-ccba8daa255b';
+const LEONARDO_KEY = process.env.LEONARDO_API_KEY;
 const BASE = 'https://cloud.leonardo.ai/api/rest/v1';
 const MODEL_KINO_XL = 'aa77f04e-3eec-4034-9c07-d0f619684628'; // SDXL (supports PhotoReal v2 + Edge ControlNet 19)
 const H = { Authorization: `Bearer ${LEONARDO_KEY}`, 'Content-Type': 'application/json' };
@@ -33,6 +34,7 @@ async function uploadInitImage(buffer) {
 
 export default async (req) => {
   try {
+    if (!LEONARDO_KEY) return json({ error: 'LEONARDO_API_KEY is not configured on the server' }, 503);
     if (req.method === 'POST') {
       const { prompt, initImage, controlnetWeight, mode } = await req.json();
       if (!prompt) return json({ error: 'prompt required' }, 400);
