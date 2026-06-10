@@ -717,7 +717,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
 
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────
 
-export default function FloorPlanView({ solverResult, inputWalls, debug = false }) {
+export default function FloorPlanView({ solverResult, inputWalls, debug = false, titleBlock = {} }) {
   if (!solverResult) return null;
 
   const walls = inputWalls || solverResult._inputWalls || [];
@@ -808,7 +808,10 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
         maxY = Math.max(maxY, pl.iy + pl.id + ohD + 16);
       }
     }
-    return `0 0 ${Math.max(maxX + 110, 300)} ${Math.max(maxY + 130, 220)}`;
+    // Reserve room at the bottom for the title block + scale bar strip.
+    const vw = Math.max(maxX + 110, 300);
+    const vh = Math.max(maxY + 130, 220) + 64;
+    return { str: `0 0 ${vw} ${vh}`, w: vw, h: vh };
   }, [wallPositions, island, layoutType]);
 
   const tagAssignments = useMemo(() => {
@@ -843,7 +846,7 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
   const getWP = (id) => wallPositions.find(wp => wp.id === id);
 
   return (
-    <svg viewBox={viewBox}
+    <svg viewBox={viewBox.str}
       style={{ width: '100%', height: 'auto', maxHeight: 700, background: C.bg, borderRadius: 4 }}
       xmlns="http://www.w3.org/2000/svg">
 
@@ -1092,7 +1095,7 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
       })()}
 
       {/* ── LEGEND ── */}
-      <g transform={`translate(14, ${parseFloat(viewBox.split(' ')[3]) - 22})`}>
+      <g transform={`translate(14, ${viewBox.h - 22})`}>
         {[
           { label: 'Base Cabinet', dash: false, fill: C.cabFill },
           { label: 'Upper (overhead)', dash: true, fill: C.upperFill },
@@ -1114,6 +1117,45 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false 
           </g>
         ))}
       </g>
+
+      {/* ── SHEET FOOTER: graphic scale bar + bordered title block ── */}
+      {(() => {
+        const tbW = 210, tbH = 48;
+        const tbX = viewBox.w - tbW - 14, tbY = viewBox.h - tbH - 10;
+        const rows = [
+          ['PROJECT', titleBlock.project || 'Kitchen Floor Plan'],
+          ['CLIENT', titleBlock.client || '—'],
+          ['DESIGNER / DATE', `${titleBlock.designer || 'Eclipse Kitchen Designer'}  ·  ${titleBlock.date || new Date().toLocaleDateString('en-US')}`],
+        ];
+        const rowH = tbH / 3;
+        // Graphic scale: plan units are 1 SVG unit = 1 inch, so 12 units = 1 ft.
+        const ft = 12, sbX = tbX - 4 - 4 * ft, sbY = tbY + tbH - 8;
+        return (
+          <g>
+            <text x={sbX} y={sbY - 3} fill={C.dimText} fontSize={4}
+              fontFamily="Helvetica,Arial,sans-serif">SCALE — each band = 1'-0"</text>
+            {[0, 1, 2, 3].map(k => (
+              <rect key={`sb${k}`} x={sbX + k * ft} y={sbY} width={ft} height={3.4}
+                fill={k % 2 ? '#ffffff' : C.dimText} stroke={C.dimText} strokeWidth={0.4} />
+            ))}
+            <rect x={tbX} y={tbY} width={tbW} height={tbH} fill="#ffffff" stroke={C.dimText} strokeWidth={0.9} />
+            {rows.map(([label, value], i) => (
+              <g key={`tbr${i}`}>
+                {i > 0 && <line x1={tbX} y1={tbY + rowH * i} x2={tbX + tbW} y2={tbY + rowH * i} stroke={C.dimText} strokeWidth={0.4} />}
+                <text x={tbX + 4} y={tbY + rowH * i + 5.5} fill="#888" fontSize={3.2}
+                  fontFamily="Helvetica,Arial,sans-serif" letterSpacing={0.6}>{label}</text>
+                <text x={tbX + 4} y={tbY + rowH * i + rowH - 3} fill={C.dimText} fontSize={4.6} fontWeight="700"
+                  fontFamily="Helvetica,Arial,sans-serif">{String(value).slice(0, 52)}</text>
+              </g>
+            ))}
+            <line x1={tbX + tbW - 38} y1={tbY + rowH * 2} x2={tbX + tbW - 38} y2={tbY + tbH} stroke={C.dimText} strokeWidth={0.4} />
+            <text x={tbX + tbW - 34} y={tbY + rowH * 2 + 5.5} fill="#888" fontSize={3.2}
+              fontFamily="Helvetica,Arial,sans-serif" letterSpacing={0.6}>SHEET</text>
+            <text x={tbX + tbW - 34} y={tbY + tbH - 3} fill={C.dimText} fontSize={5.4} fontWeight="700"
+              fontFamily="Helvetica,Arial,sans-serif">FP-1</text>
+          </g>
+        );
+      })()}
     </svg>
   );
 }

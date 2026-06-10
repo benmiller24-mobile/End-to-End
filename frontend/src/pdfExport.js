@@ -28,6 +28,8 @@ export async function exportPDF(options = {}) {
     applianceTotal = 0,
     countertopEstimate = null,
     formatCurrency = (v) => `$${v.toLocaleString()}`,
+    bom = [],          // [{sku, qty, w, h, d, walls}] — project-wide bill of materials
+    specs = [],        // construction-notes lines (brand, overlay, species, hardware, …)
   } = options;
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
@@ -163,6 +165,77 @@ export async function exportPDF(options = {}) {
       } catch (e) {
         console.warn(`Sheet ${i} (${sheets[i].kind}) SVG export failed:`, e);
         yOffset += 30;
+      }
+    }
+  }
+
+  // ── BOM + construction notes sheet(s) — the order-entry page ──
+  if (bom.length > 0 || specs.length > 0) {
+    doc.addPage('letter', 'landscape');
+    let y = margin + 8;
+    doc.setFontSize(14);
+    doc.setTextColor(26, 26, 26);
+    doc.text('BILL OF MATERIALS', margin, y);
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`${bom.reduce((s, r) => s + r.qty, 0)} units · ${bom.length} SKUs`, pageW - margin - 110, y);
+    y += 14;
+
+    const cols = [
+      { k: 'sku', label: 'SKU', x: margin, w: 190 },
+      { k: 'qty', label: 'QTY', x: margin + 195, w: 34, r: true },
+      { k: 'w', label: 'W"', x: margin + 234, w: 40, r: true },
+      { k: 'h', label: 'H"', x: margin + 279, w: 40, r: true },
+      { k: 'd', label: 'D"', x: margin + 324, w: 40, r: true },
+      { k: 'walls', label: 'LOCATION', x: margin + 372, w: 130 },
+    ];
+    const rowH = 13;
+    const drawHeader = () => {
+      doc.setFillColor(236, 233, 228);
+      doc.rect(margin, y, pageW - 2 * margin, rowH, 'F');
+      doc.setFontSize(7.5);
+      doc.setTextColor(60, 60, 60);
+      cols.forEach(c => doc.text(c.label, c.r ? c.x + c.w : c.x, y + 9, { align: c.r ? 'right' : 'left' }));
+      y += rowH;
+    };
+    drawHeader();
+    doc.setFontSize(8);
+    for (const row of bom) {
+      if (y + rowH > pageH - 30) {
+        doc.addPage('letter', 'landscape');
+        y = margin + 8;
+        doc.setFontSize(11); doc.setTextColor(26, 26, 26);
+        doc.text('BILL OF MATERIALS (cont.)', margin, y);
+        y += 12;
+        drawHeader();
+        doc.setFontSize(8);
+      }
+      doc.setTextColor(26, 26, 26);
+      cols.forEach(c => {
+        const v = row[c.k];
+        doc.text(v == null || v === '' ? '—' : String(v), c.r ? c.x + c.w : c.x, y + 9, { align: c.r ? 'right' : 'left' });
+      });
+      doc.setDrawColor(228, 221, 210);
+      doc.setLineWidth(0.4);
+      doc.line(margin, y + rowH, pageW - margin, y + rowH);
+      y += rowH;
+    }
+
+    if (specs.length > 0) {
+      if (y + 30 + specs.length * 12 > pageH - 30) {
+        doc.addPage('letter', 'landscape');
+        y = margin + 8;
+      }
+      y += 18;
+      doc.setFontSize(12);
+      doc.setTextColor(26, 26, 26);
+      doc.text('CONSTRUCTION NOTES', margin, y);
+      y += 12;
+      doc.setFontSize(8.5);
+      doc.setTextColor(70, 70, 70);
+      for (const line of specs) {
+        doc.text(`•  ${line}`, margin, y);
+        y += 12;
       }
     }
   }

@@ -1145,6 +1145,31 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         <button onClick={async () => {
           setExporting(true);
           try {
+            // Project-wide BOM: aggregate placements by SKU with dims + locations.
+            const bomMap = new Map();
+            for (const p of placements) {
+              if (!p.sku) continue;
+              const key = p.sku;
+              const e = bomMap.get(key) || { sku: p.sku, qty: 0, w: p.width || '', h: p._elev?.height || p.height || '', d: p._elev?.depth || p.depth || '', wallSet: new Set() };
+              e.qty += p.qty || 1;
+              if (p.wall) e.wallSet.add(p.wall === 'island' ? 'Island' : `Wall ${p.wall}`);
+              bomMap.set(key, e);
+            }
+            const bom = [...bomMap.values()]
+              .map(e => ({ ...e, walls: [...e.wallSet].join(', ') }))
+              .sort((a, b) => a.sku.localeCompare(b.sku));
+            const constr = getConstruction(materials?.frameStyle);
+            const specs = [
+              `${materials.brand === 'shiloh' ? 'Shiloh (framed)' : 'Eclipse (frameless)'} — ${constr.note || constr.label}`,
+              `Species/finish: ${materials.species}${materials.finishColor && materials.finishColor !== 'Natural' ? ` · ${materials.finishColor}` : ' · Natural'}${materials.islandSpecies ? ` (island: ${materials.islandSpecies})` : ''}`,
+              `Door style: ${materials.door} · Box: ${materials.construction}` ,
+              `Hardware: ${materials.hardware === 'bar' ? 'Bar pull' : 'Knob'}${materials.hardwareFinish ? ` (${materials.hardwareFinish})` : ''} — base pulls top rail, upper pulls bottom rail`,
+              `Backsplash: ${trimSelections?.backsplashStyle === 'full_slab' ? 'Full-height slab' : 'Standard 18" band'} · Ceiling fit: ${trimSelections?.ceilingFit || 'crown'}`,
+              ...(trimSelections?.crown ? [`Crown moulding: ${trimSelections.crownProfile === 'furniture' ? 'furniture profile' : 'standard 3½"'}`] : []),
+              ...(trimSelections?.lightRail ? ['Light rail under uppers'] : []),
+              'All dimensions to face of finished cabinet U.N.O. — verify in field before fabrication.',
+              'Appliances & fixtures by others — confirm rough-ins and cut-outs against manufacturer specs.',
+            ];
             await exportPDF({
               title: projectMeta.name
                 ? `${projectMeta.name}${projectMeta.customer ? ' — ' + projectMeta.customer : ''}`
@@ -1156,6 +1181,8 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               applianceTotal: applianceTotal || 0,
               countertopEstimate,
               formatCurrency,
+              bom,
+              specs,
             });
           } catch (e) { console.error('PDF export failed:', e); }
           setExporting(false);
@@ -1177,7 +1204,13 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {tab === 'floorplan' && (
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
           <div data-pdf="floorplan" style={{ flex: '1 1 520px', minWidth: 0 }}>
-            <FloorPlanView solverResult={solverResult} inputWalls={solverResult._inputWalls} debug={debugOverlay} />
+            <FloorPlanView solverResult={solverResult} inputWalls={solverResult._inputWalls} debug={debugOverlay}
+              titleBlock={{
+                project: projectMeta.name || `${solverResult?.roomType || 'Kitchen'} Floor Plan`,
+                client: [projectMeta.customer, projectMeta.jobNumber && `Job #${projectMeta.jobNumber}`, projectMeta.address].filter(Boolean).join('  ·  '),
+                designer: projectMeta.designer || 'Eclipse Kitchen Designer',
+                date: new Date().toLocaleDateString('en-US'),
+              }} />
           </div>
           <ApplianceRecommendationPanel solverResult={solverResult} style={{ flex: '0 0 340px', maxWidth: 360 }} />
         </div>

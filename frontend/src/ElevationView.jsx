@@ -75,17 +75,21 @@ const C = {
 /** Format inches as fractional string */
 function fmt(inches) {
   if (inches == null) return '';
-  const whole = Math.floor(inches);
-  const frac = inches - whole;
-  if (frac < 0.03) return `${whole}"`;
+  // Dealer drawings are fractional-inch documents: snap every dimension to
+  // the nearest 1/8" so floating-point creep can never print "34.62"" on a
+  // shop drawing.
+  const snapped = Math.round(inches * 8) / 8;
+  const whole = Math.floor(snapped);
+  const frac = snapped - whole;
+  if (frac < 0.001) return `${whole}"`;
   const fracs = [
     [0.125, '⅛'], [0.25, '¼'], [0.375, '⅜'], [0.5, '½'],
     [0.625, '⅝'], [0.75, '¾'], [0.875, '⅞'],
   ];
   for (const [v, sym] of fracs) {
-    if (Math.abs(frac - v) < 0.03) return whole > 0 ? `${whole}${sym}"` : `${sym}"`;
+    if (Math.abs(frac - v) < 0.001) return whole > 0 ? `${whole}${sym}"` : `${sym}"`;
   }
-  return `${Math.round(inches * 100) / 100}"`;
+  return `${whole}"`;
 }
 
 /** Detect if a cabinet is a filler or scribe */
@@ -746,7 +750,7 @@ function FillerStrip({ x, y, w, h, label, frontFill = C.fillerFill }) {
     <g>
       <rect x={x} y={y} width={w} height={h}
         fill={frontFill} stroke={C.line} strokeWidth={0.5} />
-      {label && w > 3 * S && (
+      {label && w >= 1.2 * S && (
         <text x={x + w / 2} y={y + h / 2 + 1.5} fill={C.annotColor}
           fontSize={3} fontFamily="Helvetica,Arial,sans-serif"
           textAnchor="middle" fontWeight="500" writingMode="tb"
@@ -1489,7 +1493,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             {isRepPanel ? (
               <REPPanel x={x} y={y} w={w} h={h} frontFill={frontFill} />
             ) : isFill ? (
-              <FillerStrip x={x} y={y} w={w} h={h} label={cab.width <= FILLER_MIN ? '' : sku} frontFill={frontFill} />
+              <FillerStrip x={x} y={y} w={w} h={h}
+                label={`${cab.width <= FILLER_MIN ? 'FILLER' : sku} · ${fmt(cab.width)}`} frontFill={frontFill} />
             ) : (isApp && !isSinkBase) ? (
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
@@ -1503,6 +1508,14 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                 textAnchor="middle" fontWeight="700" fontStyle="italic">
                 {appLabel(cab.applianceType)}
               </text>
+            )}
+            {/* SKU callout on the face — installers/order entry read faces, not
+                just the schedule. Base pulls sit at the top, so label low-center. */}
+            {!isFill && !isRepPanel && (!isApp || isSinkBase) && cab.width >= 9 && sku && (
+              <text x={x + w / 2} y={y + h * 0.62} fill={C.annotColor}
+                fontSize={Math.min(2.9, (w / Math.max(sku.length, 1)) * 1.5)}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle"
+                fontWeight="600" opacity={0.85}>{sku}</text>
             )}
           </g>
         );
@@ -1595,11 +1608,19 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             {isRepPanel ? (
               <REPPanel x={x} y={y} w={w} h={uH} frontFill={frontFill} />
             ) : isFill ? (
-              <FillerStrip x={x} y={y} w={w} h={uH} frontFill={frontFill} />
+              <FillerStrip x={x} y={y} w={w} h={uH}
+                label={`${cab.width <= FILLER_MIN ? 'FILLER' : (cab.sku || 'FILLER')} · ${fmt(cab.width)}`} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={uH} doors={wallBlind ? 1 : doors} drawers={0} isUpper hinge={hinge}
                 isCorner={wallBlind} cornerSide={cab._cornerSide || 'left'} blindCorner={wallBlind}
                 styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+            )}
+            {/* SKU callout — upper pulls sit at the bottom, so label upper-center. */}
+            {!isFill && !isRepPanel && cab.width >= 9 && cab.sku && (
+              <text x={x + w / 2} y={y + uH * 0.38} fill={C.annotColor}
+                fontSize={Math.min(2.9, (w / Math.max(cab.sku.length, 1)) * 1.5)}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle"
+                fontWeight="600" opacity={0.85}>{cab.sku}</text>
             )}
           </g>
         );
@@ -1693,9 +1714,43 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                 {fmt(cab._elev?.height || cab.height || TALL_H_DEF)} H
               </text>
             )}
+            {/* SKU callout on the tall face */}
+            {!isApp && !isRepPanel && (cab.width || 18) >= 9 && cab.sku && (
+              <text x={x + w / 2} y={y + tH * 0.5} fill={C.annotColor}
+                fontSize={Math.min(2.9, (w / Math.max(cab.sku.length, 1)) * 1.5)}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle"
+                fontWeight="600" opacity={0.85}>{cab.sku}</text>
+            )}
           </g>
         );
       })}
+
+      {/* ══════════ DIMENSION-CHAIN CHECK ══════════
+          Overlapping boxes (beyond 1/8") or a run past the wall end are real
+          defects that would reach fabrication — flag them in red on the sheet. */}
+      {(() => {
+        const flags = [];
+        for (let i = 1; i < sortedBases.length; i++) {
+          const prev = sortedBases[i - 1], cur = sortedBases[i];
+          const gap = cur.position - (prev.position + prev.width);
+          if (gap < -0.125) {
+            flags.push({ x: cur.position * S, label: `OVERLAP ${fmt(-gap)}` });
+          }
+        }
+        const last = sortedBases[sortedBases.length - 1];
+        if (last && last.position + last.width > wallLen + 0.125) {
+          flags.push({ x: wallLen * S, label: `RUN PAST WALL ${fmt(last.position + last.width - wallLen)}` });
+        }
+        return flags.map((f, i) => (
+          <g key={`dimchk${i}`}>
+            <line x1={f.x} y1={tkTopY - BASE_BOX * S - 10} x2={f.x} y2={floorY} stroke="#c0392b" strokeWidth={0.6} strokeDasharray="2,1.5" />
+            <text x={f.x} y={tkTopY - BASE_BOX * S - 12} fill="#c0392b" fontSize={3.4}
+              fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="700">
+              {`⚠ ${f.label}`}
+            </text>
+          </g>
+        ));
+      })()}
 
       {/* ══════════ RANGE HOOD ══════════ */}
       {hood && typeof hood.position === 'number' && (() => {
@@ -2280,7 +2335,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           cols.forEach(c => {
             let v = r[c.k];
             v = c.num ? fmt(v) : (c.k === 'tag' ? 'KD' + v : String(v));
-            if (c.k === 'note' || c.k === 'sku') v = v.slice(0, c.k === 'note' ? 46 : 16);
+            if (c.k === 'note' || c.k === 'sku') v = v.slice(0, c.k === 'note' ? 46 : 30); // full SKUs — installers order from this column
             els.push(<text key={`c${i}${c.k}`} x={c.a === 'middle' ? c.x + c.w / 2 : c.x} y={ry + rh - 2.6}
               fill={C.dimText} fontSize={3.2} textAnchor={c.a} fontFamily="Helvetica,Arial,sans-serif">{v}</text>);
           });
