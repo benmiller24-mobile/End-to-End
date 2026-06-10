@@ -7,6 +7,7 @@
 import { calculateItemPrice, calculateLayoutPrice } from './src/pricingEngine.js';
 import { findShilohSku } from './src/shilohSkuCatalog.js';
 import { findSku } from './src/skuCatalog.js';
+import { SPECIES_PCT } from './src/finishData.js';
 import { priceFabricationItem, priceFabricationItems, isFabricationSku } from './src/fabricationPricing.js';
 
 let pass = 0, fail = 0;
@@ -82,8 +83,11 @@ assert(isFabricationSku('TK-N/C') && isFabricationSku('CRN-standard-8\'') && !is
   'isFabricationSku classifies correctly');
 const tk = priceFabricationItem({ sku: 'TK-N/C', qty: 1 });
 assert(tk.included && tk.totalPrice === 0, 'standard toe kick → included, $0');
+// Crown lists at $17.39/ft (catalog 3 1/2CRN; Soderstrom quote: 3FCR @5' = $86.95)
 const crn = priceFabricationItem({ sku: "CRN-standard-8'", qty: 3 });
-assert(crn.unitPrice === 96 && crn.totalPrice === 288, `crown $96 × 3 = $288 (got ${crn.totalPrice})`);
+assert(approx(crn.unitPrice, 139.12) && approx(crn.totalPrice, 417.36), `crown 8 ft = $139.12 × 3 (got ${crn.totalPrice})`);
+const crn5 = priceFabricationItem({ sku: "CRN-furniture-5'", qty: 1 });
+assert(approx(crn5.unitPrice, 86.95), `furniture crown 5 ft = $86.95 per Soderstrom quote (got ${crn5.unitPrice})`);
 const dwp = priceFabricationItem({ sku: 'DWP-24', width: 24 });
 assert(dwp.unitPrice === 185, `dishwasher panel $185 (got ${dwp.unitPrice})`);
 const fdp = priceFabricationItem({ sku: 'FDP-36', width: 36 });
@@ -102,7 +106,7 @@ assert(mystery.needsQuote && mystery.totalPrice === 0, 'unknown specialty → ne
 const batch = priceFabricationItems([
   { sku: 'TK-N/C', qty: 1 }, { sku: "CRN-standard-8'", qty: 3 }, { sku: 'DWP-24' }, { sku: 'SFLS-36' },
 ]);
-assert(approx(batch.subtotal, 288 + 185), `batch subtotal $473 (got ${batch.subtotal})`);
+assert(approx(batch.subtotal, 417.36 + 185), `batch subtotal $602.36 (got ${batch.subtotal})`);
 assert(batch.needsQuoteCount === 1, `1 needs-quote item (got ${batch.needsQuoteCount})`);
 
 console.log('\n═══ Real-order regression: W.W. Wood confirmation #45933 ═══');
@@ -120,6 +124,41 @@ for (const [list, dealerNet, repNet] of [[1832.42, 861.24, 485.59], [12630.55, 5
   assert(approx(list * 0.47, dealerNet, 0.01), `dealer ×0.47: ${list} → ${dealerNet}`);
   assert(approx(list * 0.265, repNet, 0.01), `rep ×0.265: ${list} → ${repNet}`);
 }
+
+console.log('\n═══ Soderstrom whole-house quotes (Shiloh SHI342, June 2026) ═══');
+// Quote-verified Shiloh list prices — added to the catalog from the real
+// quote sheets; these must resolve from the SHILOH catalog (no fallback).
+for (const [sku, price] of [
+  ['UT1893-RT-27R', 2258], ['INFBDEPL', 656], ['B15R-RT', 912], ['W1836L', 449],
+  ['VTSB24L', 506], ['REP11/29330-FTK-L', 514], ['FTK FLUSH TOE', 89], ['FIOM3393-27', 2725],
+]) {
+  const e = findShilohSku(sku);
+  assert(e && !e._fallback && e.p === price, `${sku} = $${price} verified Shiloh list (got ${e?.p}${e?._fallback ? ' via fallback' : ''})`);
+}
+
+// Species percentages reproduce the quotes' premium lines exactly:
+// Maple 8% of $33,237.38 perimeter = $2,658.99; Rift Cut WO 19% of
+// $14,252.65 island = $2,708.00 (rounded); Polar paint adds 10% — the
+// engine's "Paint (Std SW)" 18% species = Maple 8% + paint 10% combined.
+assert(approx(33237.38 * SPECIES_PCT['Maple'] / 100, 2658.99, 0.01), 'Maple 8% reproduces kitchen premium $2,658.99');
+assert(approx(14252.65 * SPECIES_PCT['Rift Cut White Oak'] / 100, 2708.00, 0.51), 'Rift Cut WO 19% reproduces island premium $2,708.00');
+assert(SPECIES_PCT['Paint (Std SW)'] === SPECIES_PCT['Maple'] + 10, 'Paint (Std SW) 18% = Maple 8% + Polar paint 10%');
+
+// Inset construction: $0 premium + $55/drawer-front (Malibu inset). The
+// upstairs-bath quote shows 4 drawer fronts → $220.00.
+const insetItem = calculateItemPrice(
+  { s: 'VTB12-4', p: 523, r: 'SHILOH', t: 'V', dc: 0, drc: 4, len: 1, q: 1 },
+  'Rift Cut White Oak', 'Standard', 'HNVR', 'DF-HNVR', '5/8-STD',
+  { overlayDoorChg: 0, overlayDrawerChg: 55, insetPremiumPct: 0 },
+);
+assert(approx(insetItem.overlayChg, 220), `inset drawer fronts 4 × $55 = $220 as quoted (got ${insetItem.overlayChg})`);
+
+// Sq-in items price by real dimensions: BCF $1.00/sq-in × 24×30.5 = $732.
+const bcf = calculateItemPrice(
+  { ...findSku('BCF'), q: 1, sqin: 24 * 30.5 },
+  'White Oak', 'Standard',
+);
+assert(approx(bcf.unitPrice, 732), `BCF 24×30.5 = $732 as quoted (got ${bcf.unitPrice})`);
 
 console.log(`\n${'═'.repeat(50)}\nConstruction pricing tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

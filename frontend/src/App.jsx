@@ -176,7 +176,11 @@ function buildPricingPlacements(placements) {
     .map(p => {
       const ce = findSku(p.sku);
       const tc = ce?.t || (p.sku.match(/^W/) ? 'W' : p.sku.match(/^[UOT]/) ? 'T' : 'B');
+      // Sq-in-priced items (REF/BCF panels, finished ply) need real dimensions:
+      // catalog price is $/sq-in (e.g. BCF $1.00/sq-in → 24×30.5 = $732).
+      const h = p._elev?.height || p.height;
       return { sku: p.sku, qty: p.qty || 1, wall: p.wall || 'other',
+        sqin: (p.width && h) ? p.width * h : undefined,
         doorCount: guessDoors(p.sku, tc), drawerCount: guessDrawerCount(p.sku, tc), builtInROT: guessBuiltInROT(p.sku) };
     });
   return { cabinets, fabrication };

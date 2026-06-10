@@ -37,9 +37,10 @@ const RULES = [
   // ── Toe kick: standard skins/miters/returns ship no-charge with the order ──
   { match: /^TK-/, label: 'Toe kick (standard, included with order)', price: 0, included: true },
 
-  // ── Crown moulding (per 8' stick) ──
-  { match: /^CRN-furniture/, label: 'Crown moulding — furniture profile, 8\' stick', price: 278 },
-  { match: /^CRN-/, label: 'Crown moulding — standard profile, 8\' stick', price: 96 },
+  // ── Crown moulding: catalog lists $17.39/ft (3 1/2CRN and 3FCR furniture
+  //    crown both; verified on the Soderstrom Primary quote — 3FCR @5' = $86.95).
+  //    Length parses from the SKU suffix (CRN-standard-8' → 8 ft). ──
+  { match: /^CRN-/, label: 'Crown moulding ($17.39/ft)', price: p => +(17.39 * Math.ceil(parseFloat(p.sku.match(/-(\d+(?:\.\d+)?)'/)?.[1]) || 8)).toFixed(2) },
 
   // ── Light rail under uppers (per 8' stick) ──
   { match: /^LR-STD/, label: 'Light rail — standard profile, 8\' stick', price: 48 },
