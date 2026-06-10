@@ -38,6 +38,7 @@ import {
 // ── Output view imports ──
 import { BRANDS, CONSTRUCTIONS, CONSTRUCTIONS_BY_BRAND, DEFAULT_CONSTRUCTION_BY_BRAND, getConstruction } from './constructionProfiles.js';
 import { findShilohSku, SHILOH_SKU_COUNT } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
+import { listProjects, loadProject, saveProject, deleteProject, newProjectId, addRevision, getRevisions } from './lib/projectStore.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
 import ApplianceRecommendationPanel from './ApplianceRecommendationPanel.jsx';
@@ -1052,7 +1053,8 @@ function loadDealerSettings() {
 }
 
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
-  materials, selectedAppliances, countertopColor, prefs, trimSelections }) {
+  materials, selectedAppliances, countertopColor, prefs, trimSelections,
+  projectMeta = {}, revisions = [], onRestoreRevision }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1129,6 +1131,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           { id: '3d', label: '3D View' },
           { id: 'layout', label: 'Cabinet List' },
           { id: 'quote', label: 'Quote' },
+          { id: 'revisions', label: `Revisions${revisions.length ? ` (${revisions.length})` : ''}` },
           { id: 'training', label: 'Training' },
           { id: 'compare', label: 'Compare' },
         ].map(t => (
@@ -1143,7 +1146,9 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           setExporting(true);
           try {
             await exportPDF({
-              title: 'Eclipse Kitchen Designer',
+              title: projectMeta.name
+                ? `${projectMeta.name}${projectMeta.customer ? ' — ' + projectMeta.customer : ''}`
+                : 'Eclipse Kitchen Designer',
               layoutType: solverResult.layoutType,
               roomType: solverResult.roomType,
               materials,
@@ -1181,7 +1186,11 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
       {/* Elevations tab */}
       {tab === 'elevations' && (
         <div>
-          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} grainHorizontal={materials?.grainHorizontal} hardware={materials?.hardware} hardwareFinish={materials?.hardwareFinish} appliances={selectedAppliances} construction={getConstruction(materials?.frameStyle)} titleBlock={{ project: `${solverResult?.roomType || 'Kitchen'}${solverResult?.layoutType ? ' \u2014 ' + solverResult.layoutType : ''}`, designer: 'Eclipse Kitchen Designer', date: new Date().toLocaleDateString('en-US'), scale: '1/2" = 1\'-0"' }} />
+          <ElevationView solverResult={solverResult} trim={trimSelections} debug={debugOverlay} doorStyle={materials?.door} species={materials?.species} countertopColor={countertopColor} finishColor={materials?.finishColor} grainHorizontal={materials?.grainHorizontal} hardware={materials?.hardware} hardwareFinish={materials?.hardwareFinish} appliances={selectedAppliances} construction={getConstruction(materials?.frameStyle)} titleBlock={{
+            project: projectMeta.name || `${solverResult?.roomType || 'Kitchen'}${solverResult?.layoutType ? ' \u2014 ' + solverResult.layoutType : ''}`,
+            client: [projectMeta.customer, projectMeta.jobNumber && `Job #${projectMeta.jobNumber}`, projectMeta.address].filter(Boolean).join('  \u00b7  '),
+            designer: projectMeta.designer || 'Eclipse Kitchen Designer',
+            date: new Date().toLocaleDateString('en-US'), scale: '1/2" = 1\'-0"' }} />
           {/* Tag SVGs for PDF export */}
           <style>{`[data-pdf="elevation"] { /* marker */ }`}</style>
         </div>
@@ -1712,6 +1721,48 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         </div>
       )}
 
+      {/* Revisions tab — every solve is a snapshot; restore loads it back into the designer */}
+      {tab === 'revisions' && (
+        <div style={panelStyle}>
+          <div style={sectionTitle}>Revision History</div>
+          {revisions.length === 0 && <p style={{ fontSize: 13, color: C.dim }}>Each solve is recorded here. Adjust the design and re-solve to build history.</p>}
+          {revisions.map((rev, i) => {
+            const current = i === 0;
+            const delta = rev.subtotal - (revisions[0]?.subtotal || 0);
+            return (
+              <div key={rev.at || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 8px', borderBottom: `1px solid ${C.border}`, background: current ? '#c8a96e15' : 'transparent', borderRadius: 6 }}>
+                <div style={{ width: 30, textAlign: 'center', fontWeight: 700, fontSize: 12, color: current ? C.accent : C.dim }}>
+                  R{revisions.length - i}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>
+                    {rev.label || 'Revision'}{current ? '  (current)' : ''}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.dim }}>
+                    {new Date(rev.at).toLocaleString('en-US')} · {rev.cabinetCount} cabinets
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(rev.subtotal || 0)}</div>
+                  {!current && Math.abs(delta) > 0.5 && (
+                    <div style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: delta > 0 ? C.danger : '#1c7c45' }}>
+                      {delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(delta))} vs current
+                    </div>
+                  )}
+                </div>
+                {!current && onRestoreRevision && (
+                  <button onClick={() => onRestoreRevision(rev)} title="Load this revision back into the designer (re-solve to see it)"
+                    style={{ ...btnOutline, padding: '4px 12px', fontSize: 11 }}>Restore</button>
+                )}
+              </div>
+            );
+          })}
+          <p style={{ fontSize: 10, color: C.dim, marginTop: 10 }}>
+            "Restore" loads that revision's full design state into the designer — review and Solve to bring it back. List totals shown (cabinets + fabrication, before discounts).
+          </p>
+        </div>
+      )}
+
       {tab === 'training' && <TrainingScorePanel score={trainingScore} />}
       {tab === 'compare' && <ComparisonPricingPanel placements={placements} frameStyle={materials?.frameStyle} />}
     </div>
@@ -1796,6 +1847,61 @@ export default function App() {
   const [solving, setSolving] = useState(false);
   const [error, setError] = useState(null);
 
+  // ── Project (dealer workflow): metadata, save/load, revisions ──
+  const [projectId, setProjectId] = useState(null);
+  const [projectMeta, setProjectMeta] = useState({ name: '', customer: '', jobNumber: '', address: '', designer: '' });
+  const [revisions, setRevisions] = useState([]);   // newest first; persisted per-project
+  const [showProjects, setShowProjects] = useState(false);
+  const [saveFlash, setSaveFlash] = useState('');
+  const [, setProjectsVersion] = useState(0);  // bump to refresh the projects dialog list
+
+  // Full designer state snapshot — everything needed to reproduce a design.
+  const collectState = () => ({
+    layoutType, roomType, walls, appliances, island, peninsula, prefs,
+    materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate,
+  });
+  const applyState = (s) => {
+    if (!s) return;
+    setLayoutType(s.layoutType || 'l-shape'); setRoomType(s.roomType || 'kitchen');
+    setWalls(s.walls || []); setAppliances(s.appliances || []);
+    setIsland(s.island || null); setPeninsula(s.peninsula || null);
+    setPrefs(p => ({ ...p, ...(s.prefs || {}) }));
+    setMaterials(m => ({ ...m, ...(s.materials || {}) }));
+    setSelectedBrandAppliances(s.selectedBrandAppliances || []);
+    setCountertopSelection(c => ({ ...c, ...(s.countertopSelection || {}) }));
+    setTrimSelections(t => ({ ...t, ...(s.trimSelections || {}) }));
+    setSelectedTemplate(s.selectedTemplate || null);
+    setSolverResult(null); setQuote(null); setView('designer');
+  };
+
+  const handleSaveProject = () => {
+    const id = projectId || newProjectId();
+    const name = projectMeta.name || projectMeta.customer || `${roomType} ${new Date().toLocaleDateString('en-US')}`;
+    const ok = saveProject({ id, name, meta: projectMeta, state: collectState() });
+    if (!projectId) setProjectId(id);
+    setSaveFlash(ok ? 'Saved ✓' : 'Save failed');
+    setTimeout(() => setSaveFlash(''), 2000);
+  };
+  const handleLoadProject = (id) => {
+    const p = loadProject(id);
+    if (!p) return;
+    setProjectId(p.id);
+    setProjectMeta({ name: p.name, customer: '', jobNumber: '', address: '', designer: '', ...(p.meta || {}) });
+    setRevisions(p.revisions || []);
+    applyState(p.state);
+    setShowProjects(false);
+    setStep(0);
+  };
+  const handleNewProject = () => {
+    setProjectId(null);
+    setProjectMeta({ name: '', customer: '', jobNumber: '', address: '', designer: projectMeta.designer || '' });
+    setRevisions([]);
+    setShowProjects(false);
+  };
+  const handleRestoreRevision = (rev) => {
+    applyState(rev.state);
+  };
+
   const speciesPct = SPECIES_PCT[materials.species] || 0;
   const doorInfo = DOORS.find(d => d.v === materials.door);
   const constPct = CONSTRUCTION_PCT[materials.construction] || 0;
@@ -1866,13 +1972,26 @@ export default function App() {
       quoteResult.fabrication = priceFabricationItems(fabrication);
       setQuote(quoteResult);
 
+      // Record this solve as a revision (newest first). Persists when a
+      // project is active; otherwise stays in-session.
+      const snapshot = {
+        label: `${result.layoutType || layoutType} · ${materials.species}${materials.brand === 'shiloh' ? ' · Shiloh' : ''}`,
+        cabinetCount: result.metadata?.totalCabinets || (result.placements || []).filter(x => x.type !== 'appliance').length,
+        subtotal: (quoteResult.subtotal || 0) + (quoteResult.fabrication?.subtotal || 0),
+        state: { layoutType, roomType, walls, appliances, island, peninsula, prefs,
+          materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate },
+      };
+      setRevisions(prev => [{ at: Date.now(), ...snapshot }, ...prev].slice(0, 20));
+      if (projectId) addRevision(projectId, snapshot);
+
       setView('results');
     } catch (err) {
       setError(err.message);
       console.error('Solver error:', err);
     }
     setSolving(false);
-  }, [layoutType, roomType, walls, appliances, prefs, materials, island, peninsula]);
+  }, [layoutType, roomType, walls, appliances, prefs, materials, island, peninsula,
+      selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, projectId]);
 
   const STEPS = ['Layout', 'Materials', 'Appliances', 'Countertops', 'Trim & Molding', 'Review'];
 
@@ -1887,8 +2006,51 @@ export default function App() {
           </div>
           <span style={{ display: 'inline-block', padding: '2px 9px', borderRadius: 3, fontSize: 11, fontWeight: 600, letterSpacing: 0.5, background: '#c8a96e22', color: C.accent, border: `1px solid ${C.gold}` }}>Configurator</span>
         </div>
-        <span style={{ fontSize: 12, color: C.dim }}>{TEMPLATES.length} templates / 5 appliance brands / 10 countertop brands</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {(projectMeta.name || projectMeta.customer) && (
+            <span style={{ fontSize: 12, color: C.muted, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <strong>{projectMeta.name || projectMeta.customer}</strong>
+              {projectMeta.jobNumber ? ` · #${projectMeta.jobNumber}` : ''}
+            </span>
+          )}
+          {saveFlash && <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{saveFlash}</span>}
+          <button onClick={handleSaveProject} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Save</button>
+          <button onClick={() => setShowProjects(true)} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Projects</button>
+        </div>
       </header>
+
+      {/* ── Projects dialog ── */}
+      {showProjects && (
+        <div onClick={() => setShowProjects(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 80 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, width: 520, maxHeight: '70vh', overflow: 'auto', padding: 20, boxShadow: '0 12px 40px rgba(0,0,0,0.18)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 15 }}>Projects</h3>
+              <button onClick={handleNewProject} style={{ ...btnPrimary, padding: '5px 12px', fontSize: 12 }}>+ New Project</button>
+            </div>
+            {listProjects().length === 0 && (
+              <p style={{ fontSize: 13, color: C.dim }}>No saved projects yet. Configure a design and click Save.</p>
+            )}
+            {listProjects().map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', borderBottom: `1px solid ${C.border}`, background: p.id === projectId ? '#c8a96e15' : 'transparent', borderRadius: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}{p.id === projectId ? '  (open)' : ''}</div>
+                  <div style={{ fontSize: 11, color: C.dim }}>
+                    {[p.meta?.customer, p.meta?.jobNumber && `#${p.meta.jobNumber}`].filter(Boolean).join(' · ') || '—'}
+                    {' · '}{p.revisionCount} rev{p.revisionCount === 1 ? '' : 's'}
+                    {' · '}{new Date(p.updatedAt).toLocaleDateString('en-US')}
+                  </div>
+                </div>
+                <button onClick={() => handleLoadProject(p.id)} style={{ ...btnPrimary, padding: '4px 12px', fontSize: 11 }}>Open</button>
+                <button onClick={() => { if (confirm(`Delete project "${p.name}"? This cannot be undone.`)) { deleteProject(p.id); if (p.id === projectId) handleNewProject(); setProjectsVersion(v => v + 1); } }}
+                  style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 14 }}>✕</button>
+              </div>
+            ))}
+            <p style={{ fontSize: 10, color: C.dim, marginTop: 10 }}>Projects are saved in this browser. Export the PDF for a portable record.</p>
+          </div>
+        </div>
+      )}
 
       {/* Main */}
       <main style={{ maxWidth: 1400, margin: '0 auto', padding: 24 }}>
@@ -1898,6 +2060,7 @@ export default function App() {
             materials={materials} selectedAppliances={selectedBrandAppliances}
             countertopColor={countertopSelection.colorId ? getColorById(countertopSelection.colorId) : null}
             prefs={prefs} trimSelections={trimSelections}
+            projectMeta={projectMeta} revisions={revisions} onRestoreRevision={handleRestoreRevision}
             onBack={() => { setView('designer'); setStep(5); }} />
         ) : (
           <>
@@ -1915,6 +2078,29 @@ export default function App() {
                   )}
                 </div>
                 <div>
+                  <div style={panelStyle}>
+                    <div style={sectionTitle}>Project Info</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {[
+                        ['name', 'Project name', 'Smith Kitchen Remodel'],
+                        ['customer', 'Customer', 'John & Amy Smith'],
+                        ['jobNumber', 'Job #', 'J-1042'],
+                        ['designer', 'Designer', 'Your name'],
+                      ].map(([k, label, ph]) => (
+                        <div key={k}>
+                          <label style={labelStyle}>{label}</label>
+                          <input value={projectMeta[k] || ''} placeholder={ph}
+                            onChange={e => setProjectMeta(m => ({ ...m, [k]: e.target.value }))} style={inputStyle} />
+                        </div>
+                      ))}
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={labelStyle}>Job address</label>
+                        <input value={projectMeta.address || ''} placeholder="123 Main St, City"
+                          onChange={e => setProjectMeta(m => ({ ...m, address: e.target.value }))} style={inputStyle} />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 10, color: C.dim, margin: '6px 0 0' }}>Appears on every drawing's title block and the PDF packet.</p>
+                  </div>
                   <div style={panelStyle}>
                     <div style={sectionTitle}>Manual Override</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
