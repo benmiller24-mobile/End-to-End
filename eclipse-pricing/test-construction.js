@@ -90,8 +90,13 @@ const fdp = priceFabricationItem({ sku: 'FDP-36', width: 36 });
 assert(fdp.unitPrice === 225, `fridge panel $225 (got ${fdp.unitPrice})`);
 const hood = priceFabricationItem({ sku: 'RH21 3624', width: 36 });
 assert(hood.unitPrice === 30 * 36 && hood.estimate, `RH21 hood = $30/in × 36" = $1080, flagged estimate (got ${hood.unitPrice})`);
-const scribe = priceFabricationItem({ sku: "3SRM3F-10'", qty: 3 });
-assert(scribe.unitPrice === 30 && scribe.totalPrice === 90, `scribe rail $30 × 3 (got ${scribe.totalPrice})`);
+// 3SRM lists at $30/ft (W.W. Wood order #45933: 5 ft = $150)
+const scribe5 = priceFabricationItem({ sku: "3SRM3F-5'", qty: 1 });
+assert(scribe5.unitPrice === 150, `scribe rail 5 ft = $150 per order #45933 (got ${scribe5.unitPrice})`);
+const scribe10 = priceFabricationItem({ sku: "3SRM3F-10'", qty: 3 });
+assert(scribe10.unitPrice === 300 && scribe10.totalPrice === 900, `scribe rail 10 ft = $300 × 3 (got ${scribe10.totalPrice})`);
+const tuk = priceFabricationItem({ sku: 'TUK-STAIN' });
+assert(tuk.unitPrice === 31.63, `touch-up kit = $31.63 catalog list (got ${tuk.unitPrice})`);
 const mystery = priceFabricationItem({ sku: 'SFLS-36' });
 assert(mystery.needsQuote && mystery.totalPrice === 0, 'unknown specialty → needs separate quote, excluded from totals');
 const batch = priceFabricationItems([
@@ -99,6 +104,22 @@ const batch = priceFabricationItems([
 ]);
 assert(approx(batch.subtotal, 288 + 185), `batch subtotal $473 (got ${batch.subtotal})`);
 assert(batch.needsQuoteCount === 1, `1 needs-quote item (got ${batch.needsQuoteCount})`);
+
+console.log('\n═══ Real-order regression: W.W. Wood confirmation #45933 ═══');
+// Line 2: B3D21, Walnut +20%, 3 drawers @ 3/4" Hardwood ($57) + FEG guide ($72)
+// = catalog 3/4-PREM-FE $129/drw. Order shows Total Price $1,119.00.
+const b3d21 = calculateItemPrice(
+  { ...findSku('B3D21'), q: 1, dc: 0, drc: 3, len: 1 },
+  'Walnut', 'Standard', 'MET-V', 'DF-MET-V', '3/4-PREM-FE',
+);
+assert(approx(b3d21.unitPrice, 1119), `B3D21 Walnut + 3× (3/4" box + FEG) = $1,119.00 as invoiced (got ${b3d21.unitPrice.toFixed(2)})`);
+
+console.log('\n═══ Discount multipliers from order confirmations ═══');
+// All three confirmations: dealer net = 0.47 × list, rep net = 0.265 × list.
+for (const [list, dealerNet, repNet] of [[1832.42, 861.24, 485.59], [12630.55, 5936.36, 3347.09], [2908.84, 1367.15, 770.85]]) {
+  assert(approx(list * 0.47, dealerNet, 0.01), `dealer ×0.47: ${list} → ${dealerNet}`);
+  assert(approx(list * 0.265, repNet, 0.01), `rep ×0.265: ${list} → ${repNet}`);
+}
 
 console.log(`\n${'═'.repeat(50)}\nConstruction pricing tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

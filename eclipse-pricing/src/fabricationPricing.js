@@ -50,7 +50,10 @@ const RULES = [
 
   // ── Scribe & scribe-rail moulding ──
   { match: /^SCRIBE/, label: 'Scribe moulding, 8\' stick', price: 25 },
-  { match: /^3SRM/, label: 'Scribe rail moulding, per stick', price: 30 },
+  // 3SRM lists at $30/ft, rounded up to whole feet (verified against W.W. Wood
+  // order confirmation #45933: 3SRM3F 5 ft = $150.00). Length parses from the
+  // SKU suffix (3SRM3F-10' → 10 ft); default 8 ft when absent.
+  { match: /^3SRM/, label: 'Scribe rail moulding ($30/ft)', price: p => 30 * Math.ceil(parseFloat(p.sku.match(/-(\d+(?:\.\d+)?)'/)?.[1]) || 8) },
 
   // ── Appliance panels (match door style/species) ──
   { match: /^DWP-/, label: 'Dishwasher panel overlay', price: 185 },
@@ -67,8 +70,8 @@ const RULES = [
   { match: /^VLN-/, label: 'Valance', price: 45 },
   { match: /^LB-/, label: 'Light bridge', price: p => Math.max(24, Math.round(8 * ((p.width || 36) / 12))) },
 
-  // ── Touch-up ──
-  { match: /^TUK-/, label: 'Touch-up kit', price: 35 },
+  // ── Touch-up (catalog list, confirmed on order #45933: TUK = $31.63) ──
+  { match: /^TUK-/, label: 'Touch-up kit', price: 31.63 },
 
   // ── Hood vent blowers/liners: fully-priced catalog units ──
   { match: /^RHVB/, label: 'Hood vent blower', price: (p) => findSku(p.sku)?.p ?? findSku(p.sku.split(/\s/)[0])?.p ?? null },

@@ -934,7 +934,14 @@ function ComparisonPricingPanel({ placements, frameStyle }) {
 
 // ==================== RESULTS VIEW ====================
 const DEALER_SETTINGS_KEY = 'ekd.dealerSettings';
-const DEALER_DEFAULTS = { marginPct: 0, marginMethod: 'markup', taxPct: 0, freight: 0, install: 0 };
+const DEALER_DEFAULTS = { multiplier: 1.0, marginPct: 0, marginMethod: 'markup', taxPct: 0, freight: 0, install: 0 };
+// Discount-multiplier presets verified against W.W. Wood order confirmations
+// #45923/#45928/#45933 (June 2026): dealer net = 0.47 × list, rep net = 0.265 × list.
+const MULTIPLIER_PRESETS = [
+  { label: 'List', value: 1.0 },
+  { label: 'Dealer ×0.47', value: 0.47 },
+  { label: 'Rep ×0.265', value: 0.265 },
+];
 function loadDealerSettings() {
   try { return { ...DEALER_DEFAULTS, ...(JSON.parse(localStorage.getItem(DEALER_SETTINGS_KEY)) || {}) }; }
   catch { return { ...DEALER_DEFAULTS }; }
@@ -960,10 +967,14 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
   const fallbackCount = quote?.fallbackCount || 0;
   const countertopMid = countertopEstimate?.totalLow ? (countertopEstimate.totalLow + countertopEstimate.totalHigh) / 2 : 0;
 
-  // Customer-ready math: dealer margin on cabinetry+fabrication list, flat
-  // freight & install, tax on materials (not install labor).
+  // Customer-ready math: the C3 quote is LIST pricing. W.W. Wood invoices at
+  // a discount multiplier off list (order confirmations show dealer ×0.47,
+  // rep ×0.265), so: list × multiplier = net cost → margin → sell. Freight &
+  // install flat; tax on materials (not install labor).
   const listSubtotal = cabinetTotal + fabricationTotal;
-  const cabinetSell = calculateDealerPrice(listSubtotal, dealer.marginPct || 0, dealer.marginMethod).sellPrice;
+  const mult = dealer.multiplier > 0 ? dealer.multiplier : 1.0;
+  const netCost = listSubtotal * mult;
+  const cabinetSell = calculateDealerPrice(netCost, dealer.marginPct || 0, dealer.marginMethod).sellPrice;
   const taxableBase = cabinetSell + (dealer.freight || 0) + (applianceTotal || 0) + countertopMid;
   const taxAmt = taxableBase * ((dealer.taxPct || 0) / 100);
   const customerTotal = taxableBase + (dealer.install || 0) + taxAmt;
@@ -1525,6 +1536,22 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             <div style={sectionTitle}>Dealer Pricing</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
               <div>
+                <label style={labelStyle}>Discount Multiplier (× list)</label>
+                <input type="number" min="0.05" max="1" step="0.005" value={dealer.multiplier}
+                  onChange={e => setDealer(d => ({ ...d, multiplier: Math.min(1, Math.max(0.05, Number(e.target.value) || 1)) }))} style={inputStyle} />
+                <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                  {MULTIPLIER_PRESETS.map(p => (
+                    <button key={p.label} onClick={() => setDealer(d => ({ ...d, multiplier: p.value }))}
+                      style={{ padding: '2px 7px', borderRadius: 3, fontSize: 10, cursor: 'pointer', fontWeight: 600,
+                        border: `1px solid ${dealer.multiplier === p.value ? C.accent : C.border}`,
+                        background: dealer.multiplier === p.value ? '#c8a96e22' : 'transparent',
+                        color: dealer.multiplier === p.value ? C.accent : C.dim }}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
                 <label style={labelStyle}>Margin %</label>
                 <input type="number" min="0" max="80" step="1" value={dealer.marginPct}
                   onChange={e => setDealer(d => ({ ...d, marginPct: Math.max(0, Number(e.target.value) || 0) }))} style={inputStyle} />
@@ -1554,8 +1581,9 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             </div>
             {[
               { label: `Cabinetry list (${(quote.items || []).length} items)`, value: cabinetTotal },
-              { label: 'Trim & fabrication', value: fabricationTotal },
-              ...(dealer.marginPct > 0 ? [{ label: `Dealer ${dealer.marginMethod} ${dealer.marginPct}%`, value: cabinetSell - listSubtotal }] : []),
+              { label: 'Trim & fabrication (list)', value: fabricationTotal },
+              ...(mult !== 1 ? [{ label: `Your cost — multiplier ×${mult}`, value: netCost }] : []),
+              ...(dealer.marginPct > 0 ? [{ label: `Dealer ${dealer.marginMethod} ${dealer.marginPct}%`, value: cabinetSell - netCost }] : []),
               ...(applianceTotal > 0 ? [{ label: 'Appliances (MSRP)', value: applianceTotal }] : []),
               ...(countertopMid > 0 ? [{ label: 'Countertops (est. midpoint)', value: countertopMid }] : []),
               ...(dealer.freight > 0 ? [{ label: 'Freight', value: dealer.freight }] : []),
@@ -1571,9 +1599,9 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               <span style={{ fontWeight: 700, fontSize: 16 }}>CUSTOMER TOTAL</span>
               <span style={{ color: C.accent, fontSize: 22, fontWeight: 700 }}>{formatCurrency(customerTotal)}</span>
             </div>
-            {(dealer.marginPct === 0 && dealer.taxPct === 0 && !dealer.freight && !dealer.install) && (
+            {(mult === 1 && dealer.marginPct === 0 && dealer.taxPct === 0 && !dealer.freight && !dealer.install) && (
               <div style={{ marginTop: 8, fontSize: 11, color: C.warn }}>
-                Margin, freight, install, and tax are all zero — this total is manufacturer list cost, not a customer-ready price.
+                Multiplier is 1.0 and margin, freight, install, and tax are all zero — this total is manufacturer <strong>list</strong> price, not your cost and not a customer-ready price.
               </div>
             )}
           </div>
