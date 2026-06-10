@@ -2263,6 +2263,21 @@ export default function App() {
     ? estimateCountertopCost(countertopSelection.colorId, countertopSelection.sqft || 40, countertopSelection.edge || 'straight', countertopSelection.cutouts || 1)
     : null;
 
+  // Room-shape templates for the Design Studio: switch the footprint while
+  // preserving wall lengths/openings/measure-grades where walls carry over;
+  // hand-placed items on removed walls are dropped.
+  const applyShape = useCallback((shape) => {
+    const counts = { 'single-wall': 1, 'galley': 2, 'l-shape': 2, 'u-shape': 3, 'g-shape': 4 };
+    const n = counts[shape] || 2;
+    const defaults = [144, 120, 96, 84];
+    const next = Array.from({ length: n }, (_, i) =>
+      walls[i] ? { ...walls[i] } : { id: String.fromCharCode(65 + i), length: defaults[i], role: 'general' });
+    const keep = new Set(next.map(w => w.id));
+    setWalls(next);
+    setLayoutType(shape);
+    setManualItems(items => items.filter(i => keep.has(i.wall)));
+  }, [walls]);
+
   // Live solver ghost for the room canvas (auto mode): debounce-solve as the
   // designer drags walls so the cabinet layout previews in place.
   useEffect(() => {
@@ -2475,7 +2490,8 @@ export default function App() {
                   {designMode === 'manual' ? (
                     <DesignStudio walls={walls} onWallsChange={setWalls}
                       items={manualItems} onItemsChange={setManualItems}
-                      brand={materials.brand} mode="full" />
+                      brand={materials.brand} mode="full"
+                      layoutType={layoutType} onApplyShape={applyShape} />
                   ) : (
                     <>
                       <TemplatePicker onSelect={handleTemplateSelect} selected={selectedTemplate} />

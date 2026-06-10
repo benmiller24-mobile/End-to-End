@@ -23,7 +23,15 @@ const C = {
 const WALL_T = 6, BASE_D = 24, UPPER_D = 13;
 
 // World frames for the wall chain (matches FloorPlanView: 0/90/180/270).
-function frames(walls) {
+// Galley is the exception: two PARALLEL runs across an aisle.
+const GALLEY_GAP = 24 + 42 + 24 + WALL_T;   // base + aisle + base + wall
+function frames(walls, layoutType) {
+  if (/galley/.test(layoutType || '') && walls.length === 2) {
+    return [
+      { id: walls[0].id, x: 0, y: 0, angle: 0, length: walls[0].length },
+      { id: walls[1].id, x: 0, y: GALLEY_GAP, angle: 0, length: walls[1].length },
+    ];
+  }
   const out = []; let x = 0, y = 0;
   const angles = [0, 90, 180, 270];
   walls.forEach((w, i) => {
@@ -70,7 +78,7 @@ const APPLIANCE_PALETTE = [
   { type: 'dishwasher', label: 'Dishwasher 24"', width: 24 }, { type: 'refrigerator', label: 'Refrigerator 36"', width: 36 },
 ];
 
-export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', ghost = null, mode = 'full' }) {
+export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', ghost = null, mode = 'full', layoutType = '', onApplyShape = null }) {
   const roomOnly = mode === 'room';
   const svgRef = useRef(null);
   const [sel, setSel] = useState(null);             // selected item id | 'op:wallIdx:opIdx'
@@ -81,7 +89,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   const [search, setSearch] = useState('');
   const [widthF, setWidthF] = useState('');
 
-  const fr = useMemo(() => frames(walls), [walls]);
+  const fr = useMemo(() => frames(walls, layoutType), [walls, layoutType]);
   const all = useMemo(() => catalogList(brand), [brand]);
   const cats = useMemo(() => [...new Set(all.map(r => r.cat))].sort(), [all]);
   const list = useMemo(() => {
@@ -197,6 +205,21 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
       <div style={{ border: '1px solid #e4ddd2', borderRadius: 8, background: C.bg, position: 'relative' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 10px', borderBottom: '1px solid #eee7dc', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 1 }}>Design Studio</span>
+          {onApplyShape && (
+            <div style={{ display: 'flex', gap: 3 }}>
+              {[['single-wall', '— Single'], ['galley', '∥ Galley'], ['l-shape', 'L Shape'], ['u-shape', 'U Shape'], ['g-shape', 'G Shape']].map(([shape, label]) => {
+                const active = layoutType === shape;
+                return (
+                  <button key={shape} onClick={() => onApplyShape(shape)}
+                    title={`Switch the room to a ${label.replace(/^[^A-Za-z]+/, '')} footprint (wall lengths and openings carry over where walls persist)`}
+                    style={{ fontSize: 10.5, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, fontWeight: active ? 700 : 400,
+                      border: `1px solid ${active ? C.accent : '#ddd'}`, background: active ? '#c8a96e22' : '#fff', color: active ? C.accent : '#555' }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <button onClick={addWall} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>+ Wall</button>
           <button onClick={removeWall} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>− Wall</button>
           {armed && <span style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Placing {armed.sku || armed.applianceType} — click a wall (Shift = place multiple, Esc = cancel)</span>}
