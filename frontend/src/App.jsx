@@ -25,6 +25,8 @@ import {
   findOfficial, checkStyleCompat, applicableMods, findMod,
 } from '../../eclipse-pricing/src/index.js';
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
+import DesignStudio from './DesignStudio.jsx';
+import { buildManualResult, seedFromSolverResult } from './manualDesign.js';
 import { evaluateOrderReadiness } from './orderReadiness.js';
 import { parseAcknowledgment, reconcile } from './ackReconcile.js';
 
@@ -1249,7 +1251,7 @@ function loadDealerSettings() {
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
   projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {},
-  lineMods = {}, onChangeLineMods }) {
+  lineMods = {}, onChangeLineMods, onEditInStudio }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1285,6 +1287,12 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
   return (
     <div>
       <button onClick={onBack} style={{ ...btnOutline, marginBottom: 16 }}>Back to Designer</button>
+      {onEditInStudio && (
+        <button onClick={onEditInStudio} style={{ ...btnOutline, marginBottom: 16, marginLeft: 8, borderColor: C.accent, color: C.accent }}
+          title="Load this exact layout into the Design Studio canvas — drag cabinets, swap SKUs, then re-price.">
+          ✎ Edit in Design Studio
+        </button>
+      )}
 
       {materials?.brand === 'shiloh' && (
         <div style={{ marginBottom: 16, padding: '10px 12px', background: '#c8a96e22', border: `1px solid ${C.gold}`, borderRadius: 8, fontSize: 12, color: C.text }}>
@@ -2180,6 +2188,9 @@ export default function App() {
   const [solverResult, setSolverResult] = useState(null);
   const [quote, setQuote] = useState(null);
   const [lineMods, setLineMods] = useState({});   // lineKey -> [mod codes]
+  const [designMode, setDesignMode] = useState('auto');   // 'auto' (solver) | 'manual' (Design Studio)
+  const [manualItems, setManualItems] = useState([]);     // hand-placed cabinets/appliances
+  const [ghostResult, setGhostResult] = useState(null);   // live solver preview for the room canvas
   const [trainingScore, setTrainingScore] = useState(null);
   const [solving, setSolving] = useState(false);
   const [error, setError] = useState(null);
@@ -2196,6 +2207,7 @@ export default function App() {
   const collectState = () => ({
     layoutType, roomType, walls, appliances, island, peninsula, prefs,
     materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, orderSpec, lineMods,
+    designMode, manualItems,
   });
   const applyState = (s) => {
     if (!s) return;
@@ -2210,6 +2222,8 @@ export default function App() {
     setSelectedTemplate(s.selectedTemplate || null);
     if (s.orderSpec) setOrderSpec(o => ({ ...o, ...s.orderSpec }));
     setLineMods(s.lineMods || {});
+    setDesignMode(s.designMode || 'auto');
+    setManualItems(s.manualItems || []);
     setSolverResult(null); setQuote(null); setView('designer');
   };
 
@@ -2248,6 +2262,20 @@ export default function App() {
   const countertopEstimate = countertopSelection.colorId
     ? estimateCountertopCost(countertopSelection.colorId, countertopSelection.sqft || 40, countertopSelection.edge || 'straight', countertopSelection.cutouts || 1)
     : null;
+
+  // Live solver ghost for the room canvas (auto mode): debounce-solve as the
+  // designer drags walls so the cabinet layout previews in place.
+  useEffect(() => {
+    if (designMode !== 'auto' || step !== 0 || !walls.length) { setGhostResult(null); return; }
+    const t = setTimeout(() => {
+      try {
+        const ceilH = Number(prefs.ceilingHeight) || 96;
+        const r = solve({ layoutType, roomType, walls: walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || ceilH })), appliances, prefs, ...(island ? { island } : {}) });
+        setGhostResult(r);
+      } catch { setGhostResult(null); }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [designMode, step, walls, appliances, island, layoutType, roomType, prefs]);
 
   // Apply template
   const handleTemplateSelect = useCallback((templateId) => {
@@ -2297,7 +2325,9 @@ export default function App() {
       if (island) input.island = island;
       if (peninsula) input.peninsula = peninsula;
 
-      const result = solve(input);
+      const result = designMode === 'manual'
+        ? buildManualResult({ walls: wallsC, items: manualItems, island, roomType, layoutType })
+        : solve(input);
 
       // Ensure _inputWalls carries id/length AND ceilingHeight for the views
       // (FloorPlanView / ElevationView CLG line). The solver reduces
@@ -2317,7 +2347,7 @@ export default function App() {
 
       setSolverResult(result);
 
-      const score = scoreAgainstTraining(result);
+      const score = designMode === 'manual' ? null : scoreAgainstTraining(result);
       setTrainingScore(score);
 
       const quoteResult = priceDesign(result, lineMods);
@@ -2342,7 +2372,8 @@ export default function App() {
     }
     setSolving(false);
   }, [layoutType, roomType, walls, appliances, prefs, materials, island, peninsula,
-      selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, projectId, lineMods, priceDesign]);
+      selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, projectId, lineMods, priceDesign,
+      designMode, manualItems]);
 
   const STEPS = ['Layout', 'Materials', 'Appliances', 'Countertops', 'Trim & Molding', 'Review'];
 
@@ -2414,6 +2445,11 @@ export default function App() {
             projectMeta={projectMeta} revisions={revisions} onRestoreRevision={handleRestoreRevision}
             walls={walls} orderSpec={orderSpec}
             lineMods={lineMods} onChangeLineMods={setLineMods}
+            onEditInStudio={() => {
+              setManualItems(seedFromSolverResult(solverResult));
+              setDesignMode('manual');
+              setView('designer'); setStep(0);
+            }}
             onBack={() => { setView('designer'); setStep(5); }} />
         ) : (
           <>
@@ -2423,11 +2459,40 @@ export default function App() {
             {step === 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 24 }}>
                 <div>
-                  <TemplatePicker onSelect={handleTemplateSelect} selected={selectedTemplate} />
-                  {selectedTemplate && (
-                    <DimensionAdjuster walls={walls} onChange={setWalls}
-                      island={island} onIslandChange={setIsland}
-                      peninsula={peninsula} onPeninsulaChange={setPeninsula} />
+                  {/* ── Design mode: solver-designed vs hand-designed (2020-style) ── */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                    {[['auto', 'App designs it', 'Pick a template, set the room — the solver lays out the cabinets.'],
+                      ['manual', 'Design Studio — I\'ll design it', 'Draw the room and place every cabinet yourself from the catalog (2020-style).']].map(([m, label, hint]) => (
+                      <button key={m} onClick={() => setDesignMode(m)} title={hint}
+                        style={{ flex: 1, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                          border: `2px solid ${designMode === m ? C.accent : C.border}`,
+                          background: designMode === m ? '#c8a96e22' : C.bg, color: designMode === m ? C.accent : C.muted }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {designMode === 'manual' ? (
+                    <DesignStudio walls={walls} onWallsChange={setWalls}
+                      items={manualItems} onItemsChange={setManualItems}
+                      brand={materials.brand} mode="full" />
+                  ) : (
+                    <>
+                      <TemplatePicker onSelect={handleTemplateSelect} selected={selectedTemplate} />
+                      {selectedTemplate && (
+                        <DimensionAdjuster walls={walls} onChange={setWalls}
+                          island={island} onIslandChange={setIsland}
+                          peninsula={peninsula} onPeninsulaChange={setPeninsula} />
+                      )}
+                      <div style={{ marginTop: 14 }}>
+                        <DesignStudio walls={walls} onWallsChange={setWalls}
+                          items={[]} onItemsChange={() => {}}
+                          brand={materials.brand} mode="room" ghost={ghostResult} />
+                        <p style={{ fontSize: 10.5, color: C.dim, margin: '6px 0 0' }}>
+                          Room canvas: drag wall ends, click a dimension to type the laser number, drag windows/doors. The dashed boxes are the solver's live layout preview.
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
                 <div>
