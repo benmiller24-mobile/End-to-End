@@ -41,8 +41,11 @@ export const CONSTRUCTIONS = {
     wallDepth: 12, baseDepth: 24,
     hinge: 'concealed', softClose: true,
     fillerGoldenRule: false,
-    overlayCharge: { door: 26, drawer: 12 }, insetPremiumPct: 0,
-    note: 'Shiloh — 1¼" Overlay (framed)',
+    // FOVL (1¼" full overlay) door-style adders verified on three real orders
+    // (OC Design Banger island, Ruhi kitchen, WRS Beatty master bath):
+    // $26/door + $67/drawer front. The earlier $12 drawer figure was wrong.
+    overlayCharge: { door: 26, drawer: 67 }, insetPremiumPct: 0,
+    note: 'Shiloh — 1¼" Overlay (framed); FOVL +$26/door, +$67/drawer front',
   },
 
   // ── Shiloh inset pricing, calibrated against the Soderstrom project quotes

@@ -939,11 +939,14 @@ function ComparisonPricingPanel({ placements, frameStyle }) {
 // ==================== RESULTS VIEW ====================
 const DEALER_SETTINGS_KEY = 'ekd.dealerSettings';
 const DEALER_DEFAULTS = { multiplier: 1.0, marginPct: 0, marginMethod: 'markup', taxPct: 0, freight: 0, install: 0 };
-// Discount-multiplier presets verified against W.W. Wood order confirmations
-// #45923/#45928/#45933 (June 2026): dealer net = 0.47 × list, rep net = 0.265 × list.
+// Discount-multiplier presets from W.W. Wood order confirmations. The
+// confirmation math is: Cabinet Total − Dealer Discount − Rep Discount =
+// Order Amount. June 2026 (#45923/#45928/#45933): dealer discount 47% →
+// dealer net ×0.53; rep pays ×0.265 of list. (Aug 2025 confirmations show
+// dealer net ×0.57 — terms improved; adjust the number to current terms.)
 const MULTIPLIER_PRESETS = [
   { label: 'List', value: 1.0 },
-  { label: 'Dealer ×0.47', value: 0.47 },
+  { label: 'Dealer ×0.53', value: 0.53 },
   { label: 'Rep ×0.265', value: 0.265 },
 ];
 function loadDealerSettings() {

@@ -118,11 +118,14 @@ const b3d21 = calculateItemPrice(
 );
 assert(approx(b3d21.unitPrice, 1119), `B3D21 Walnut + 3× (3/4" box + FEG) = $1,119.00 as invoiced (got ${b3d21.unitPrice.toFixed(2)})`);
 
-console.log('\n═══ Discount multipliers from order confirmations ═══');
-// All three confirmations: dealer net = 0.47 × list, rep net = 0.265 × list.
-for (const [list, dealerNet, repNet] of [[1832.42, 861.24, 485.59], [12630.55, 5936.36, 3347.09], [2908.84, 1367.15, 770.85]]) {
-  assert(approx(list * 0.47, dealerNet, 0.01), `dealer ×0.47: ${list} → ${dealerNet}`);
-  assert(approx(list * 0.265, repNet, 0.01), `rep ×0.265: ${list} → ${repNet}`);
+console.log('\n═══ Discount cascade from order confirmations ═══');
+// Confirmation math: Cabinet Total − Dealer Discount − Rep Discount = Order
+// Amount. The printed lines are discount AMOUNTS: dealer discount is 47% of
+// list (dealer net ×0.53); the order amount (rep net) is 0.265 × list.
+for (const [list, dealerDisc, repDisc] of [[1832.42, 861.24, 485.59], [12630.55, 5936.36, 3347.09], [2908.84, 1367.15, 770.85]]) {
+  assert(approx(list - dealerDisc - repDisc, repDisc, 0.02), `cascade identity: ${list} − ${dealerDisc} − ${repDisc} = order amount`);
+  assert(approx(list * 0.53, list - dealerDisc, 0.01), `dealer net ×0.53 of ${list}`);
+  assert(approx(list * 0.265, repDisc, 0.01), `rep net ×0.265 of ${list}`);
 }
 
 console.log('\n═══ Soderstrom whole-house quotes (Shiloh SHI342, June 2026) ═══');
@@ -159,6 +162,22 @@ const bcf = calculateItemPrice(
   'White Oak', 'Standard',
 );
 assert(approx(bcf.unitPrice, 732), `BCF 24×30.5 = $732 as quoted (got ${bcf.unitPrice})`);
+
+console.log('\n═══ Drive corpus (36 projects): FOVL adders & species ladder ═══');
+// Shiloh 1¼" full overlay (FOVL): $26/door + $67/drawer front — three
+// independent orders (OC Design Banger $536/8 fronts, WRS Beatty $335/5,
+// Ruhi kitchen). A 7-door, 8-front order carries 7×26 + 8×67 = $718.
+const fovl = calculateItemPrice(
+  { s: 'B36-FHD', p: 784, r: 'SHILOH', t: 'B', dc: 7, drc: 8, len: 1, q: 1 },
+  'Maple', 'Standard', 'HNVR', 'DF-HNVR', '5/8-STD',
+  { overlayDoorChg: 26, overlayDrawerChg: 67, insetPremiumPct: 0 },
+);
+assert(approx(fovl.overlayChg, 7 * 26 + 8 * 67), `FOVL 7 doors + 8 fronts = $718 (got ${fovl.overlayChg})`);
+// Species ladder spot-checks confirmed across the Drive corpus (Diehl
+// 3-species comparison, Spellman QSWO, Maxs Office Rustic Walnut, 3JSR Alder):
+for (const [sp, pct] of [['Cherry', 10], ['Alder', 12], ['QS White Oak', 16], ['Rustic Walnut', 25], ['TFL', -25], ['Hickory', 0]]) {
+  assert(SPECIES_PCT[sp] === pct, `${sp} = ${pct}% (corpus-confirmed)`);
+}
 
 console.log(`\n${'═'.repeat(50)}\nConstruction pricing tests: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
