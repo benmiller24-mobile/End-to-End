@@ -148,14 +148,17 @@ assert(approx(33237.38 * SPECIES_PCT['Maple'] / 100, 2658.99, 0.01), 'Maple 8% r
 assert(approx(14252.65 * SPECIES_PCT['Rift Cut White Oak'] / 100, 2708.00, 0.51), 'Rift Cut WO 19% reproduces island premium $2,708.00');
 assert(SPECIES_PCT['Paint (Std SW)'] === SPECIES_PCT['Maple'] + 10, 'Paint (Std SW) 18% = Maple 8% + Polar paint 10%');
 
-// Inset construction: $0 premium + $55/drawer-front (Malibu inset). The
-// upstairs-bath quote shows 4 drawer fronts → $220.00.
+// Inset construction: NO charges of any kind (Ben's ruling + the v3.42
+// price book itself: "(I) INSET: Available … At Standard Price"). The
+// $55/front lines on the Soderstrom quotes were Malibu DRAWER-FRONT STYLE
+// charges (billed via the drawer-front group), not inset charges.
 const insetItem = calculateItemPrice(
   { s: 'VTB12-4', p: 523, r: 'SHILOH', t: 'V', dc: 0, drc: 4, len: 1, q: 1 },
   'Rift Cut White Oak', 'Standard', 'HNVR', 'DF-HNVR', '5/8-STD',
-  { overlayDoorChg: 0, overlayDrawerChg: 55, insetPremiumPct: 0 },
+  { overlayDoorChg: 0, overlayDrawerChg: 0, insetPremiumPct: 0 },
 );
-assert(approx(insetItem.overlayChg, 220), `inset drawer fronts 4 × $55 = $220 as quoted (got ${insetItem.overlayChg})`);
+assert(insetItem.overlayChg === 0 && insetItem.insetPct === 0,
+  `Shiloh inset carries zero construction charges (got ovl ${insetItem.overlayChg}, pct ${insetItem.insetPct})`);
 
 // Sq-in items price by real dimensions: BCF $1.00/sq-in × 24×30.5 = $732.
 const bcf = calculateItemPrice(

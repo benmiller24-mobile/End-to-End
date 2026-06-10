@@ -46,7 +46,7 @@ accessory subtotal separately (additive, not compounded).
 |---|---|---|
 | Shiloh 1¼" full overlay (FOVL) | **$26/door + $67/drawer front** | OC Design ($536/8), WRS Beatty Master ($335/5), Ruhi — ✓test |
 | Shiloh ½" standard overlay | $0 | (no contrary evidence) |
-| Shiloh inset (all variants) | **$0 construction premium**; inset drawer front +$55/ea; Group-B inset doors (e.g. Malibu Reeded) +$44/door | Soderstrom (5 rooms), Dolfin Isle, Case Study, 3JSR bath, showroom — ✓test |
+| Shiloh inset (all variants) | **NO construction charges of any kind** — "(I) INSET: Available … At Standard Price" (v3.42 book) + Ben's ruling. The $55/front quote lines are Malibu drawer-front STYLE charges (drawer-front group), and Group-B inset doors (Malibu Reeded) carry their door-group $44 — both style charges, not inset charges. Disregard any inset charges printed in the pricing PDF. | Price book §formulas, Soderstrom (5 rooms), Dolfin Isle, Case Study — ✓test |
 | Plywood / partial plywood | +10% of subtotal | Spector (exact), Firebird, Saifer |
 
 Note: Shiloh inset jobs price from inset-specific catalog SKUs (INF*, FIO*/FIOM*,
@@ -128,6 +128,19 @@ The official W.W. Wood "Eclipse v8.8 Pricing_Data" workbooks are now ingested:
   quote-verified interim Shiloh catalog (scrape + 27 Soderstrom-verified
   SKUs + FOVL/inset adders) is the standing source, with the
   Shiloh→Eclipse fallback flag as the guard.
+
+## Shiloh price-book verification (v3.42 PDF, June 2026)
+
+Full-book cross-check of SHILOH_CATALOG against the 495-page interactive
+price book: **2,770 entries verified as exact SKU+price matches; ZERO price
+contradictions found** (all 45 first-pass "diff" candidates were
+text-extraction artifacts, e.g. VW1230's tail matching W1230). Of entries
+not findable as adjacent SKU+price strings: 236 carry Eclipse-equal prices
+(consistent with shared W.W. Wood list pricing proven by Soderstrom) and the
+rest are text-layer extraction gaps or Eclipse-style nomenclature the Shiloh
+book doesn't use (e.g. Shiloh has no B3D* — three-drawer bases are B##-3;
+no W1230 — Shiloh wall lineup differs). The book's own formulas page states
+"(I) INSET: Available … At Standard Price" — confirming inset = no charge.
 
 ## Open items
 

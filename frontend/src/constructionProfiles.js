@@ -48,14 +48,12 @@ export const CONSTRUCTIONS = {
     note: 'Shiloh — 1¼" Overlay (framed); FOVL +$26/door, +$67/drawer front',
   },
 
-  // ── Shiloh inset pricing, calibrated against the Soderstrom project quotes
-  //    (SHI342 catalog, June 2026): the catalog's list prices already cover
-  //    inset construction — the quote's "Inset Overlay {INS}" charge line is
-  //    $0.00, doors carry no inset charge, and inset DRAWER FRONTS carry a
-  //    flat $55/each upcharge (Malibu Inset Drwr Frnt, consistent across all
-  //    5 rooms). The earlier 40–45% blanket premium overpriced inset jobs by
-  //    ~40%; per-drawer-front $55 reproduces the real quotes. Confirm rates
-  //    per door style when the official Shiloh price CSV lands. ──
+  // ── Shiloh inset pricing — FINAL (per Ben + the v3.42 price book itself:
+  //    "(I) INSET: Available … At Standard Price"): inset carries NO
+  //    construction charges of any kind. The $55/front lines on the
+  //    Soderstrom quotes were Malibu DRAWER-FRONT STYLE charges (billed via
+  //    the drawer-front group like any door-style upcharge), not inset
+  //    charges — disregard any inset charges printed in the pricing PDF. ──
   shiloh_flush_inset: {
     key: 'shiloh_flush_inset', brand: 'shiloh', label: 'Flush Inset',
     frame: true, inset: true, stile: 1.5, gap: 0.094,
@@ -63,8 +61,8 @@ export const CONSTRUCTIONS = {
     wallDepth: 13, baseDepth: 24,
     hinge: 'concealed', softClose: true,
     fillerGoldenRule: false,
-    overlayCharge: { door: 0, drawer: 55 }, insetPremiumPct: 0,
-    note: 'Shiloh — Flush Inset (framed); inset drawer fronts +$55/ea per Soderstrom quotes',
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
+    note: 'Shiloh — Flush Inset (framed); inset at standard price',
   },
   shiloh_beaded_inset: {
     key: 'shiloh_beaded_inset', brand: 'shiloh', label: 'Beaded Inset',
@@ -73,7 +71,7 @@ export const CONSTRUCTIONS = {
     wallDepth: 13, baseDepth: 24,
     hinge: 'concealed', softClose: true,
     fillerGoldenRule: false,
-    overlayCharge: { door: 0, drawer: 55 }, insetPremiumPct: 0,  // was 42% — recalibrated per Soderstrom quotes
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
     note: 'Shiloh — Beaded Inset (framed)',
   },
   shiloh_square_bead_inset: {
@@ -83,7 +81,7 @@ export const CONSTRUCTIONS = {
     wallDepth: 13, baseDepth: 24,
     hinge: 'concealed', softClose: true,
     fillerGoldenRule: false,
-    overlayCharge: { door: 0, drawer: 55 }, insetPremiumPct: 0,  // was 42% — recalibrated per Soderstrom quotes
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
     note: 'Shiloh — Square Beaded Inset (framed)',
   },
   shiloh_38_inset: {
@@ -93,7 +91,7 @@ export const CONSTRUCTIONS = {
     wallDepth: 13, baseDepth: 24,
     hinge: 'knife', softClose: false,           // 3/8" inset uses a knife hinge (no soft close)
     fillerGoldenRule: false,
-    overlayCharge: { door: 0, drawer: 55 }, insetPremiumPct: 0,  // was 45% — recalibrated per Soderstrom quotes
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
     note: 'Shiloh — 3/8" Inset (knife hinge)',
   },
   shiloh_modern_flush_inset: {
@@ -103,7 +101,7 @@ export const CONSTRUCTIONS = {
     wallDepth: 13, baseDepth: 24,
     hinge: 'concealed', softClose: true,
     fillerGoldenRule: false,
-    overlayCharge: { door: 0, drawer: 55 }, insetPremiumPct: 0,  // was 42% — recalibrated per Soderstrom quotes
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
     note: 'Shiloh — Modern Flush Inset (full-height frame reveal)',
   },
   shiloh_modern_beaded_inset: {
@@ -113,7 +111,7 @@ export const CONSTRUCTIONS = {
     wallDepth: 13, baseDepth: 24,
     hinge: 'concealed', softClose: true,
     fillerGoldenRule: false,
-    overlayCharge: { door: 0, drawer: 55 }, insetPremiumPct: 0,  // was 44% — recalibrated per Soderstrom quotes
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
     note: 'Shiloh — Modern Beaded Inset',
   },
   shiloh_modern_square_bead_inset: {
@@ -123,7 +121,7 @@ export const CONSTRUCTIONS = {
     wallDepth: 13, baseDepth: 24,
     hinge: 'concealed', softClose: true,
     fillerGoldenRule: false,
-    overlayCharge: { door: 0, drawer: 55 }, insetPremiumPct: 0,  // was 44% — recalibrated per Soderstrom quotes
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
     note: 'Shiloh — Modern Square Beaded Inset',
   },
 };
