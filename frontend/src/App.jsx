@@ -368,10 +368,43 @@ function DimensionAdjuster({ walls, onChange, island, onIslandChange, peninsula,
 }
 
 // ==================== WALL EDITOR ====================
+// Per wall: length + role, optional per-wall ceiling override, soffit
+// (drop/depth), and the openings list (windows, doors, archways) — the
+// real-room inputs the solver and drawings consume.
 function WallEditor({ walls, onChange }) {
   const add = () => onChange([...walls, { id: String.fromCharCode(65 + walls.length), length: 120, role: 'general' }]);
-  const update = (i, field, val) => { const w = [...walls]; w[i] = { ...w[i], [field]: field === 'length' ? Number(val) : val }; onChange(w); };
+  const update = (i, field, val) => { const w = [...walls]; w[i] = { ...w[i], [field]: val }; onChange(w); };
   const remove = (i) => onChange(walls.filter((_, j) => j !== i));
+
+  const updateOpening = (wi, oi, field, val) => {
+    const w = [...walls];
+    const ops = [...(w[wi].openings || [])];
+    ops[oi] = { ...ops[oi], [field]: field === 'type' ? val : Math.max(0, Number(val) || 0) };
+    w[wi] = { ...w[wi], openings: ops };
+    onChange(w);
+  };
+  const addOpening = (wi, type) => {
+    const w = [...walls];
+    const defaults = type === 'window'
+      ? { type, position: Math.max(0, (w[wi].length - 36) / 2), width: 36, sillHeight: 42, headHeight: 80 }
+      : { type, position: Math.max(0, w[wi].length - 36), width: 36, headHeight: 80 };
+    w[wi] = { ...w[wi], openings: [...(w[wi].openings || []), defaults] };
+    onChange(w);
+  };
+  const removeOpening = (wi, oi) => {
+    const w = [...walls];
+    w[wi] = { ...w[wi], openings: (w[wi].openings || []).filter((_, j) => j !== oi) };
+    onChange(w);
+  };
+  const setSoffit = (wi, field, val) => {
+    const w = [...walls];
+    const s = { ...(w[wi].soffit || { drop: 0, depth: 13 }), [field]: Math.max(0, Number(val) || 0) };
+    w[wi] = { ...w[wi], soffit: s.drop > 0 ? s : null };
+    onChange(w);
+  };
+
+  const miniInput = { ...inputStyle, padding: '4px 6px', fontSize: 12 };
+  const miniLabel = { fontSize: 9, color: C.dim, textTransform: 'uppercase', letterSpacing: 0.5 };
 
   return (
     <div style={panelStyle}>
@@ -380,15 +413,69 @@ function WallEditor({ walls, onChange }) {
         <button onClick={add} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}>+ Add</button>
       </div>
       {walls.map((w, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '40px 80px 100px 24px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-          <input value={w.id} readOnly style={{ ...inputStyle, textAlign: 'center', color: C.dim }} />
-          <input type="number" value={w.length} onChange={e => update(i, 'length', e.target.value)} style={inputStyle} />
-          <select value={w.role || 'general'} onChange={e => update(i, 'role', e.target.value)} style={inputStyle}>
-            {['general', 'range', 'sink', 'fridge', 'tall', 'pantry', 'vanity'].map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-          <button onClick={() => remove(i)} style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 16 }}>x</button>
+        <div key={i} style={{ marginBottom: 12, paddingBottom: 10, borderBottom: i < walls.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '32px 70px 92px 64px 24px', gap: 6, alignItems: 'end' }}>
+            <div><div style={miniLabel}>Wall</div><input value={w.id} readOnly style={{ ...miniInput, textAlign: 'center', color: C.dim }} /></div>
+            <div><div style={miniLabel}>Length"</div><input type="number" value={w.length} onChange={e => update(i, 'length', Number(e.target.value))} style={miniInput} /></div>
+            <div><div style={miniLabel}>Role</div>
+              <select value={w.role || 'general'} onChange={e => update(i, 'role', e.target.value)} style={miniInput}>
+                {['general', 'range', 'sink', 'fridge', 'tall', 'pantry', 'vanity'].map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div><div style={miniLabel}>Ceiling"</div>
+              <input type="number" value={w.ceilingHeight || ''} placeholder="(global)"
+                onChange={e => update(i, 'ceilingHeight', e.target.value === '' ? undefined : Number(e.target.value))} style={miniInput} />
+            </div>
+            <button onClick={() => remove(i)} style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 16 }}>x</button>
+          </div>
+
+          {/* Soffit */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'end', marginTop: 6 }}>
+            <div><div style={miniLabel}>Soffit drop"</div>
+              <input type="number" min="0" value={w.soffit?.drop || ''} placeholder="0 = none"
+                onChange={e => setSoffit(i, 'drop', e.target.value)} style={{ ...miniInput, width: 76 }} />
+            </div>
+            {w.soffit?.drop > 0 && (
+              <div><div style={miniLabel}>Soffit depth"</div>
+                <input type="number" min="0" value={w.soffit?.depth || 13}
+                  onChange={e => setSoffit(i, 'depth', e.target.value)} style={{ ...miniInput, width: 76 }} />
+              </div>
+            )}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+              <button onClick={() => addOpening(i, 'window')} style={{ ...btnOutline, padding: '3px 8px', fontSize: 10 }}>+ Window</button>
+              <button onClick={() => addOpening(i, 'door')} style={{ ...btnOutline, padding: '3px 8px', fontSize: 10 }}>+ Door</button>
+            </div>
+          </div>
+
+          {/* Openings */}
+          {(w.openings || []).map((op, oi) => (
+            <div key={oi} style={{ display: 'grid', gridTemplateColumns: '78px 64px 56px 56px 56px 20px', gap: 5, marginTop: 5, alignItems: 'end', background: C.bg, borderRadius: 4, padding: '4px 6px' }}>
+              <div><div style={miniLabel}>Type</div>
+                <select value={op.type} onChange={e => updateOpening(i, oi, 'type', e.target.value)} style={miniInput}>
+                  {['window', 'door', 'archway'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div><div style={miniLabel}>From left"</div>
+                <input type="number" value={op.position ?? op.posFromLeft ?? 0} onChange={e => updateOpening(i, oi, 'position', e.target.value)} style={miniInput} /></div>
+              <div><div style={miniLabel}>Width"</div>
+                <input type="number" value={op.width} onChange={e => updateOpening(i, oi, 'width', e.target.value)} style={miniInput} /></div>
+              {op.type === 'window' ? (
+                <div><div style={miniLabel}>Sill"</div>
+                  <input type="number" value={op.sillHeight ?? 42} onChange={e => updateOpening(i, oi, 'sillHeight', e.target.value)} style={miniInput} /></div>
+              ) : <div />}
+              <div><div style={miniLabel}>Head"</div>
+                <input type="number" value={op.headHeight ?? 80} onChange={e => updateOpening(i, oi, 'headHeight', e.target.value)} style={miniInput} /></div>
+              <button onClick={() => removeOpening(i, oi)} style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 14 }}>x</button>
+            </div>
+          ))}
+          {(w.openings || []).some(op => (op.position ?? op.posFromLeft ?? 0) + (op.width || 0) > w.length) && (
+            <div style={{ marginTop: 4, fontSize: 10, color: C.danger }}>⚠ An opening extends past the end of this wall.</div>
+          )}
         </div>
       ))}
+      <p style={{ fontSize: 10, color: C.dim, margin: '4px 0 0' }}>
+        Windows block uppers (sink centers under them); doors/archways block the full run. Soffit lowers the uppers on that wall.
+      </p>
     </div>
   );
 }
@@ -406,17 +493,27 @@ function ApplianceEditor({ appliances, walls, onChange }) {
         <button onClick={add} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}>+ Add</button>
       </div>
       {appliances.map((a, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 50px 24px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 56px 30px 24px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
           <select value={a.type} onChange={e => update(i, 'type', e.target.value)} style={inputStyle}>
             {APPLIANCE_TYPES_LIST.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <input type="number" value={a.width} onChange={e => update(i, 'width', e.target.value)} style={inputStyle} />
           <select value={a.wall} onChange={e => update(i, 'wall', e.target.value)} style={inputStyle}>
             {walls.map(w => <option key={w.id} value={w.id}>{w.id}</option>)}
+            <option value="island">island</option>
           </select>
+          <button onClick={() => update(i, 'pinned', !a.pinned)}
+            title={a.pinned
+              ? 'Pinned — the solver will keep this appliance on this wall (plumbing/gas rough-in is fixed). Click to unpin.'
+              : 'Unpinned — the solver may relocate it for work-triangle reasons. Click to pin it to this wall.'}
+            style={{ background: a.pinned ? '#c8a96e22' : 'transparent', border: `1px solid ${a.pinned ? C.accent : C.border}`,
+              borderRadius: 4, padding: '5px 0', fontSize: 12, cursor: 'pointer', color: a.pinned ? C.accent : C.dim }}>
+            {a.pinned ? '📌' : '📍'}
+          </button>
           <button onClick={() => remove(i)} style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 16 }}>x</button>
         </div>
       ))}
+      <p style={{ fontSize: 10, color: C.dim, margin: '4px 0 0' }}>📌 = pinned to its wall (plumbing/gas fixed) — the solver will never move it.</p>
     </div>
   );
 }
@@ -1739,9 +1836,12 @@ export default function App() {
       const result = solve(input);
 
       // Ensure _inputWalls carries id/length AND ceilingHeight for the views
-      // (FloorPlanView / ElevationView CLG line).
+      // (FloorPlanView / ElevationView CLG line). The solver reduces
+      // ceilingHeight internally on soffited walls; the drawings want the TRUE
+      // ceiling (_realCeilingHeight) with the soffit drawn explicitly.
       result._inputWalls = (result._inputWalls || wallsC).map(w => ({
-        ...w, id: w.id, length: w.length, ceilingHeight: w.ceilingHeight || ceilH,
+        ...w, id: w.id, length: w.length,
+        ceilingHeight: w._realCeilingHeight || w.ceilingHeight || ceilH,
       }));
       // Also ensure result.walls items have .id and .length aliases for views
       if (result.walls && result.walls[0] && !result.walls[0].id) {

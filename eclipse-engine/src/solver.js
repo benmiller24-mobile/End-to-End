@@ -335,6 +335,8 @@ const PRO_DESIGN = {
  * @property {string} [model] - Model number
  * @property {string} [brand] - Brand name
  * @property {string} [position] - "center" | "left" | "right" | "end" | number (inches from left)
+ * @property {boolean} [pinned] - True locks the wall assignment (plumbing/gas
+ *   rough-in is real): the solver will never relocate a pinned appliance.
  */
 
 /**
@@ -358,7 +360,30 @@ const PRO_DESIGN = {
  * @returns {LayoutResult} Complete layout with placements, validation, and metadata
  */
 export function solve(input) {
-  const { walls, island, peninsula, appliances = [], prefs = {} } = input;
+  const { island, peninsula, appliances = [], prefs = {} } = input;
+  // Normalize walls at entry:
+  // 1. Openings — the UI/templates may write `position` while solver internals
+  //    read `posFromLeft` (renderers accept both). Alias them both ways.
+  // 2. Soffit — `soffit: {drop, depth}` lowers the usable ceiling on that wall.
+  //    Subtract it from ceilingHeight HERE so every internal consumer (upper
+  //    sizing, mounting datums, tall fit, crown logic) sees the effective
+  //    ceiling; `_realCeilingHeight` keeps the true ceiling for drawings.
+  const walls = (input.walls || []).map(w => {
+    const drop = w.soffit?.drop || 0;
+    const openings = !w.openings ? w.openings : w.openings.map(o => ({
+      ...o,
+      posFromLeft: typeof o.posFromLeft === 'number' ? o.posFromLeft : (typeof o.position === 'number' ? o.position : 0),
+      position: typeof o.position === 'number' ? o.position : (typeof o.posFromLeft === 'number' ? o.posFromLeft : 0),
+    }));
+    return {
+      ...w,
+      ...(openings ? { openings } : {}),
+      ...(drop > 0 ? {
+        _realCeilingHeight: w.ceilingHeight || 96,
+        ceilingHeight: Math.max(60, (w.ceilingHeight || 96) - drop),
+      } : {}),
+    };
+  });
   const layoutType = input.layoutType || inferLayoutType(walls, !!peninsula, !!island);
   // Opt-in: snap cooking-appliance widths to the layout recommendation (default off).
   let _applianceApplied = [];
@@ -497,12 +522,16 @@ export function solve(input) {
     // separation — the case that reads "weird"). Relocation priority follows designer
     // convention: under a window → onto a generous island (open-concept faces-the-room)
     // → the longest other wall. Sinks already separated from the range are left as-is.
+    //
+    // PINNED appliances are never relocated: `pinned: true` means the wall
+    // assignment reflects a real-world constraint (plumbing rough-in, gas line)
+    // that the solver must respect even when NKBA convention disagrees.
     const sink = assignedAppliances.find(a => a.type === 'sink');
-    if (!sink || sink.wall === 'island') return;
+    if (!sink || sink.wall === 'island' || sink.pinned) return;
     const range = assignedAppliances.find(a => a.type === 'range' || a.type === 'cooktop');
     if (!range || sink.wall !== range.wall) return;          // already separated → keep
     const dw = assignedAppliances.find(a => a.type === 'dishwasher');
-    const moveDW = (wallId) => { if (dw && dw.wall === sink.wall) dw.wall = wallId; };
+    const moveDW = (wallId) => { if (dw && !dw.pinned && dw.wall === sink.wall) dw.wall = wallId; };
     const windowWall = (walls || []).find(w => w.openings?.some(o => o.type === 'window') && w.id !== range.wall);
     const islandHasSink = assignedAppliances.some(a => a.type === 'sink' && a.wall === 'island' && a !== sink);
     const islandFits = island && (island.length || 0) >= 96 && !islandHasSink;
@@ -1680,6 +1709,27 @@ export function solve(input) {
           rule: 'wall_fully_corner_consumed',
           message: `Wall ${wl.wallId} (${wl.wallLength}") is fully consumed by corner units, leaving no standalone cabinetry. Widen it to fit cabinets between the corners, or use a single corner on this wall.`,
           wall: wl.wallId,
+        });
+      }
+    }
+  }
+
+  // Soffit clearance: talls/towers don't shrink for a soffit (they're discrete
+  // 84/90/93/96" boxes) — warn when one would collide so the designer resolves
+  // it (shorter tall, or notch/relocate the soffit).
+  for (const wallDef of walls) {
+    const drop = wallDef.soffit?.drop || 0;
+    if (!drop) continue;
+    const effCeil = wallDef.ceilingHeight || 96;  // already soffit-adjusted at entry
+    for (const t of (talls || [])) {
+      if (t.wall !== wallDef.id) continue;
+      const tTop = (t._elev?.yMount || 0) + (t._elev?.height || t.height || 0);
+      if (tTop > effCeil + 0.01) {
+        validation.push({
+          severity: 'error',
+          rule: 'soffit_tall_collision',
+          message: `Tall ${t.sku} on wall ${wallDef.id} tops out at ${tTop}" but the soffit drops the ceiling to ${effCeil}". Use a shorter tall or remove/notch the soffit.`,
+          wall: wallDef.id,
         });
       }
     }
@@ -3638,6 +3688,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     effectivePrefs.upperApproach = zoneConfig.upperApproach;
   }
 
+  // wallDef.ceilingHeight is already soffit-adjusted at solve() entry.
   const ceilingH = wallDef.ceilingHeight || DIMS.standardCeiling;
   const upperH = selectUpperHeight(ceilingH, effectivePrefs);
   const pattern = selectUpperPattern(wallRole, effectivePrefs, ceilingH);
@@ -3728,8 +3779,11 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
       // Standard RW heights from catalog: 21, 24, 27, 30, 33, 36. Pick largest that fits.
       // Catalog format: RW{width}{height} — no depth suffix (depth is always 12-13")
       const rwStdHeights = [36, 33, 30, 27, 24, 21];
-      const rwH = rwStdHeights.find(h => h <= availableAboveFridge) || 21;
-      if (rwH >= 21) {  // minimum catalog height is 21"
+      // On a soffited wall there may be NO room above the fridge — skip the RW
+      // entirely rather than forcing one through the soffit. (Non-soffited
+      // walls keep the legacy 21" fallback.)
+      const rwH = rwStdHeights.find(h => h <= availableAboveFridge) || (wallDef.soffit?.drop > 0 ? null : 21);
+      if (rwH && rwH >= 21) {  // minimum catalog height is 21"
         baseCabs.push({
           ...fridgeApp,
           type: "base",
@@ -4161,13 +4215,15 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
         const ceilH = wallDef.ceilingHeight || DIMS.standardCeiling || 96;
         const rwAvail = ceilH - fridgeH;
         const rwStdH = [24, 21, 18, 15, 12];
-        const rwHeight = rwStdH.find(h => h <= rwAvail) || 12;
+        // Soffited wall with no room above the fridge → no RW (legacy 12"
+        // fallback preserved on normal walls).
+        const rwHeight = rwStdH.find(h => h <= rwAvail) || (wallDef.soffit?.drop > 0 ? null : 12);
         const rwDepth = 27;
         const rwMods = [];
         if (glassStyleConfig.styleMod) {
           rwMods.push({ mod: glassStyleConfig.styleMod, qty: 1 });
         }
-        uppers.push({
+        if (rwHeight) uppers.push({
           sku: `RW${rwWidth}${rwHeight}-${rwDepth}`,
           width: rwWidth,
           height: rwHeight,
@@ -4798,11 +4854,14 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     const fridgeH = fridgeApp.height || 84;
     // Catalog RW heights: 21, 24, 27, 30, 33, 36. Format: RW{width}{height} — no depth suffix.
     const rwStdH = [36, 33, 30, 27, 24, 21];
-    const rawRwH = Math.max(12, Math.min(36, panelH - fridgeH - 3)); // 3" clearance
-    const rwH = rwStdH.find(h => h <= rawRwH) || 21;
+    const fridgeWallSoffit = walls.find(w => w.id === fridgeWall)?.soffit?.drop > 0;
+    const rawRwH = Math.max(fridgeWallSoffit ? 0 : 12, Math.min(36, panelH - fridgeH - 3)); // 3" clearance
+    // Soffited fridge wall with no room above → skip the RW (legacy 21"
+    // fallback preserved on normal walls).
+    const rwH = rwStdH.find(h => h <= rawRwH) || (fridgeWallSoffit ? null : 21);
     const rwD = Math.min(panelD, 27); // RW depth matches or shallower than panel
 
-    talls.push({
+    if (rwH) talls.push({
       sku: `RW${fridgeWidth}${rwH}`,
       width: fridgeWidth,
       height: rwH,

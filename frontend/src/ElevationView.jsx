@@ -1061,7 +1061,7 @@ function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [], construction = null }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], soffit = null, trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [], construction = null }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -1228,6 +1228,30 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         <text x={-12} y={ceilY + 1.5} fill={C.annotColor} fontSize={3}
           fontFamily="Helvetica,Arial,sans-serif" textAnchor="end">CLG</text>
       </>)}
+
+      {/* Soffit — hatched drop below the ceiling across the full wall. Uppers
+          on this wall are solved to the reduced (soffit-bottom) height. */}
+      {!isIsland && soffit?.drop > 0 && (() => {
+        const sH = soffit.drop * S;
+        const pid = `soffit-hatch-${wallId}`;
+        return (
+          <g>
+            <defs>
+              <pattern id={pid} width={4} height={4} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width={4} height={4} fill="#f4f1ec" />
+                <line x1={0} y1={0} x2={0} y2={4} stroke={C.fillerHatch} strokeWidth={0.6} />
+              </pattern>
+            </defs>
+            <rect x={0} y={ceilY} width={wW} height={sH}
+              fill={`url(#${pid})`} stroke={C.line} strokeWidth={0.5} />
+            <line x1={0} y1={ceilY + sH} x2={wW} y2={ceilY + sH} stroke={C.line} strokeWidth={0.7} />
+            <text x={wW / 2} y={ceilY + sH / 2 + 1.5} fill={C.annotColor} fontSize={3.2}
+              fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
+              {`SOFFIT — ${fmt(soffit.drop)} DROP${soffit.depth ? ` × ${fmt(soffit.depth)} DEEP` : ''}`}
+            </text>
+          </g>
+        );
+      })()}
 
       {/* Backsplash zone — standard 18" band OR full-height slab (current trend: the
           countertop stone runs solid up the wall, with a feature slab rising to the
@@ -2467,6 +2491,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
         id: w.id, length: w.length,
         ceilingHeight: w.ceilingHeight || 96,
         openings: w.openings || [],
+        soffit: w.soffit || null,
         bases: [], uppers: [], talls: [], hood: null,
       };
     });
@@ -2571,6 +2596,7 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             talls={wd.talls}
             hood={wd.hood}
             openings={wd.openings}
+            soffit={wd.soffit}
             trim={trim}
             tagStart={start}
             debug={debug}
