@@ -2191,6 +2191,7 @@ export default function App() {
   const [designMode, setDesignMode] = useState('auto');   // 'auto' (solver) | 'manual' (Design Studio)
   const [manualItems, setManualItems] = useState([]);     // hand-placed cabinets/appliances
   const [ghostResult, setGhostResult] = useState(null);   // live solver preview for the room canvas
+  const [studio3D, setStudio3D] = useState(false);         // in-studio 3D preview of hand-placed items
   const [trainingScore, setTrainingScore] = useState(null);
   const [solving, setSolving] = useState(false);
   const [error, setError] = useState(null);
@@ -2488,10 +2489,33 @@ export default function App() {
                   </div>
 
                   {designMode === 'manual' ? (
-                    <DesignStudio walls={walls} onWallsChange={setWalls}
-                      items={manualItems} onItemsChange={setManualItems}
-                      brand={materials.brand} mode="full"
-                      layoutType={layoutType} onApplyShape={applyShape} />
+                    <>
+                      <DesignStudio walls={walls} onWallsChange={setWalls}
+                        items={manualItems} onItemsChange={setManualItems}
+                        brand={materials.brand} mode="full"
+                        layoutType={layoutType} onApplyShape={applyShape} />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                        <button onClick={() => setStudio3D(v => !v)}
+                          style={{ ...btnPrimary, background: studio3D ? C.muted : 'linear-gradient(135deg,#8b5cf6,#3b82f6)' }}>
+                          {studio3D ? 'Hide 3D preview' : '⬡ View my layout in 3D'}
+                        </button>
+                        {studio3D && <span style={{ fontSize: 11, color: C.dim }}>Live preview of {manualItems.length} placed item{manualItems.length === 1 ? '' : 's'} — updates as you edit. Drag to orbit.</span>}
+                      </div>
+                      {studio3D && (() => {
+                        const preview = buildManualResult({
+                          walls: walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || Number(prefs.ceilingHeight) || 96 })),
+                          items: manualItems, island, roomType, layoutType,
+                        });
+                        return (
+                          <div style={{ marginTop: 10 }}>
+                            <Kitchen3DView solverResult={preview} materials={materials}
+                              construction={getConstruction(materials?.frameStyle)}
+                              countertopColor={countertopSelection.colorId ? getColorById(countertopSelection.colorId) : null}
+                              trim={trimSelections} prefs={prefs} selectedAppliances={selectedBrandAppliances} />
+                          </div>
+                        );
+                      })()}
+                    </>
                   ) : (
                     <>
                       <TemplatePicker onSelect={handleTemplateSelect} selected={selectedTemplate} />
