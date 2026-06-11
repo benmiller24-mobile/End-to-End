@@ -747,6 +747,33 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                 fill="none" stroke={C.ghost} strokeWidth={0.8} strokeDasharray="3,2" />;
             });
           })}
+          {/* solver ghost: CORNER units (lazy susan / blind) — they live in
+              result.corners, not the wall lists; without this the preview
+              showed an empty corner. Drawn as the diagonal-front plan shape. */}
+          {ghost && (ghost.corners || []).map((c, i) => {
+            if (!c.sku || !c.wallA) return null;
+            const fA = fr.find(x => x.id === c.wallA);
+            const fB = fr.find(x => x.id === c.wallB);
+            if (!fA || !fB) return null;
+            const consA = c.wallAConsumption || c.size || 36;
+            const consB = c.wallBConsumption || c.size || 36;
+            const P1 = toWorld(fA, fA.length - consA, 2);
+            const P2 = toWorld(fA, fA.length - 2, 2);
+            const P3 = toWorld(fB, consB, 2);
+            const P4 = toWorld(fB, consB, 2 + BASE_D);
+            const P5 = toWorld(fA, fA.length - consA, 2 + BASE_D);
+            const cx = (P1.x + P2.x + P3.x + P4.x + P5.x) / 5;
+            const cy = (P1.y + P2.y + P3.y + P4.y + P5.y) / 5;
+            return (
+              <g key={`gcorner${i}`} pointerEvents="none">
+                <polygon points={`${P1.x},${P1.y} ${P2.x},${P2.y} ${P3.x},${P3.y} ${P4.x},${P4.y} ${P5.x},${P5.y}`}
+                  fill="none" stroke={C.ghost} strokeWidth={0.8} strokeDasharray="3,2" />
+                <text x={cx} y={cy + 2} fontSize={5.4} textAnchor="middle" fill="#b5b5b5" fontFamily="Helvetica">
+                  {String(c.sku).replace(/^FC-/, '').slice(0, 10)}
+                </text>
+              </g>
+            );
+          })}
           {/* placed items */}
           {items.map(it => {
             const f = fr.find(x => x.id === it.wall); if (!f) return null;
