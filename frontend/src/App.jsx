@@ -2150,6 +2150,20 @@ export default function App() {
     setManualItems(items => items.filter(i => keep.has(i.wall)));
   }, [walls]);
 
+  // ── Studio autosave: crash/refresh insurance for hand-placed designs.
+  // Debounced full-state draft; offered back when the studio opens empty. ──
+  const [studioDraft, setStudioDraft] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ekd.studioAutosave')) || null; } catch { return null; }
+  });
+  useEffect(() => {
+    if (designMode !== 'manual' || !manualItems.length) return;
+    const t = setTimeout(() => {
+      try { localStorage.setItem('ekd.studioAutosave', JSON.stringify({ ts: Date.now(), state: collectState() })); } catch { /* private mode */ }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [designMode, manualItems, walls, island, layoutType]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const offerStudioDraft = designMode === 'manual' && !manualItems.length && (studioDraft?.state?.manualItems?.length > 0);
+
   // Live solver ghost for the room canvas (auto mode): debounce-solve as the
   // designer drags walls so the cabinet layout previews in place.
   useEffect(() => {
@@ -2361,6 +2375,20 @@ export default function App() {
 
                   {designMode === 'manual' ? (
                     <>
+                      {offerStudioDraft && (
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 12px', marginBottom: 10,
+                          border: '1px solid #d8c89a', borderRadius: 8, background: '#fffbe9', fontSize: 12 }}>
+                          <span>Autosaved design found — {studioDraft.state.manualItems.length} placed item{studioDraft.state.manualItems.length === 1 ? '' : 's'} from {new Date(studioDraft.ts).toLocaleString()}.</span>
+                          <button onClick={() => { applyState(studioDraft.state); setStep(0); }}
+                            style={{ fontSize: 11.5, padding: '4px 10px', cursor: 'pointer', borderRadius: 4, border: `1px solid ${C.accent}`, color: C.accent, background: '#fff', fontWeight: 700 }}>
+                            Restore
+                          </button>
+                          <button onClick={() => { setStudioDraft(null); try { localStorage.removeItem('ekd.studioAutosave'); } catch { /* ignore */ } }}
+                            style={{ fontSize: 11.5, padding: '4px 10px', cursor: 'pointer', borderRadius: 4, border: '1px solid #ccc', color: '#777', background: '#fff' }}>
+                            Dismiss
+                          </button>
+                        </div>
+                      )}
                       <DesignStudio walls={walls} onWallsChange={setWalls}
                         items={manualItems} onItemsChange={setManualItems}
                         brand={materials.brand} mode="full"

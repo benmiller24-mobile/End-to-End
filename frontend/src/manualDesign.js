@@ -67,7 +67,7 @@ const PANEL_RE = /^(F\d|OVF|SCRIBE|3SRM|REP|BEP|WEP|FWEP|FBEP|VEP|EDG|PNL|DWP|FD
 export const isPanelItem = (it) => (it.sku && PANEL_RE.test(String(it.sku).replace(/^FC-/, ''))) || (it.width || 0) < 1.6;
 
 /** Zones that compete for the same floor/wall band. */
-const bandOf = (it) => isPanelItem(it) ? 'panel' : (it.zone === 'upper' ? 'upper' : 'floor');
+export const bandOf = (it) => isPanelItem(it) ? 'panel' : (it.zone === 'upper' ? 'upper' : 'floor');
 
 /** Snap + clamp a moving item against its wall neighbors (flush-butt under 1.5"). */
 export function settleItem(items, wallLen, moving) {
@@ -91,6 +91,78 @@ export function settleItem(items, wallLen, moving) {
     }
   }
   return { ...moving, position: pos };
+}
+
+/**
+ * Bump-and-slide for live dragging: the item stays inside the gap the cursor
+ * is over and STOPS flush against neighbors/wall ends instead of jumping —
+ * the "professional CAD feel" (2020/Chief Architect collision model).
+ * `free` (Ctrl/Cmd held) bypasses neighbor collision but still clamps to the wall.
+ */
+export function slideItem(items, wallLen, moving, opts = {}) {
+  const want = Math.max(0, Math.min(moving.position, wallLen - moving.width));
+  if (opts.free || isPanelItem(moving)) {
+    return { ...moving, position: Math.round(want * 2) / 2 };
+  }
+  const others = items.filter(i => i.id !== moving.id && i.wall === moving.wall && bandOf(i) === bandOf(moving))
+    .sort((a, b) => a.position - b.position);
+  // Build the free gaps along the wall, then clamp the wanted position into
+  // the gap that contains (or is nearest to) the cursor's target center.
+  const gaps = [];
+  let edge = 0;
+  for (const o of others) {
+    if (o.position > edge + 0.01) gaps.push([edge, o.position]);
+    edge = Math.max(edge, o.position + o.width);
+  }
+  if (wallLen > edge + 0.01) gaps.push([edge, wallLen]);
+  if (!gaps.length) return { ...moving };           // wall solid — stay put
+  const center = want + moving.width / 2;
+  const nearest = (list) => list.reduce((best, g) => {
+    const mid = (g[0] + g[1]) / 2;
+    const d = center >= g[0] && center <= g[1] ? 0 : Math.abs(center - mid);
+    return !best || d < best.d ? { g, d } : best;
+  }, null).g;
+  // A cabinet can only occupy a gap it FITS — too-small slots are skipped
+  // (2020's collision model), so dragging never creates an overlap.
+  const fitGaps = gaps.filter(([s, e]) => e - s >= moving.width - 0.01);
+  if (fitGaps.length) {
+    const [gs, ge] = nearest(fitGaps);
+    let pos = Math.max(gs, Math.min(want, ge - moving.width));
+    pos = Math.round(pos * 2) / 2;
+    pos = Math.max(gs, Math.min(pos, ge - moving.width));
+    return { ...moving, position: pos };
+  }
+  // Nothing fits anywhere on this band: butt flush to the favored side of the
+  // nearest gap and let the checks flag the unavoidable overlap.
+  const [gs, ge] = nearest(gaps);
+  let pos = (center - gs < ge - center) ? gs : ge - moving.width;
+  pos = Math.round(Math.max(0, Math.min(pos, wallLen - moving.width)) * 2) / 2;
+  return { ...moving, position: pos };
+}
+
+/**
+ * Validity report for ONE candidate placement (the live ghost): returns
+ * [] when clean, else short human reasons. Mirrors manualChecks' rules.
+ */
+export function placementIssues(walls, items, cand) {
+  const issues = [];
+  const w = walls.find(x => x.id === cand.wall);
+  if (!w) return ['no wall under cursor'];
+  if (cand.width > w.length + 0.01) issues.push(`wider than wall ${w.id} (${w.length}")`);
+  else if (cand.position < -0.125 || cand.position + cand.width > w.length + 0.125) issues.push(`extends past wall ${w.id}`);
+  if (!isPanelItem(cand)) {
+    const clash = items.find(i => i.id !== cand.id && i.wall === cand.wall && bandOf(i) === bandOf(cand)
+      && cand.position < i.position + i.width - 0.01 && cand.position + cand.width > i.position + 0.01);
+    if (clash) issues.push(`overlaps ${clash.sku || clash.applianceType}`);
+  }
+  for (const op of (w.openings || [])) {
+    const oStart = op.position ?? op.posFromLeft ?? 0, oEnd = oStart + (op.width || 0);
+    const hit = cand.position < oEnd - 0.1 && cand.position + cand.width > oStart + 0.1;
+    if (!hit) continue;
+    if (op.type !== 'window') issues.push(`sits in the ${op.type} opening`);
+    else if (cand.zone === 'upper' || cand.zone === 'tall') issues.push('covers the window');
+  }
+  return issues;
 }
 
 // ── Validation (flag, never auto-fix — a pro may break a rule deliberately) ──
