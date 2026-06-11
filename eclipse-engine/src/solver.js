@@ -1065,8 +1065,11 @@ export function solve(input) {
   // cabinet rightward. If a gap is found that isn't fillable by standard
   // widths, insert a filler strip.
   for (const wl of wallLayouts) {
-    const cabs = wl.cabinets;
-    if (!cabs || cabs.length < 2) continue;
+    // End panels are surrounds that legitimately coincide with their cabinet's
+    // edge — including them here made this pass "fix" the coincidence by
+    // shifting the rest of the run ¾" past the wall.
+    const cabs = (wl.cabinets || []).filter(c => c.type !== 'end_panel');
+    if (cabs.length < 2) continue;
 
     // Sort by position ascending
     cabs.sort((a, b) => (a.position || 0) - (b.position || 0));
@@ -3854,7 +3857,7 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
         width: rangeApp.width,
         height: 24,
         type: "rangeHood",
-        position: rangeApp.position,
+        position: Math.max(0, Math.min(rangeApp.position, (wallDef.length || rangeApp.position + rangeApp.width) - rangeApp.width)),
         wall: wallDef.id,
         role: "range_hood",
         _hoodMountAFF: hoodBottomAFF,
@@ -3961,7 +3964,8 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
       const soph = effectivePrefs.sophistication || "high";
       const hoodOverhang = 3 /* IRC/best-practice: canopy hood overhangs the range 3" each side, at every sophistication */;
       const hoodW = rangeApp.width + hoodOverhang * 2;
-      const hoodPos = rangeApp.position - hoodOverhang;
+      // clamp to the wall: a range at the run start would otherwise put the hood at -3"
+      const hoodPos = Math.max(0, Math.min(rangeApp.position - hoodOverhang, (wallDef.length || rangeApp.position + hoodW) - hoodW));
       // RANGE HOOD DESIGN GUIDE: mounting height
       const isPro = rangeApp._isPro || rangeApp.width >= 48;
       const isElectric = rangeApp._fuelType === "electric" || rangeApp._fuelType === "induction";
@@ -4334,7 +4338,9 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     // Hood overhang: 3" each side at high/very_high soph, 0" at standard
     const hoodOverhang = 3 /* IRC/best-practice: canopy hood overhangs the range 3" each side, at every sophistication */;
     const hoodW = rangeApp.width + hoodOverhang * 2;
-    const hoodPos = rangeApp.position - hoodOverhang; // center over range
+    // center over range, clamped to the wall (range at the run start would
+    // otherwise put the hood at -3")
+    const hoodPos = Math.max(0, Math.min(rangeApp.position - hoodOverhang, (wallDef.length || rangeApp.position + hoodW) - hoodW));
 
     // ── Hood mounting height calculation (Range Hood Design Guide) ──
     // Determine range type: pro if width >= 36 and explicitly pro, or width >= 48

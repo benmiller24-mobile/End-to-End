@@ -375,13 +375,37 @@ export function enforceFillerRule(wallLayout, golaPrefix = '') {
   // order. Earlier passes (e.g. the range-landing swap) exchange positions
   // without reordering the array; repacking in array order would scramble the
   // run and push it past the wall end.
+  // End panels are SURROUNDS: they overlay the run's outer sides and consume
+  // no run length — packing them as widths pushed every run that had one ¾"
+  // past the wall. Pack the true run, then re-pin panels to its edges.
   cabinets.sort((a, b) => (a.position_start ?? a.position ?? 0) - (b.position_start ?? b.position ?? 0));
-  let pos = cabinets[0]?.position_start ?? cabinets[0]?.position ?? 0;
-  for (const cab of cabinets) {
+  const isEndPanel = (c) => c.type === 'end_panel';
+  const run = cabinets.filter(c => !isEndPanel(c));
+  // Each panel caps a SPECIFIC cabinet's exposed side (e.g. the finished side
+  // beside a fridge gap) — remember its anchor before the run moves.
+  const panelAnchors = cabinets.filter(isEndPanel).map(p => {
+    const w = p.width || 0.75;
+    const pStart = p.position ?? 0;
+    let anchor = run.find(c => Math.abs((c.position ?? 0) - (pStart + w)) < 0.6);
+    if (anchor) return { p, anchor, side: 'left' };
+    anchor = run.find(c => Math.abs(((c.position ?? 0) + (c.width || 0)) - pStart) < 0.6) || null;
+    return { p, anchor, side: 'right' };
+  });
+  let pos = run[0]?.position_start ?? run[0]?.position ?? 0;
+  for (const cab of run) {
     cab.position = pos;
     cab.position_start = pos;
     cab.position_end = pos + (cab.width || 0);
     pos += cab.width || 0;
+  }
+  const wallLen = wallLayout.wallLength || wallLayout.length || null;
+  for (const { p, anchor, side } of panelAnchors) {
+    const w = p.width || 0.75;
+    const a = anchor || (side === 'left' ? run[0] : run[run.length - 1]);
+    if (a) p.position = side === 'left' ? Math.max(0, a.position - w) : a.position_end;
+    if (wallLen != null) p.position = Math.min(p.position ?? 0, wallLen - w);   // overlay stays on the sheet
+    p.position_start = p.position;
+    p.position_end = (p.position ?? 0) + w;
   }
 
   wallLayout._fillerWarnings = warnings;
