@@ -21,32 +21,14 @@ const C = {
   base: '#e9e2d4', upper: '#dfe7ee', tall: '#e3dcc9', appliance: '#d6d9dc', ghost: '#cccccc',
   sel: '#b8944e', wall: '#2b2b2b', window: '#9db8d6', door: '#c9a96e',
 };
-const WALL_T = 6, BASE_D = 24, UPPER_D = 13;
+import { wallFrames, framePoint, turnOf, WALL_T, BASE_D } from './wallGeometry.js';
+const UPPER_D = 13;
 
-// World frames for the wall chain (matches FloorPlanView: 0/90/180/270).
-// Galley is the exception: two PARALLEL runs across an aisle.
-const GALLEY_GAP = 24 + 42 + 24 + WALL_T;   // base + aisle + base + wall
-function frames(walls, layoutType) {
-  if (/galley/.test(layoutType || '') && walls.length === 2) {
-    return [
-      { id: walls[0].id, x: 0, y: 0, angle: 0, length: walls[0].length },
-      { id: walls[1].id, x: 0, y: GALLEY_GAP, angle: 0, length: walls[1].length },
-    ];
-  }
-  const out = []; let x = 0, y = 0;
-  const angles = [0, 90, 180, 270];
-  walls.forEach((w, i) => {
-    const a = angles[i % 4];
-    out.push({ id: w.id, x, y, angle: a, length: w.length });
-    const r = a * Math.PI / 180;
-    x += Math.cos(r) * w.length; y += Math.sin(r) * w.length;
-  });
-  return out;
-}
-const toWorld = (f, along, perp) => {
-  const r = f.angle * Math.PI / 180, nx = -Math.sin(r), nz = Math.cos(r);
-  return { x: f.x + Math.cos(r) * along + nx * perp, y: f.y + Math.sin(r) * along + nz * perp };
-};
+// Shared chain geometry (wallGeometry.js) — same frames the floor plan and 3D
+// build from, so the canvas can never disagree with the documents. Walls carry
+// `turn` (90 default; 45/135 = angled wall).
+const frames = (walls, layoutType) => wallFrames(walls, layoutType);
+const toWorld = framePoint;
 const fmtIn = (v) => {
   const s = Math.round(v * 8) / 8, w = Math.floor(s), f = s - w;
   const F = { 0.125: '⅛', 0.25: '¼', 0.375: '⅜', 0.5: '½', 0.625: '⅝', 0.75: '¾', 0.875: '⅞' };
@@ -244,19 +226,27 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   }, [fr, projectOnWall]);
 
   // Interior corners between consecutive wall runs (none in a galley).
+  // Each carries the turn of the FOLLOWING wall — 90 is a true corner that
+  // hosts corner units; 45/135 is an angled junction (open corner).
   const corners = useMemo(() => {
     if (/galley/.test(layoutType || '') || walls.length < 2) return [];
-    return fr.slice(0, -1).map((f, i) => ({ idx: i, pt: toWorld(f, f.length, 0) }));
-  }, [fr, walls.length, layoutType]);
+    return fr.slice(0, -1).map((f, i) => ({ idx: i, pt: toWorld(f, f.length, 0), turn: turnOf(walls[i + 1]) }));
+  }, [fr, walls, layoutType]);
   const cornerSnap = useCallback((p, sku) => {
     if (!sku || !isCornerSku(sku)) return null;
     let best = null, bd = 30;   // snap radius
     for (const c of corners) {
+      if (c.turn !== 90) continue;   // corner units only fit right-angle corners
       const d = Math.hypot(p.x - c.pt.x, p.y - c.pt.y);
       if (d < bd) { bd = d; best = c; }
     }
     return best;
   }, [corners]);
+  const cycleTurn = useCallback((cornerIdx) => {
+    const wi = cornerIdx + 1;
+    const next = { 90: 45, 45: 135, 135: 90 }[turnOf(walls[wi])] || 90;
+    changeWalls(walls.map((w, i) => i === wi ? { ...w, turn: next } : w));
+  }, [walls, changeWalls]);
 
   // Island frame (axis-aligned; walls run 0/90/180/270): default to the room's
   // interior centroid until the designer drags it.
@@ -272,8 +262,8 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     return { cx, cy, L, D, x: cx - L / 2, y: cy - D / 2 };
   }, [island, fr]);
 
-  // Aisle clearances: island edge → facing cabinet face on each wall
-  // (NKBA: 42" work aisle; flag under 36" hard).
+  // Aisle clearances: island edge → facing cabinet face on each wall, for ANY
+  // wall angle (projection onto the wall normal). NKBA: 42" work aisle, 36" min.
   const islandClear = useMemo(() => {
     if (!islandBox) return [];
     const out = [];
@@ -281,27 +271,21 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
       const w = walls[i];
       const hasRun = items.some(it => it.wall === w.id && it.zone !== 'upper');
       const face = hasRun ? BASE_D : 0;
-      const horiz = f.angle % 180 === 0;
-      if (horiz) {
-        const wallY = f.y, inward = islandBox.cy > wallY ? 1 : -1;
-        const faceY = wallY + inward * face;
-        const edgeY = inward === 1 ? islandBox.y : islandBox.y + islandBox.D;
-        const clear = (edgeY - faceY) * inward;
-        // only count walls the island actually faces (x-ranges overlap)
-        const x0 = Math.min(f.x, toWorld(f, f.length, 0).x), x1 = Math.max(f.x, toWorld(f, f.length, 0).x);
-        if (islandBox.x < x1 && islandBox.x + islandBox.L > x0 && clear > 0 && clear < 90) {
-          out.push({ clear, x: Math.max(x0, islandBox.x) + (Math.min(x1, islandBox.x + islandBox.L) - Math.max(x0, islandBox.x)) / 2, y0: faceY, y1: edgeY, horiz: true });
-        }
-      } else {
-        const wallX = f.x, inward = islandBox.cx > wallX ? 1 : -1;
-        const faceX = wallX + inward * face;
-        const edgeX = inward === 1 ? islandBox.x : islandBox.x + islandBox.L;
-        const clear = (edgeX - faceX) * inward;
-        const y0r = Math.min(f.y, toWorld(f, f.length, 0).y), y1r = Math.max(f.y, toWorld(f, f.length, 0).y);
-        if (islandBox.y < y1r && islandBox.y + islandBox.D > y0r && clear > 0 && clear < 90) {
-          out.push({ clear, y: Math.max(y0r, islandBox.y) + (Math.min(y1r, islandBox.y + islandBox.D) - Math.max(y0r, islandBox.y)) / 2, x0: faceX, x1: edgeX, horiz: false });
-        }
-      }
+      const r = f.angle * Math.PI / 180;
+      const dir = { x: Math.cos(r), y: Math.sin(r) };
+      const n = { x: -Math.sin(r), y: Math.cos(r) };          // inward normal
+      const vx = islandBox.cx - f.x, vy = islandBox.cy - f.y;
+      const along = vx * dir.x + vy * dir.y;                  // center projected on wall
+      if (along < -6 || along > f.length + 6) return;         // island isn't facing this run
+      const signed = vx * n.x + vy * n.y;                     // distance off the wall (inward +)
+      // axis-aligned island's half-extent measured along this wall's normal
+      const halfExt = Math.abs(n.x) * islandBox.L / 2 + Math.abs(n.y) * islandBox.D / 2;
+      const clear = Math.abs(signed) - halfExt - face;
+      if (!(clear > 0 && clear < 90)) return;
+      const sgn = signed >= 0 ? 1 : -1;
+      const facePt = { x: f.x + dir.x * along + n.x * face * sgn, y: f.y + dir.y * along + n.y * face * sgn };
+      const edgePt = { x: islandBox.cx - n.x * halfExt * sgn, y: islandBox.cy - n.y * halfExt * sgn };
+      out.push({ clear, x0: facePt.x, y0: facePt.y, x1: edgePt.x, y1: edgePt.y });
     });
     return out;
   }, [islandBox, fr, walls, items]);
@@ -765,17 +749,25 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
               </g>
             );
           })}
-          {/* corner drop targets: diagonal markers, gold when a corner SKU is armed */}
-          {!roomOnly && corners.map(c => {
+          {/* corners: drop targets (90°) + click-to-cycle turn angle (90→45→135) */}
+          {corners.map(c => {
             const f1 = fr[c.idx], f2 = fr[c.idx + 1];
             const a = toWorld(f1, f1.length - 13, 2), b = toWorld(f2, 13, 2);
-            const hot = armed?.sku && isCornerSku(armed.sku);
+            const hot = !roomOnly && armed?.sku && isCornerSku(armed.sku) && c.turn === 90;
+            const angled = c.turn !== 90;
+            const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
             return (
-              <g key={`cn${c.idx}`} pointerEvents="none" opacity={hot ? 1 : 0.45}>
-                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={hot ? C.accent : '#b9ad99'} strokeWidth={hot ? 1.6 : 0.8} strokeDasharray="3,2" />
-                {hot && (() => { const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; return (
-                  <text x={m.x} y={m.y - 3} fontSize={6.5} textAnchor="middle" fill={C.accent} fontFamily="Helvetica" fontWeight={700}>corner</text>
-                ); })()}
+              <g key={`cn${c.idx}`} opacity={hot || angled ? 1 : 0.45} style={{ cursor: armed ? 'inherit' : 'pointer' }}
+                onClick={armed ? undefined : (ev) => { ev.stopPropagation(); cycleTurn(c.idx); }}>
+                <title>{`Corner ${walls[c.idx]?.id}/${walls[c.idx + 1]?.id}: wall meets at ${c.turn}° turn — click to cycle 90° → 45° → 135°`}</title>
+                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={hot ? C.accent : angled ? '#7a6a3a' : '#b9ad99'} strokeWidth={hot || angled ? 1.6 : 0.8} strokeDasharray="3,2" />
+                {hot && <text x={m.x} y={m.y - 3} fontSize={6.5} textAnchor="middle" fill={C.accent} fontFamily="Helvetica" fontWeight={700} pointerEvents="none">corner</text>}
+                {!hot && (
+                  <g pointerEvents="none">
+                    <circle cx={m.x} cy={m.y} r={6} fill="#fff" stroke={angled ? '#7a6a3a' : '#c8bda6'} strokeWidth={0.9} />
+                    <text x={m.x} y={m.y + 2.2} fontSize={5.2} textAnchor="middle" fill={angled ? '#7a6a3a' : '#a89a80'} fontFamily="Helvetica" fontWeight={700}>{c.turn}°</text>
+                  </g>
+                )}
               </g>
             );
           })}
@@ -786,12 +778,10 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
               <g>
                 {islandClear.map((cl, i) => {
                   const col = cl.clear < 36 ? C.danger : cl.clear < 42 ? '#c08a2e' : '#3a7d44';
-                  const lx = cl.horiz ? cl.x : (cl.x0 + cl.x1) / 2;
-                  const ly = cl.horiz ? (cl.y0 + cl.y1) / 2 : cl.y;
+                  const lx = (cl.x0 + cl.x1) / 2, ly = (cl.y0 + cl.y1) / 2;
                   return (
                     <g key={i} pointerEvents="none">
-                      <line x1={cl.horiz ? cl.x : cl.x0} y1={cl.horiz ? cl.y0 : cl.y} x2={cl.horiz ? cl.x : cl.x1} y2={cl.horiz ? cl.y1 : cl.y}
-                        stroke={col} strokeWidth={0.6} strokeDasharray="3,2" />
+                      <line x1={cl.x0} y1={cl.y0} x2={cl.x1} y2={cl.y1} stroke={col} strokeWidth={0.6} strokeDasharray="3,2" />
                       <rect x={lx - 12} y={ly - 5.5} width={24} height={11} rx={2} fill="#fff" stroke={col} strokeWidth={0.6} />
                       <text x={lx} y={ly + 2.6} fontSize={6.2} textAnchor="middle" fill={col} fontFamily="Helvetica">{fmtIn(cl.clear)}</text>
                     </g>

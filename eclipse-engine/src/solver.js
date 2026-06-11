@@ -583,6 +583,7 @@ export function solve(input) {
     }
     const wallCorners = corners.filter(c => c.wallA === wall.id || c.wallB === wall.id);
     const layout = solveWall(wall, wallAppliances, wallCorners, pf, golaPrefix);
+    layout.turn = wall.turn;   // chain geometry (45/135 = angled wall) rides through to every view
     wallLayouts.push(layout);
   }
 
@@ -1871,6 +1872,24 @@ function resolveCorners(walls, layoutType, prefs) {
     const wallA = walls.find(w => w.id === wA);
     const wallB = walls.find(w => w.id === wB);
     if (!wallA || !wallB) continue; // skip if wall not found
+    // ── ANGLED JUNCTION (wall turn ≠ 90°): no manufactured corner unit fits a
+    // non-right corner — reserve an OPEN corner instead. Reservation per leg =
+    // depth / tan(interior/2), the wedge two 24"-deep runs need so their boxes
+    // can't intersect (90°→24", 45° turn→10", 135° turn→58").
+    const turnB = wallB.turn === 45 || wallB.turn === 135 ? wallB.turn : 90;
+    if (turnB !== 90) {
+      const interior = 180 - turnB;
+      const reserve = Math.ceil(24 / Math.tan((interior / 2) * Math.PI / 180));
+      corners.push({
+        id: `corner_${wA}_${wB}`, wallA: wA, wallB: wB,
+        type: "open", sku: null, size: reserve,
+        wallAConsumption: reserve, wallBConsumption: reserve,
+        fillerRequired: false, fillerWidth: 0,
+        openCorner: true, turn: turnB,
+        patternId: `open_corner_${turnB}`, efficiency: 50,
+      });
+      continue;
+    }
     let treatment, efficiency;
     try {
       treatment = selectCornerTreatment(wallA, wallB, prefs);
@@ -4524,8 +4543,8 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
   if (!corners || corners.length === 0) return upperCorners;
 
   for (const corner of corners) {
-    // Skip diagonal or non-standard corners
-    if (corner.type === "diagonal" || corner.type === "none") continue;
+    // Skip diagonal, non-standard, and open (angled-junction) corners
+    if (corner.type === "diagonal" || corner.type === "none" || corner.openCorner) continue;
 
     // Determine upper height from adjacent upper layouts
     const wallAUppers = upperLayouts.find(u => u.wallId === corner.wallA);
@@ -5845,9 +5864,14 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
   for (const wl of wallLayouts) {
     const baseCabs = wl.cabinets.filter(c => c.type === "base");
     const allCabs = wl.cabinets || [];
-    if (baseCabs.length > 0) {
-      const first = baseCabs[0];
-      const last = baseCabs[baseCabs.length - 1];
+    // Run extents must come from the POSITION-SORTED full run (appliances
+    // included) — array order can differ after position-swapping passes, and
+    // an appliance (fridge) often terminates the run.
+    const run = allCabs.filter(c => typeof c.position === "number" && (c.width || 0) > 0)
+      .sort((a, b) => a.position - b.position);
+    if (baseCabs.length > 0 && run.length > 0) {
+      const first = run[0];
+      const last = run[run.length - 1];
       const hasLeftCorner = wl.corners.some(c => corners.find(cr => cr.id === c && cr.wallB === wl.wallId));
       const hasRightCorner = wl.corners.some(c => corners.find(cr => cr.id === c && cr.wallA === wl.wallId));
 
@@ -5909,9 +5933,10 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
             cynclyRule: "Phase 8: filler at wall-to-cabinet junction (left side)",
           });
           totalFillers++;
-        } else if (leftGap > 6 && leftGap <= 12) {
+        } else if (leftGap > 6 && leftGap <= 12 && first.type === "base") {
           // Gap 7-12": widen adjacent cabinet via MOD WIDTH instead of large filler
-          // (Never use fillers wider than 6" — the guide says widen the adjacent cabinet)
+          // (Never use fillers wider than 6" — the guide says widen the adjacent
+          // cabinet. Only a BASE cabinet can take a width mod — never an appliance.)
           const widthIncrease = leftGap;
           first.position = 0;
           first.width = (first.width || 0) + widthIncrease;
@@ -5962,8 +5987,9 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
             cynclyRule: "Phase 8: filler at wall-to-cabinet junction (right side)",
           });
           totalFillers++;
-        } else if (gapToWall > 6 && gapToWall <= 12) {
-          // Gap 7-12": widen last cabinet via MOD WIDTH
+        } else if (gapToWall > 6 && gapToWall <= 12 && last.type === "base") {
+          // Gap 7-12": widen last cabinet via MOD WIDTH (base cabinets only —
+          // never width-mod an appliance)
           last.width = (last.width || 0) + gapToWall;
           last._modWidth = true;
           last._modWidthNote = `MOD +${gapToWall}" to fill right wall junction gap`;
@@ -7329,6 +7355,7 @@ function compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLay
 
   // Corner cabs — position is at the END of each wall's usable space
   for (const corner of corners) {
+    if (!corner.sku) continue;   // open corner (angled junction): reservation only, no unit
     // Corner position = wallA length minus corner consumption
     const wallALayout = wallLayouts.find(wl => wl.wallId === corner.wallA);
     const cornerPos = wallALayout ? wallALayout.wallLength - corner.size : 0;

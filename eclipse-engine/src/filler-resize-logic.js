@@ -371,7 +371,11 @@ export function enforceFillerRule(wallLayout, golaPrefix = '') {
     }
   }
 
-  // Recompute positions after modifications
+  // Recompute positions after modifications — in POSITION order, not array
+  // order. Earlier passes (e.g. the range-landing swap) exchange positions
+  // without reordering the array; repacking in array order would scramble the
+  // run and push it past the wall end.
+  cabinets.sort((a, b) => (a.position_start ?? a.position ?? 0) - (b.position_start ?? b.position ?? 0));
   let pos = cabinets[0]?.position_start ?? cabinets[0]?.position ?? 0;
   for (const cab of cabinets) {
     cab.position = pos;

@@ -3,6 +3,7 @@ import { buildPrompt } from './LeonardoRenderer.jsx';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { wallFrames } from './wallGeometry.js';
 
 // ── Deterministic 3D view built straight from the solver geometry. Every cabinet
 //    is a box at its exact solved position/size, so the massing is 100% faithful
@@ -120,22 +121,12 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       const slabDoor = /MET|NAPA|^S\b|SLAB/i.test(materials?.door || '');
       const barPull = materials?.hardware === 'bar';
 
-      // ── Wall world frames (matches FloorPlanView) ──
-      const walls = (solverResult.walls || []).map(w => ({ id: w.wallId || w.id, length: w.length || 0, cabinets: w.cabinets || [], openings: w.openings || [] }));
+      // ── Wall world frames — SHARED chain geometry (wallGeometry.js), the
+      // same frames the studio canvas and floor plan build from. Honors
+      // per-wall `turn` (angled walls) and renders all walls in the chain. ──
+      const walls = (solverResult.walls || []).map(w => ({ id: w.wallId || w.id, length: w.length || 0, turn: w.turn, cabinets: w.cabinets || [], openings: w.openings || [] }));
       const layoutType = solverResult.layoutType || 'l-shape';
-      const margin = 0;
-      const wp = [];
-      if (walls.length === 1) wp.push({ id: walls[0].id, x: margin, y: margin, angle: 0, length: walls[0].length });
-      else if (walls.length === 2) {
-        const [wA, wB] = walls;
-        if (/galley/.test(layoutType)) { wp.push({ id: wA.id, x: 0, y: 0, angle: 0, length: wA.length }); wp.push({ id: wB.id, x: 0, y: BASE_D + AISLE + BASE_D + WALL_T, angle: 0, length: wB.length }); }
-        else { wp.push({ id: wA.id, x: 0, y: 0, angle: 0, length: wA.length }); wp.push({ id: wB.id, x: wA.length, y: 0, angle: 90, length: wB.length }); }
-      } else if (walls.length >= 3) {
-        const [wA, wB, wC] = walls;
-        wp.push({ id: wA.id, x: 0, y: 0, angle: 0, length: wA.length });
-        wp.push({ id: wB.id, x: wA.length, y: 0, angle: 90, length: wB.length });
-        wp.push({ id: wC.id, x: wA.length, y: wB.length, angle: 180, length: wC.length });
-      }
+      const wp = wallFrames(walls, layoutType);
       const frameOf = id => wp.find(f => f.id === id);
 
       // room bounds

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { wallFrames } from './wallGeometry.js';
 
 /**
  * FloorPlanView — Professional Architectural Kitchen Floor Plan (NKBA Ch.3 standards)
@@ -743,7 +744,7 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
     });
     corners.forEach(corner => {
       const wid = corner.wallA;
-      if (!wid) return;
+      if (!wid || !corner.sku) return;   // open corner (angled junction): nothing to draw
       const wl = wallLayouts.find(w => w.wallId === wid);
       const pos = wl ? wl.wallLength - corner.size : 0;
       if (!m[wid]) m[wid] = [];
@@ -768,26 +769,13 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
   }, [walls]);
 
   const wallPositions = useMemo(() => {
-    const pos = [];
+    // Shared chain geometry (wallGeometry.js) — same frames the Design Studio
+    // canvas and the 3D view use, so this drawing can never disagree with
+    // them. Honors per-wall `turn` (45/135 = angled wall) and draws ALL walls
+    // in the chain (G-shape's 4th wall included). Normalized so back-tracking
+    // chains never clip off the sheet.
     const margin = 70;
-    if (walls.length === 1) {
-      pos.push({ id: walls[0].id, x: margin, y: margin + 56, angle: 0, length: walls[0].length });
-    } else if (walls.length === 2) {
-      const wA = walls[0], wB = walls[1];
-      if (layoutType === 'galley' || layoutType === 'galley-peninsula') {
-        pos.push({ id: wA.id, x: margin, y: margin + 56, angle: 0, length: wA.length });
-        pos.push({ id: wB.id, x: margin, y: margin + 56 + BASE_D + AISLE + BASE_D + WALL_T, angle: 0, length: wB.length });
-      } else {
-        pos.push({ id: wA.id, x: margin, y: margin + 56, angle: 0, length: wA.length });
-        pos.push({ id: wB.id, x: margin + wA.length, y: margin + 56, angle: 90, length: wB.length });
-      }
-    } else if (walls.length >= 3) {
-      const wA = walls[0], wB = walls[1], wC = walls[2];
-      pos.push({ id: wA.id, x: margin, y: margin + 56, angle: 0, length: wA.length });
-      pos.push({ id: wB.id, x: margin + wA.length, y: margin + 56, angle: 90, length: wB.length });
-      pos.push({ id: wC.id, x: margin + wA.length, y: margin + 56 + wB.length, angle: 180, length: wC.length });
-    }
-    return pos;
+    return wallFrames(walls, layoutType, { x0: margin, y0: margin + 56, normalize: true });
   }, [walls, layoutType]);
 
   const viewBox = useMemo(() => {

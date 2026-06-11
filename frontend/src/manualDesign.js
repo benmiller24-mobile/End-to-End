@@ -321,7 +321,7 @@ export function buildManualResult({ walls, items, island, roomType = 'kitchen', 
         : { zone: it.zone === 'appliance' ? 'APPLIANCE' : 'BASE', yMount: 0, height: it.height || 34.5, depth: it.depth || 24, yTop: it.height || 34.5 },
   });
   const wallLayouts = walls.map(w => ({
-    wallId: w.id, id: w.id, length: w.length, wallLength: w.length,
+    wallId: w.id, id: w.id, length: w.length, wallLength: w.length, turn: w.turn,
     cabinets: items.filter(i => i.wall === w.id && (i.zone === 'base' || i.zone === 'appliance')).map(toCab),
   }));
   const uppers = walls.map(w => ({
