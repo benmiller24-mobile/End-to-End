@@ -53,6 +53,27 @@ const fmtIn = (v) => {
   return f ? `${w}${F[f] || ''}"` : `${w}"`;
 };
 
+// Family key for "swap width in place": replace the digit run that encodes the
+// item's WIDTH with '#'. B24→'B#'; B3D24→'B3D#' (the 3-drawer digit survives);
+// W3036→'W#36' (W-family packs WxH — only the first two digits are width).
+export function familyKey(sku, w) {
+  const s = String(sku || '').toUpperCase().replace(/^FC-/, '');
+  if (!s || !(w > 0)) return null;
+  const runs = [...s.matchAll(/\d+/g)];
+  const wStr = String(Math.round(w));
+  for (const r of runs) {
+    if (parseInt(r[0], 10) === Math.round(w)) {
+      return s.slice(0, r.index) + '#' + s.slice(r.index + r[0].length);
+    }
+  }
+  for (const r of runs) {
+    if (r[0].length === 4 && r[0].slice(0, 2) === wStr.padStart(2, '0')) {
+      return s.slice(0, r.index) + '#' + s.slice(r.index + 2);
+    }
+  }
+  return null;
+}
+
 // ── Catalog browser data ──
 function catalogList(brand) {
   if (brand === 'shiloh') {
@@ -86,6 +107,8 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   const [editDim, setEditDim] = useState(null);      // {wallIdx, value}
   const [editGap, setEditGap] = useState(null);      // {itemId, side:'left'|'right'} typing an offset
   const [hoverPt, setHoverPt] = useState(null);      // cursor world point while armed (ghost preview)
+  const [lastPlacedId, setLastPlacedId] = useState(null); // auto-advance anchor (Winner cursor)
+  const [fillGap, setFillGap] = useState(null);      // {wallIdx, band, start, end} gap being filled
   const [drag, setDrag] = useState(null);
   const [cat, setCat] = useState('Base');
   const [search, setSearch] = useState('');
@@ -233,9 +256,112 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     // Red ghost = blocked drop (door opening, window, no room). Alt-click forces.
     if (placementIssues(walls, items, it).length && !evt.altKey) return;
     changeItems([...items, it]);
-    setSel(it.id);
+    setSel(it.id); setLastPlacedId(it.id);
     if (!evt.shiftKey) setArmed(null);   // hold shift to place several
   }, [armed, items, walls, brand, svgPoint, nearestWall, changeItems]);
+
+  // ── R5 auto-advance: with a SKU armed and a just-placed (or selected) anchor,
+  // one-click arrows butt the next cabinet flush left/right and show the
+  // remaining inches each way (AutoKitchen's blue/red arrows). ──
+  const advance = useMemo(() => {
+    if (!armed) return null;
+    const anchor = items.find(i => i.id === lastPlacedId) || items.find(i => i.id === sel);
+    if (!anchor) return null;
+    const f = fr.find(x => x.id === anchor.wall);
+    const w = walls.find(x => x.id === anchor.wall);
+    if (!f || !w) return null;
+    const info = armed.applianceType ? { w: armed.width || 30, zone: 'appliance' } : skuInfo(armed.sku, brand);
+    const band = info.zone === 'upper' ? 'upper' : 'floor';
+    const sibs = items.filter(i => i.id !== anchor.id && i.wall === anchor.wall && bandOf(i) === band);
+    const aL = anchor.position, aR = anchor.position + anchor.width;
+    const rightStop = Math.min(w.length, ...sibs.filter(i => i.position >= aR - 0.01).map(i => i.position));
+    const leftStop = Math.max(0, ...sibs.filter(i => i.position + i.width <= aL + 0.01).map(i => i.position + i.width));
+    return {
+      anchor, frame: f, wall: w, width: info.w, zone: info.zone,
+      remRight: Math.max(0, rightStop - aR), remLeft: Math.max(0, aL - leftStop),
+    };
+  }, [armed, items, lastPlacedId, sel, fr, walls, brand]);
+
+  const placeFlush = useCallback((side) => {
+    if (!advance) return;
+    const { anchor, wall: w } = advance;
+    const proto = armed.applianceType
+      ? makeAppliance(armed.applianceType, anchor.wall, 0, armed.width)
+      : makeItem(armed.sku, anchor.wall, 0, brand);
+    proto.position = side === 'right' ? anchor.position + anchor.width : anchor.position - proto.width;
+    const settled = settleItem(items, w.length, proto);
+    if (placementIssues(walls, items, settled).length) return;
+    changeItems([...items, settled]);
+    setSel(settled.id); setLastPlacedId(settled.id);
+  }, [advance, armed, items, walls, brand, changeItems]);
+
+  // ── R6 swap-in-place: same-family widths with live price deltas. ──
+  const swapOptions = useMemo(() => {
+    const cur = items.find(i => i.id === sel);
+    if (!cur || !cur.sku || armed) return null;
+    const fam = familyKey(cur.sku, cur.width);
+    if (!fam) return null;
+    setPricingBrand(brand === 'shiloh' ? 'shiloh' : 'eclipse');
+    const curHit = findSkuNormalized(cur.sku);
+    const curPrice = curHit?.p ?? null;
+    const rows = all.filter(r => r.sku !== cur.sku && familyKey(r.sku, r.w) === fam);
+    const opts = rows.map(r => {
+      const hit = r.price != null ? { p: r.price } : findSkuNormalized(r.sku);
+      return { sku: r.sku, w: r.w, price: hit?.p ?? null, delta: hit?.p != null && curPrice != null ? hit.p - curPrice : null };
+    }).filter(o => o.w);
+    opts.sort((a, b) => Math.abs(a.w - cur.width) - Math.abs(b.w - cur.width));
+    const top = opts.slice(0, 8).sort((a, b) => a.w - b.w);
+    return top.length ? { cur, curPrice, options: top } : null;
+  }, [items, sel, armed, all, brand]);
+
+  const applySwap = useCallback((opt) => {
+    const cur = swapOptions?.cur; if (!cur) return;
+    const w = walls.find(x => x.id === cur.wall); if (!w) return;
+    const info = skuInfo(opt.sku, brand);
+    let next = { ...cur, sku: opt.sku, width: info.w, depth: info.d, height: info.h, zone: info.zone };
+    next = slideItem(items, w.length, next);   // anchors left edge, re-fits if the new width crowds a neighbor
+    changeItems(items.map(i => i.id === cur.id ? next : i));
+  }, [swapOptions, walls, items, brand, changeItems]);
+
+  // ── R3 fill-gap: click a gap chip → best-fit cabinets + trim-to-fit filler. ──
+  const fillOptions = useMemo(() => {
+    if (!fillGap) return null;
+    const w = walls[fillGap.wallIdx]; if (!w) return null;
+    const len = fillGap.end - fillGap.start;
+    setPricingBrand(brand === 'shiloh' ? 'shiloh' : 'eclipse');
+    const priced = (r) => {
+      const hit = r.price != null ? { p: r.price, _resolution: 'exact' } : findSkuNormalized(r.sku);
+      return { sku: r.sku, w: r.w, price: hit?.p ?? null, approx: hit ? hit._resolution !== 'exact' : false };
+    };
+    const isFloor = fillGap.band === 'floor';
+    // cabinets that fit, biggest first; plainest SKU per width
+    const fits = all.filter(r => !(/Filler/i.test(r.sub || '')) && r.w > 0 && r.w <= len + 0.01
+      && (isFloor ? r.cat === 'Base' : r.cat === 'Wall'));
+    const byWidth = new Map();
+    for (const r of fits) {
+      const prev = byWidth.get(r.w);
+      if (!prev || r.sku.length < prev.sku.length) byWidth.set(r.w, r);
+    }
+    const cabs = [...byWidth.values()].sort((a, b) => b.w - a.w).slice(0, 4).map(priced);
+    // smallest filler that covers the gap (trimmed on site), height-matched
+    const fillers = all.filter(r => /Filler/i.test(r.sub || '') && (isFloor ? r.cat === 'Base' : r.cat === 'Wall'))
+      .filter(r => !/FLUTED|PROFILE| R$| L$/i.test(r.sku));
+    let filler = fillers.filter(r => r.w >= len - 0.01).sort((a, b) => a.w - b.w)[0]
+      || fillers.sort((a, b) => b.w - a.w)[0] || null;
+    if (filler) filler = priced(filler);
+    return { len, wallId: w.id, filler, cabs };
+  }, [fillGap, walls, all, brand]);
+
+  const applyFill = useCallback((sku, asFiller) => {
+    if (!fillGap) return;
+    const w = walls[fillGap.wallIdx]; if (!w) return;
+    const it = makeItem(sku, w.id, fillGap.start, brand);
+    if (asFiller) it.width = Math.round((fillGap.end - fillGap.start) * 8) / 8;  // trim-to-fit
+    const settled = settleItem(items, w.length, it);
+    changeItems([...items, settled]);
+    setSel(settled.id); setLastPlacedId(settled.id);
+    setFillGap(null);
+  }, [fillGap, walls, items, brand, changeItems]);
 
   // keyboard: delete, undo/redo, escape
   useEffect(() => {
@@ -320,6 +446,52 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             {checks.filter(c => c.severity === 'error').length ? `${checks.filter(c => c.severity === 'error').length} issue(s)` : items.length ? '✓ layout clean' : 'drag walls · click dims to type · place cabinets from the catalog →'}
           </span>
         </div>
+        {/* swap-in-place strip: same-family widths with price deltas */}
+        {swapOptions && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid #eee7dc', background: '#faf7f1', overflowX: 'auto' }}>
+            <span style={{ fontSize: 10.5, color: '#777', whiteSpace: 'nowrap' }}>
+              Swap <b style={{ fontFamily: 'monospace' }}>{swapOptions.cur.sku}</b>{swapOptions.curPrice != null ? ` ($${Number(swapOptions.curPrice).toLocaleString()})` : ''} →
+            </span>
+            {swapOptions.options.map(o => (
+              <button key={o.sku} onClick={() => applySwap(o)}
+                title={`Replace with ${o.sku}${o.price != null ? ` — $${Number(o.price).toLocaleString()}` : ''}; left edge stays anchored`}
+                style={{ fontSize: 10.5, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, border: '1px solid #d8cdb8', background: '#fff', whiteSpace: 'nowrap' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{o.sku}</span>
+                {o.delta != null && (
+                  <span style={{ marginLeft: 5, color: o.delta > 0 ? '#a05533' : '#3a7d44', fontVariantNumeric: 'tabular-nums' }}>
+                    {o.delta > 0 ? '+' : '−'}${Math.abs(Math.round(o.delta)).toLocaleString()}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* fill-gap strip: best-fit cabinets + trim-to-fit filler */}
+        {fillGap && fillOptions && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid #eee7dc', background: '#fffbe9', overflowX: 'auto' }}>
+            <span style={{ fontSize: 10.5, color: '#8a6d1a', whiteSpace: 'nowrap', fontWeight: 700 }}>
+              Fill {fmtIn(fillOptions.len)} gap · wall {fillOptions.wallId}:
+            </span>
+            {fillOptions.cabs.map(o => (
+              <button key={o.sku} onClick={() => applyFill(o.sku, false)}
+                style={{ fontSize: 10.5, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, border: '1px solid #d8c89a', background: '#fff', whiteSpace: 'nowrap' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{o.sku}</span>
+                <span style={{ marginLeft: 4, color: '#999' }}>{fmtIn(o.w)}</span>
+                {o.price != null && <span style={{ marginLeft: 4, color: '#777' }}>{o.approx ? '≈' : ''}${Number(o.price).toLocaleString()}</span>}
+              </button>
+            ))}
+            {fillOptions.filler && (
+              <button onClick={() => applyFill(fillOptions.filler.sku, true)}
+                title="Filler is ordered oversize and trimmed to the gap on site"
+                style={{ fontSize: 10.5, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, border: '1px solid #b8944e', background: '#fff', whiteSpace: 'nowrap', color: '#8a6d1a' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{fillOptions.filler.sku}</span>
+                <span style={{ marginLeft: 4 }}>filler → trim to {fmtIn(fillOptions.len)}</span>
+                {fillOptions.filler.price != null && <span style={{ marginLeft: 4, color: '#777' }}>${Number(fillOptions.filler.price).toLocaleString()}</span>}
+              </button>
+            )}
+            <button onClick={() => setFillGap(null)} style={{ fontSize: 10.5, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, border: '1px solid #ccc', background: '#fff', color: '#888' }}>✕</button>
+          </div>
+        )}
         <svg ref={svgRef} viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} style={{ width: '100%', height: 'auto', maxHeight: 560, touchAction: 'none', cursor: armed ? 'crosshair' : 'default' }}
           onClick={onCanvasClick} onKeyDown={e => e.key === 'Escape' && setArmed(null)} tabIndex={0}
           onPointerMove={armed ? (e) => setHoverPt(svgPoint(e)) : undefined}
@@ -396,20 +568,43 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
               </g>
             );
           })}
-          {/* gap dimensions — leftover run space (floor band always; upper band when an upper is selected) */}
+          {/* gap dimensions — leftover run space; click a chip to fill the gap */}
           {gapDims.filter(g => g.band === 'floor' || (selItem && bandOf(selItem) === 'upper')).map((g, i) => {
             const f = fr[g.wallIdx];
             const perp = g.band === 'floor' ? 2 + BASE_D + 9 : 2 + UPPER_D + 6;
             const mid = toWorld(f, (g.start + g.end) / 2, perp);
             const a = toWorld(f, g.start, perp), b = toWorld(f, g.end, perp);
+            const active = fillGap && fillGap.wallIdx === g.wallIdx && fillGap.band === g.band && Math.abs(fillGap.start - g.start) < 0.01;
             return (
-              <g key={`gap${i}`} pointerEvents="none">
+              <g key={`gap${i}`} style={{ cursor: 'pointer' }}
+                onClick={(e) => { e.stopPropagation(); setFillGap(active ? null : g); }}>
                 <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#c9b873" strokeWidth={0.5} strokeDasharray="2,2" />
-                <rect x={mid.x - 13} y={mid.y - 6} width={26} height={11} rx={2} fill="#fffbe9" stroke="#d8c89a" strokeWidth={0.5} />
-                <text x={mid.x} y={mid.y + 2.5} fontSize={6.5} textAnchor="middle" fill="#8a6d1a" fontFamily="Helvetica">{fmtIn(g.end - g.start)}</text>
+                <rect x={mid.x - 13} y={mid.y - 6} width={26} height={11} rx={2} fill={active ? '#f3e3ad' : '#fffbe9'} stroke={active ? C.accent : '#d8c89a'} strokeWidth={active ? 1 : 0.5} />
+                <text x={mid.x} y={mid.y + 2.5} fontSize={6.5} textAnchor="middle" fill="#8a6d1a" fontFamily="Helvetica" pointerEvents="none">{fmtIn(g.end - g.start)}</text>
               </g>
             );
           })}
+          {/* auto-advance arrows: butt the armed SKU flush left/right of the anchor */}
+          {advance && (() => {
+            const { anchor, frame: f, width, remLeft, remRight, zone } = advance;
+            const depth = zone === 'upper' ? UPPER_D : BASE_D;
+            const mk = (side) => {
+              const fits = (side === 'right' ? remRight : remLeft) >= width - 0.01;
+              const along = side === 'right' ? anchor.position + anchor.width + 8 : anchor.position - 8;
+              const c = toWorld(f, along, 2 + depth / 2);
+              const lbl = toWorld(f, along, 2 + depth / 2 + 11);
+              const col = fits ? '#2e7d32' : '#bbb';
+              return (
+                <g key={side} style={{ cursor: fits ? 'pointer' : 'not-allowed' }}
+                  onClick={(e) => { e.stopPropagation(); if (fits) placeFlush(side); }}>
+                  <circle cx={c.x} cy={c.y} r={6.5} fill="#fff" stroke={col} strokeWidth={1.6} />
+                  <text x={c.x} y={c.y + 3} fontSize={8} fontWeight={700} textAnchor="middle" fill={col} fontFamily="Helvetica" pointerEvents="none">{side === 'right' ? '▶' : '◀'}</text>
+                  <text x={lbl.x} y={lbl.y + 3} fontSize={6} textAnchor="middle" fill={col} fontFamily="Helvetica" pointerEvents="none">{fmtIn(side === 'right' ? remRight : remLeft)}</text>
+                </g>
+              );
+            };
+            return <g>{mk('left')}{mk('right')}</g>;
+          })()}
           {/* selected item: clickable offset dims — type a value, the cabinet moves */}
           {selItem && !drag && (() => {
             const f = fr.find(x => x.id === selItem.wall);
@@ -495,7 +690,14 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
           <div style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
             {brand === 'shiloh' ? 'Shiloh' : 'Eclipse'} Catalog
           </div>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search SKU… (e.g. B24, SB36, W3036)"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Type a SKU + Enter to place (e.g. B30, SB36)"
+            onKeyDown={e => {
+              // Winner-style type-to-place: Enter arms the best match
+              if (e.key === 'Enter' && list.length) {
+                const exact = list.find(r => r.sku.toUpperCase() === search.toUpperCase());
+                setArmed({ sku: (exact || list[0]).sku });
+              }
+            }}
             style={{ width: '100%', padding: '6px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }} />
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
             <select value={cat} onChange={e => { setCat(e.target.value); setSearch(''); }} style={{ flex: 1, fontSize: 11, padding: 4 }}>
