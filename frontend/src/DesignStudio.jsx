@@ -672,18 +672,36 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
           onClick={onCanvasClick} onKeyDown={e => e.key === 'Escape' && setArmed(null)} tabIndex={0}
           onPointerMove={armed ? (e) => setHoverPt(svgPoint(e)) : undefined}
           onPointerLeave={armed ? () => setHoverPt(null) : undefined}>
+          {/* wall chain body: ONE mitered path so corners join cleanly at any
+              angle (separate square-capped lines overshoot and cross at the
+              vertex). Galley runs are parallel — no shared corners. */}
+          {!/galley/.test(layoutType || '') && fr.length > 0 && (
+            <path d={fr.reduce((d, f, i) => {
+              const e = toWorld(f, f.length, 0);
+              return (i === 0 ? `M ${f.x} ${f.y}` : d) + ` L ${e.x} ${e.y}`;
+            }, '')} fill="none" stroke={C.wall} strokeWidth={WALL_T} strokeLinejoin="miter" strokeLinecap="butt" pointerEvents="none" />
+          )}
           {/* walls */}
           {fr.map((f, wi) => {
             const e = toWorld(f, f.length, 0);
             const w = walls[wi];
-            const mid = toWorld(f, f.length / 2, -16);
+            const rr = f.angle * Math.PI / 180;
+            const out = { x: Math.sin(rr), y: -Math.cos(rr) };   // outward (away from room)
+            const mid = toWorld(f, f.length / 2, -12);
+            const dimAnchor = out.x > 0.35 ? 'start' : out.x < -0.35 ? 'end' : 'middle';
+            const dimX = mid.x + (dimAnchor === 'start' ? 3 : dimAnchor === 'end' ? -3 : 0);
+            const dimY = mid.y + (out.y > 0.35 ? 9 : out.y < -0.35 ? -3 : 3);
             const endHandle = toWorld(f, f.length, -WALL_T);
+            const isGalley = /galley/.test(layoutType || '');
             return (
               <g key={f.id}>
-                <line x1={f.x} y1={f.y} x2={e.x} y2={e.y} stroke={elevWall === w.id ? '#5a4a2a' : C.wall} strokeWidth={WALL_T} strokeLinecap="square"
+                {isGalley && <line x1={f.x} y1={f.y} x2={e.x} y2={e.y} stroke={C.wall} strokeWidth={WALL_T} strokeLinecap="butt" pointerEvents="none" />}
+                {elevWall === w.id && <line x1={f.x} y1={f.y} x2={e.x} y2={e.y} stroke="#5a4a2a" strokeWidth={WALL_T} strokeLinecap="butt" pointerEvents="none" />}
+                {/* invisible hit band: wall click → elevation strip */}
+                <line x1={f.x} y1={f.y} x2={e.x} y2={e.y} stroke="transparent" strokeWidth={WALL_T + 6}
                   style={{ cursor: roomOnly ? 'default' : 'pointer' }}
                   onClick={roomOnly ? undefined : (ev) => { ev.stopPropagation(); setElevWall(elevWall === w.id ? null : w.id); }}>
-                  <title>{`Click for wall ${w.id} elevation (set wall-cabinet heights)`}</title>
+                  {!roomOnly && <title>{`Click for wall ${w.id} elevation (set wall-cabinet heights)`}</title>}
                 </line>
                 {/* openings */}
                 {(w.openings || []).map((op, oi) => {
@@ -703,15 +721,16 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                 {/* wall-end drag handle */}
                 <circle cx={endHandle.x} cy={endHandle.y} r={5} fill="#fff" stroke={C.accent} strokeWidth={1.6} style={{ cursor: 'grab' }}
                   onPointerDown={(ev) => { ev.stopPropagation(); setDrag({ kind: 'wallEnd', idx: wi }); }} />
-                {/* dimension — click to type */}
+                {/* dimension — click to type; anchored AWAY from the wall so
+                    vertical/angled walls don't run through their own label */}
                 {editDim?.wallIdx === wi ? (
-                  <foreignObject x={mid.x - 34} y={mid.y - 14} width={68} height={22}>
+                  <foreignObject x={dimAnchor === 'start' ? dimX : dimAnchor === 'end' ? dimX - 68 : dimX - 34} y={dimY - 12} width={68} height={22}>
                     <input autoFocus defaultValue={w.length} style={{ width: '100%', fontSize: 11, textAlign: 'center' }}
                       onBlur={(ev) => { const v = parseFloat(ev.target.value); if (v >= 24) changeWalls(walls.map((ww, i) => i === wi ? { ...ww, length: Math.round(v * 8) / 8 } : ww)); setEditDim(null); }}
                       onKeyDown={(ev) => { if (ev.key === 'Enter') ev.target.blur(); if (ev.key === 'Escape') setEditDim(null); }} />
                   </foreignObject>
                 ) : (
-                  <text x={mid.x} y={mid.y} fontSize={9.5} fontWeight={700} textAnchor="middle" fill={C.line} fontFamily="Helvetica"
+                  <text x={dimX} y={dimY} fontSize={9.5} fontWeight={700} textAnchor={dimAnchor} fill={C.line} fontFamily="Helvetica"
                     style={{ cursor: 'text' }} onClick={(ev) => { ev.stopPropagation(); setEditDim({ wallIdx: wi }); }}>
                     {w.id}: {fmtIn(w.length)}
                   </text>
