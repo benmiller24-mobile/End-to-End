@@ -804,6 +804,24 @@ export function solve(input) {
   assignHingeSides(wallLayouts, upperLayouts);
 
   // Phase 6: Compile placements
+  // ── De-dupe the over-fridge RW cabinet ──
+  // The uppers two-tier path and the talls fridge-pocket path can BOTH emit an
+  // RW above the same fridge with different height codes (RW3612-27 vs RW3621)
+  // — one physical cabinet, two quote lines, two order lines, and the floor
+  // plan/elevation disagree about its SKU. Keep the uppers-path RW (its height
+  // math is ceiling-fit) and drop the talls copy.
+  {
+    const upperRWWalls = new Set();
+    for (const ul of upperLayouts) {
+      for (const c of (ul.cabinets || [])) {
+        if (/^RW/.test(c.sku || '') || c.type === 'refrigerator_wall') upperRWWalls.add(ul.wallId);
+      }
+    }
+    for (let i = talls.length - 1; i >= 0; i--) {
+      if (talls[i].role === 'fridge_wall_cab' && upperRWWalls.has(talls[i].wall)) talls.splice(i, 1);
+    }
+  }
+
   let placements = compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, accessories, talls, upperCorners);
 
   // Phase 6b: Resolve two-tone materials
@@ -4881,9 +4899,10 @@ function solveTalls(appliances, walls, prefs, golaPrefix) {
     const rwStdH = [36, 33, 30, 27, 24, 21];
     const fridgeWallSoffit = walls.find(w => w.id === fridgeWall)?.soffit?.drop > 0;
     const rawRwH = Math.max(fridgeWallSoffit ? 0 : 12, Math.min(36, panelH - fridgeH - 3)); // 3" clearance
-    // Soffited fridge wall with no room above → skip the RW (legacy 21"
-    // fallback preserved on normal walls).
-    const rwH = rwStdH.find(h => h <= rawRwH) || (fridgeWallSoffit ? null : 21);
+    // Only emit an RW that actually FITS the space above the fridge. The old
+    // 21" force-fallback emitted RW3621 into a 12" gap — over the ceiling, and
+    // a DUPLICATE of the uppers-path RW3612 (double-counted in the quote).
+    const rwH = rwStdH.find(h => h <= rawRwH) || null;
     const rwD = Math.min(panelD, 27); // RW depth matches or shallower than panel
 
     if (rwH) talls.push({
