@@ -994,7 +994,9 @@ function ApplianceSym({ x, y, w, h, aType, styleSpec = { panel: 'flat', topRail:
 function ScribeAnnotation({ x, y1, y2, side = 'left' }) {
   const sw = SCRIBE_W * S;
   const xPos = side === 'left' ? x : x - sw;
-  const midY = (y1 + y2) / 2;
+  // Full-height strips label near the TOP — the mid-height zone is where the
+  // left dim ladder and the 44" AFF utility notes live.
+  const midY = (y2 - y1) > 100 ? y1 + 14 : (y1 + y2) / 2;
   return (
     <g>
       {/* Scribe strip */}
@@ -1459,10 +1461,21 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             {/* Countertop edge detail */}
             <line x1={minX * S} y1={baseTopY} x2={(maxX) * S} y2={baseTopY}
               stroke={C.line} strokeWidth={0.6} />
-            <text x={(minX + (maxX - minX) / 2) * S} y={ctrTopY - 2} fill={C.annotColor}
-              fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
-              {`CT: ${stone?.name || (stone?.type ? stone.type : 'Quartz')} \u00b7 1\u00bc\" \u00b7 eased edge \u00b7 1\u00bd\" OH`}
-            </text>
+            {(() => {
+              // Lane rule: the CT spec note hugs whichever end is AWAY from the
+              // sink so it never prints through the SINK label.
+              const sinkC = (() => {
+                const sb = (sortedBases || []).find(c => (c.applianceType === 'sink') || /^SB|^VSB|^FSB|^DSB/.test(String(c.sku || '')));
+                return sb ? sb.position + (sb.width || 0) / 2 : null;
+              })();
+              const left = sinkC == null || sinkC > (minX + maxX) / 2;
+              return (
+                <text x={left ? minX * S + 2 : maxX * S - 2} y={ctrTopY - 2} fill={C.annotColor}
+                  fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif" textAnchor={left ? 'start' : 'end'}>
+                  {`CT: ${stone?.name || (stone?.type ? stone.type : 'Quartz')} \u00b7 1\u00bc\" \u00b7 eased edge \u00b7 1\u00bd\" OH`}
+                </text>
+              );
+            })()}
           </g>
         );
       })()}
@@ -2033,15 +2046,38 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         return <ScribeAnnotation x={wW} y1={ceilY} y2={floorY} side="right" />;
       })()}
 
-      {/* ══════════ NKBA KD-PREFIX CIRCLE TAGS ══════════ */}
-      {taggedItems.map((item, i) => {
-        const cx = (item.position || 0) * S + (item.width || 0) * S / 2;
-        let cy;
-        if (item._zone === 'tall') cy = floorY - (item._elev?.height || item.height || TALL_H_DEF) * S - 14;
-        else if (item._zone === 'upper') cy = upperTopY - 14;
-        else cy = floorY + 46;
-        return <CabTag key={`tag${i}`} cx={cx} cy={cy} num={item._tag} />;
-      })}
+      {/* ══════════ NKBA KD-PREFIX CIRCLE TAGS — collision-aware rows ══════════ */}
+      {(() => {
+        const R = 7, GAP = 1.5;
+        const tags = taggedItems.map((item, i) => {
+          const cx = (item.position || 0) * S + (item.width || 0) * S / 2;
+          let cy, row;
+          if (item._zone === 'tall') { cy = floorY - (item._elev?.height || item.height || TALL_H_DEF) * S - 14; row = 'tall'; }
+          else if (item._zone === 'upper') { cy = upperTopY - 14; row = 'upper'; }
+          else { cy = floorY + 46; row = 'base'; }
+          return { i, num: item._tag, cx0: cx, cx, cy, row };
+        });
+        // sweep each row left→right so narrow neighbors can't stack
+        const rows = {};
+        tags.forEach(t => { (rows[t.row] = rows[t.row] || []).push(t); });
+        Object.values(rows).forEach(row => {
+          row.sort((a, b) => a.cx - b.cx);
+          for (let k = 1; k < row.length; k++) {
+            const min = row[k - 1].cx + 2 * R + GAP;
+            if (row[k].cx < min) row[k].cx = min;
+          }
+        });
+        return tags.map(t => (
+          <g key={`tag${t.i}`}>
+            {Math.abs(t.cx - t.cx0) > 3 && (
+              <line x1={t.cx} y1={t.row === 'base' ? t.cy - R : t.cy + R}
+                x2={t.cx0} y2={t.row === 'base' ? t.cy - R - 6 : t.cy + R + 6}
+                stroke={C.dimLine} strokeWidth={0.3} opacity={0.7} />
+            )}
+            <CabTag cx={t.cx} cy={t.cy} num={t.num} />
+          </g>
+        ));
+      })()}
 
       {/* ══════════ BOTTOM DIMENSION STRINGS ══════════ */}
       <g>

@@ -403,7 +403,7 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
 
 // ─── WALL SEGMENT RENDERER ───────────────────────────────────────────
 
-function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wallId }) {
+function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wallId, soffit = null }) {
   // Labels render inside this group's rotate(angle) transform — between 90°
   // and 270° they'd print upside-down (galley wall B, U-shape far wall).
   // `up(x, y)` counter-rotates a label about its own anchor to keep it legible.
@@ -663,6 +663,23 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
         );
       })()}
 
+      {/* ── SOFFIT — dashed outline at its plan depth + note (NKBA: overhead
+          structures dash on the plan; the elevation hatches the drop) ── */}
+      {soffit && soffit.drop > 0 && (() => {
+        const sd = WALL_T / 2 + (soffit.depth || 13);
+        return (
+          <g>
+            <line x1={0} y1={sd} x2={length} y2={sd}
+              stroke={C.dimLine} strokeWidth={0.5} strokeDasharray="6,2,1.5,2" opacity={0.85} />
+            <text x={3} y={sd - 1.5} fill={C.annotColor} fontSize={2.6}
+              fontFamily="Helvetica,Arial,sans-serif" fontStyle="italic"
+              transform={up(16, sd - 2.5)}>
+              {`SOFFIT ${soffit.depth || 13}" D × ${soffit.drop}" DROP`}
+            </text>
+          </g>
+        );
+      })()}
+
       {/* ── OVERALL WALL DIMENSION ── outermost, above ── */}
       <HDim x1={0} x2={length} y={overallY} label={`${length}"`} above={true} flip={flipText} />
 
@@ -865,23 +882,69 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
         <WallSegment key={wp.id} wx={wp.x} wy={wp.y} angle={wp.angle}
           length={wp.length} baseCabs={basesByWall[wp.id] || []}
           upperCabs={uppersByWall[wp.id] || []} openings={openingsByWall[wp.id] || []}
-          wallId={wp.id} />
+          wallId={wp.id} soffit={walls.find(w => w.id === wp.id)?.soffit || null} />
       ))}
 
-      {/* ── NUMBERED TAGS ── */}
-      {tagAssignments.map((tag, i) => {
-        const wp = getWP(tag.wallId);
-        if (!wp) return null;
-        const rad = (wp.angle * Math.PI) / 180;
-        const cos = Math.cos(rad), sin = Math.sin(rad);
-        const along = tag.position + tag.width / 2;
-        const perpDist = tag.isUpper
-          ? -(WALL_T / 2 + UPPER_D + 10)
-          : (WALL_T / 2 + (tag.depth || BASE_D) + 18);
-        const cx = wp.x + cos * along - sin * perpDist;
-        const cy = wp.y + sin * along + cos * perpDist;
-        return <Tag key={`tag${i}`} cx={cx} cy={cy} num={tag.num} />;
-      })}
+      {/* ── NUMBERED TAGS — collision-aware, with leader lines ──
+          Tags slide along their row until clear (narrow cabinets) and corner
+          pileups push outward to a second tier; a thin leader ties each
+          displaced tag back to its cabinet so dense areas stay unambiguous. */}
+      {(() => {
+        const R = 6, GAP = 1.5;
+        const tags = [];
+        tagAssignments.forEach((tag, i) => {
+          const wp = getWP(tag.wallId);
+          if (!wp) return;
+          const rad = (wp.angle * Math.PI) / 180;
+          const cos = Math.cos(rad), sin = Math.sin(rad);
+          const along = tag.position + tag.width / 2;
+          const edge = tag.isUpper ? -(WALL_T / 2 + UPPER_D + 1) : (WALL_T / 2 + (tag.depth || BASE_D) + 1);
+          const perp0 = tag.isUpper ? -(WALL_T / 2 + UPPER_D + 10) : (WALL_T / 2 + (tag.depth || BASE_D) + 18);
+          tags.push({
+            i, num: tag.num, row: `${tag.wallId}|${tag.isUpper ? 'u' : 'b'}`,
+            cos, sin, along, perp: perp0,
+            perpSign: tag.isUpper ? -1 : 1,
+            ax: wp.x + cos * along - sin * edge,   // leader anchor at the band edge
+            ay: wp.y + sin * along + cos * edge,
+            wx: wp.x, wy: wp.y,
+          });
+        });
+        const pos = (t) => ({ x: t.wx + t.cos * t.along - t.sin * t.perp, y: t.wy + t.sin * t.along + t.cos * t.perp });
+        // 1. per-row sweep: neighbors stay a diameter apart along the wall
+        const rows = {};
+        tags.forEach(t => { (rows[t.row] = rows[t.row] || []).push(t); });
+        Object.values(rows).forEach(row => {
+          row.sort((a, b) => a.along - b.along);
+          for (let k = 1; k < row.length; k++) {
+            const min = row[k - 1].along + 2 * R + GAP;
+            if (row[k].along < min) row[k].along = min;
+          }
+        });
+        // 2. cross-row (corner) pileups: push the later tag outward a tier
+        for (let pass = 0; pass < 3; pass++) {
+          for (let a = 0; a < tags.length; a++) {
+            for (let b = a + 1; b < tags.length; b++) {
+              if (tags[a].row === tags[b].row) continue;
+              const pa = pos(tags[a]), pb = pos(tags[b]);
+              if (Math.hypot(pa.x - pb.x, pa.y - pb.y) < 2 * R + GAP) {
+                tags[b].perp += tags[b].perpSign * (2 * R + GAP);
+              }
+            }
+          }
+        }
+        return tags.map(t => {
+          const p = pos(t);
+          const d = Math.hypot(p.x - t.ax, p.y - t.ay);
+          const ex = d > R ? p.x + (t.ax - p.x) * (R / d) : p.x;
+          const ey = d > R ? p.y + (t.ay - p.y) * (R / d) : p.y;
+          return (
+            <g key={`tag${t.i}`}>
+              {d > R + 4 && <line x1={ex} y1={ey} x2={t.ax} y2={t.ay} stroke={C.tagStroke} strokeWidth={0.3} opacity={0.7} />}
+              <Tag cx={p.x} cy={p.y} num={t.num} />
+            </g>
+          );
+        });
+      })()}
 
       {/* ── ISLAND ── NKBA-clearance placement + real cabinetry ── */}
       {island && (() => {
