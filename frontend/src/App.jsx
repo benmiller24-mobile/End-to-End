@@ -2291,6 +2291,22 @@ export default function App() {
     } catch (err) { setError(err.message); }
   }, [walls, prefs, manualItems, appliances, layoutType, roomType, island]);
 
+  // ── Live 3D pane: debounce the manual-result rebuild so dragging in the
+  // studio doesn't re-mesh the WebGL scene on every pointer move. ──
+  const [studioPreview, setStudioPreview] = useState(null);
+  useEffect(() => {
+    if (!studio3D || designMode !== 'manual') { setStudioPreview(null); return; }
+    const t = setTimeout(() => {
+      try {
+        setStudioPreview(buildManualResult({
+          walls: walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || Number(prefs.ceilingHeight) || 96 })),
+          items: manualItems, island, roomType, layoutType,
+        }));
+      } catch { setStudioPreview(null); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [studio3D, designMode, walls, manualItems, island, roomType, layoutType, prefs.ceilingHeight]);
+
   // ── Studio autosave: crash/refresh insurance for hand-placed designs.
   // Debounced full-state draft; offered back when the studio opens empty. ──
   const [studioDraft, setStudioDraft] = useState(() => {
@@ -2585,20 +2601,14 @@ export default function App() {
                           </div>
                         </div>
                       )}
-                      {studio3D && (() => {
-                        const preview = buildManualResult({
-                          walls: walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || Number(prefs.ceilingHeight) || 96 })),
-                          items: manualItems, island, roomType, layoutType,
-                        });
-                        return (
-                          <div style={{ marginTop: 10 }}>
-                            <Kitchen3DView solverResult={preview} materials={materials}
-                              construction={getConstruction(materials?.frameStyle)}
-                              countertopColor={countertopSelection.colorId ? getColorById(countertopSelection.colorId) : null}
-                              trim={trimSelections} prefs={prefs} selectedAppliances={selectedBrandAppliances} />
-                          </div>
-                        );
-                      })()}
+                      {studio3D && studioPreview && (
+                        <div style={{ marginTop: 10 }}>
+                          <Kitchen3DView solverResult={studioPreview} materials={materials}
+                            construction={getConstruction(materials?.frameStyle)}
+                            countertopColor={countertopSelection.colorId ? getColorById(countertopSelection.colorId) : null}
+                            trim={trimSelections} prefs={prefs} selectedAppliances={selectedBrandAppliances} />
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>

@@ -3,7 +3,7 @@ import { OFFICIAL_V88 } from '../../eclipse-pricing/src/officialV88.js';
 import { SHILOH_CATALOG } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
 import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
-import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isCornerSku, skuInfo, priceLookup, manualChecks } from './manualDesign.js';
+import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isCornerSku, contextSnap, insertWithShift, skuInfo, priceLookup, manualChecks } from './manualDesign.js';
 
 /**
  * Design Studio — drag-and-drop room + cabinet design (the "2020-style" mode),
@@ -86,11 +86,51 @@ function catalogList(brand) {
   }
   const rows = [];
   for (const [sku, e] of OFFICIAL_V88) {
-    rows.push({ sku, w: e.w, h: e.h, zone: ({ W: 'upper', WC: 'upper', T: 'tall', GT: 'tall', BK: 'tall' })[e.cat] || 'base',
+    rows.push({ sku, w: e.w, h: e.h, dc: e.dc || 0, drc: e.drc || 0, zone: ({ W: 'upper', WC: 'upper', T: 'tall', GT: 'tall', BK: 'tall' })[e.cat] || 'base',
       cat: ({ B: 'Base', BC: 'Base Corner', T: 'Tall', W: 'Wall', WC: 'Wall Corner', V: 'Vanity', BK: 'Bookcase', GB: 'Gola Base', GBC: 'Gola Corner', GT: 'Gola Tall', GV: 'Gola Vanity' })[e.cat] || 'Other',
       sub: e.sub || '' });
   }
   return rows;
+}
+
+// Function facets — how designers actually think ("sink base", "drawer base"),
+// not nomenclature. Each maps to a sub/cat/sku test over the catalog rows.
+const FACETS = [
+  ['Sink', r => /Sink/i.test(r.sub) || /^(SB\d|VSB|FSB|GSB)/.test(r.sku)],
+  ['Drawer', r => /Drawer/i.test(r.sub) || /^B?\dD/.test(r.sku)],
+  ['Corner', r => /Corner/i.test(r.cat) || /Corner|Susan/i.test(r.sub) || /^(LS|BLB|EZ)/.test(r.sku)],
+  ['Pantry/Tall', r => /Tall|Bookcase/i.test(r.cat) || /Pantry|Oven|Utility/i.test(r.sub)],
+  ['Fillers/Panels', r => /Filler|Panel|Skin/i.test(r.sub) || /^(F\d|REP|BEP|WEP|OVF|SCRIBE)/.test(r.sku)],
+];
+
+/** Front-configuration line drawing (what the SKU's face actually looks like):
+ *  drawer strips on top, doors split vertically below — drawn from the
+ *  official v8.8 door/drawer counts. */
+function FrontThumb({ w = 24, h = 30, dc = 0, drc = 0, zone = 'base' }) {
+  const W = 24, H = 26;
+  const ratio = Math.min(2.2, Math.max(0.45, (w || 24) / (h || 30)));
+  const bw = ratio >= 1 ? W : Math.max(9, W * ratio);
+  const bh = ratio >= 1 ? Math.max(10, H / ratio) : H;
+  const x0 = (W - bw) / 2, y0 = (H - bh) / 2;
+  // drawers ride on top: a strip block when doors share the face, full face otherwise
+  const drawersH = drc ? (dc ? Math.min(bh * 0.45, drc * 6) : bh) : 0;
+  const doorsH = bh - drawersH;
+  const els = [];
+  for (let i = 0; i < drc; i++) {
+    els.push(<rect key={`d${i}`} x={x0 + 0.8} y={y0 + (drawersH / drc) * i + 0.8} width={bw - 1.6} height={Math.max(1.5, drawersH / drc - 1.4)} fill="none" stroke="#9a8f7d" strokeWidth={0.7} />);
+    els.push(<line key={`dh${i}`} x1={x0 + bw / 2 - 2.5} y1={y0 + (drawersH / drc) * (i + 0.5)} x2={x0 + bw / 2 + 2.5} y2={y0 + (drawersH / drc) * (i + 0.5)} stroke="#9a8f7d" strokeWidth={0.7} />);
+  }
+  for (let i = 0; i < Math.min(dc, 4); i++) {
+    const dw = bw / Math.min(dc, 4);
+    els.push(<rect key={`o${i}`} x={x0 + dw * i + 0.8} y={y0 + drawersH + 0.8} width={dw - 1.6} height={Math.max(2, doorsH - 1.6)} fill="none" stroke="#9a8f7d" strokeWidth={0.7} />);
+    els.push(<circle key={`k${i}`} cx={x0 + dw * i + (i < dc / 2 ? dw - 2.6 : 2.6)} cy={y0 + drawersH + doorsH / 2} r={0.7} fill="#9a8f7d" />);
+  }
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ flexShrink: 0 }}>
+      <rect x={x0} y={y0} width={bw} height={bh} fill={zone === 'upper' ? '#eef2f6' : zone === 'tall' ? '#efe9d8' : '#f3eee3'} stroke="#8a8071" strokeWidth={0.8} />
+      {els}
+    </svg>
+  );
 }
 
 const APPLIANCE_PALETTE = [
@@ -151,12 +191,15 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     applySnap(next);
   }, [applySnap]);
 
+  const [facet, setFacet] = useState(null);          // function facet ('Sink', 'Drawer', …)
+
   const fr = useMemo(() => frames(walls, layoutType), [walls, layoutType]);
   const all = useMemo(() => catalogList(brand), [brand]);
   const cats = useMemo(() => [...new Set(all.map(r => r.cat))].sort(), [all]);
   const list = useMemo(() => {
     let rows = all.filter(r => r.cat === cat);
     if (search) { const q = search.toUpperCase(); rows = all.filter(r => r.sku.toUpperCase().includes(q)); }
+    if (facet) { const f = FACETS.find(x => x[0] === facet); if (f) rows = (search ? rows : all).filter(f[1]); }
     if (widthF) rows = rows.filter(r => Math.abs((r.w || 0) - Number(widthF)) < 0.6);
     rows = rows.slice(0, 60);
     // Price just the visible slice with the SAME normalizer the quote uses —
@@ -170,7 +213,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
       });
     }
     return rows;
-  }, [all, cat, search, widthF, brand]);
+  }, [all, cat, search, widthF, facet, brand]);
 
   // viewBox
   const vb = useMemo(() => {
@@ -319,42 +362,56 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
 
   // Live ghost while a SKU/appliance is armed: true footprint, settled into
   // place, tinted green (legal) or red (blocked, with the first reason).
-  const ghostPlace = useMemo(() => {
-    if (!armed || !hoverPt || drag) return null;
-    // corner SKUs snap to the corner itself (2020's "double-magnet")
-    const cSnap = cornerSnap(hoverPt, armed.sku);
-    const hit = cSnap ? null : nearestWall(hoverPt);
+  // One pipeline for ghost AND click so the preview is exactly what placing
+  // does: corner magnet → context snap (window/range centering) → settle →
+  // if blocked by an overlap, try insert-with-shift (neighbors make room).
+  const buildCandidate = useCallback((p) => {
+    if (!armed) return null;
+    const cSnap = cornerSnap(p, armed.sku);
+    const hit = cSnap ? null : nearestWall(p);
     if (!cSnap && (!hit || hit.dist > 60)) return null;
     const wIdx = cSnap ? cSnap.idx : hit.i;
     const w = walls[wIdx];
     const proto = armed.applianceType
       ? makeAppliance(armed.applianceType, w.id, 0, armed.width)
       : makeItem(armed.sku, w.id, 0, brand);
-    proto.id = '_ghost';
     proto.position = cSnap ? w.length - proto.width : hit.along - proto.width / 2;
-    const settled = cSnap ? proto : settleItem(items, w.length, proto);
-    return { item: settled, frameIdx: wIdx, corner: !!cSnap, issues: placementIssues(walls, items, settled) };
-  }, [armed, hoverPt, drag, walls, items, brand, nearestWall, cornerSnap]);
+    let item = proto, hint = null, shiftPlan = null;
+    if (cSnap) {
+      item = { ...proto, _corner: true };
+    } else {
+      const snapped = contextSnap(walls, items, proto);
+      if (snapped.hint) { item = snapped.item; hint = snapped.hint; }
+      else item = settleItem(items, w.length, proto);
+    }
+    let issues = placementIssues(walls, items, item);
+    if (!cSnap && issues.some(s => /overlaps/.test(s))) {
+      const plan = insertWithShift(items, w.length, hint ? item : proto);
+      if (plan) {
+        shiftPlan = plan;
+        item = { ...item, position: plan.position };
+        issues = placementIssues(walls, plan.items, item);
+        hint = `↔ shifts ${plan.shifted} neighbor${plan.shifted > 1 ? 's' : ''}`;
+      }
+    }
+    return { item, frameIdx: wIdx, corner: !!cSnap, issues, hint, shiftPlan };
+  }, [armed, walls, items, brand, cornerSnap, nearestWall]);
+
+  const ghostPlace = useMemo(() => {
+    if (!armed || !hoverPt || drag) return null;
+    return buildCandidate(hoverPt);
+  }, [armed, hoverPt, drag, buildCandidate]);
 
   const onCanvasClick = useCallback((evt) => {
     if (!armed) { setSel(null); setEditGap(null); return; }
-    const p = svgPoint(evt);
-    const cSnap = cornerSnap(p, armed.sku);
-    const hit = cSnap ? null : nearestWall(p);
-    if (!cSnap && (!hit || hit.dist > 60)) return;
-    const wIdx = cSnap ? cSnap.idx : hit.i;
-    const w = walls[wIdx];
-    let it = armed.applianceType
-      ? makeAppliance(armed.applianceType, w.id, (hit ? hit.along : 0) - (armed.width || 30) / 2, armed.width)
-      : makeItem(armed.sku, w.id, (hit ? hit.along : 0) - (skuInfo(armed.sku, brand).w) / 2, brand);
-    if (cSnap) { it.position = w.length - it.width; it._corner = true; }
-    else it = settleItem(items, w.length, it);
+    const cand = buildCandidate(svgPoint(evt));
+    if (!cand) return;
     // Red ghost = blocked drop (door opening, window, no room). Alt-click forces.
-    if (placementIssues(walls, items, it).length && !evt.altKey) return;
-    changeItems([...items, it]);
-    setSel(it.id); setLastPlacedId(it.id);
+    if (cand.issues.length && !evt.altKey) return;
+    changeItems([...(cand.shiftPlan ? cand.shiftPlan.items : items), cand.item]);
+    setSel(cand.item.id); setLastPlacedId(cand.item.id);
     if (!evt.shiftKey) setArmed(null);   // hold shift to place several
-  }, [armed, items, walls, brand, svgPoint, nearestWall, cornerSnap, changeItems]);
+  }, [armed, items, buildCandidate, svgPoint, changeItems]);
 
   // ── R5 auto-advance: with a SKU armed and a just-placed (or selected) anchor,
   // one-click arrows butt the next cabinet flush left/right and show the
@@ -856,7 +913,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             const depth = it.zone === 'upper' ? UPPER_D : BASE_D;
             const a = toWorld(f, it.position, 2), b = toWorld(f, it.position + it.width, 2 + depth);
             const bad = ghostPlace.issues.length > 0;
-            const col = bad ? C.danger : '#2e7d32';
+            const col = bad ? C.danger : ghostPlace.shiftPlan ? '#c08a2e' : '#2e7d32';
             const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
             const top = Math.min(a.y, b.y);
             return (
@@ -870,6 +927,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                   {fmtIn(it.position)} ⟵ {fmtIn(it.width)} ⟶ {fmtIn(Math.max(0, w.length - it.position - it.width))}
                 </text>
                 {bad && <text x={cx} y={top - 4} fontSize={7} fontWeight={700} textAnchor="middle" fill={C.danger} fontFamily="Helvetica">⚠ {ghostPlace.issues[0]}</text>}
+                {!bad && ghostPlace.hint && <text x={cx} y={top - 4} fontSize={7} fontWeight={700} textAnchor="middle" fill={col} fontFamily="Helvetica">✦ {ghostPlace.hint}</text>}
               </g>
             );
           })()}
@@ -891,7 +949,13 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '5px 10px', fontSize: 10.5, color: '#777' }}>
                 <b style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Elevation — wall {w.id}</b>
                 <span>drag wall cabinets ↑↓ to set mount heights (stacking allowed) · ←→ slides · plan stays in sync</span>
-                <button onClick={() => setElevWall(null)} style={{ marginLeft: 'auto', fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: '1px solid #ccc', borderRadius: 4, background: '#fff', color: '#888' }}>✕ close</button>
+                <label style={{ marginLeft: 'auto', display: 'flex', gap: 4, alignItems: 'center' }}>
+                  ceiling
+                  <input type="number" min={84} max={144} step={0.5} value={ceilH}
+                    onChange={(ev) => { const v = parseFloat(ev.target.value); if (v >= 84 && v <= 144) changeWalls(walls.map(ww => ww.id === w.id ? { ...ww, ceilingHeight: v } : ww)); }}
+                    style={{ width: 52, fontSize: 10.5, padding: '1px 4px' }} />
+                </label>
+                <button onClick={() => setElevWall(null)} style={{ fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: '1px solid #ccc', borderRadius: 4, background: '#fff', color: '#888' }}>✕ close</button>
               </div>
               <svg ref={elevRef} viewBox={`0 0 ${w.length + M * 2} ${ceilH + 22}`} style={{ width: '100%', maxHeight: 250, display: 'block', touchAction: 'none' }}>
                 <rect x={M} y={8} width={w.length} height={ceilH} fill="#fcfaf6" stroke="#a99" strokeWidth={0.8} />
@@ -958,12 +1022,24 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             }}
             style={{ width: '100%', padding: '6px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }} />
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-            <select value={cat} onChange={e => { setCat(e.target.value); setSearch(''); }} style={{ flex: 1, fontSize: 11, padding: 4 }}>
+            <select value={cat} onChange={e => { setCat(e.target.value); setSearch(''); setFacet(null); }} style={{ flex: 1, fontSize: 11, padding: 4 }}>
               {cats.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <input value={widthF} onChange={e => setWidthF(e.target.value)} placeholder="width" type="number"
               style={{ width: 64, fontSize: 11, padding: 4, border: '1px solid #ddd', borderRadius: 4 }} />
           </div>
+          {brand !== 'shiloh' && (
+            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+              {FACETS.map(([name]) => (
+                <button key={name} onClick={() => { setFacet(facet === name ? null : name); }}
+                  style={{ fontSize: 9.5, padding: '2px 7px', cursor: 'pointer', borderRadius: 10,
+                    border: `1px solid ${facet === name ? C.accent : '#ddd'}`,
+                    background: facet === name ? '#c8a96e22' : '#fff', color: facet === name ? C.accent : '#777', fontWeight: facet === name ? 700 : 400 }}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {/* appliances palette */}
@@ -981,8 +1057,9 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
           </div>
           {list.map(r => (
             <div key={r.sku} onClick={() => setArmed({ sku: r.sku })}
-              style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 11.5,
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px', cursor: 'pointer', fontSize: 11.5,
                 background: armed?.sku === r.sku ? '#c8a96e22' : 'transparent', borderBottom: '1px solid #f1ece4' }}>
+              <FrontThumb w={r.w} h={r.h} dc={r.dc || 0} drc={r.drc || 0} zone={r.zone} />
               <span style={{ fontFamily: 'monospace', fontWeight: 600, flex: 1 }}>{r.sku}</span>
               <span style={{ color: '#999', fontSize: 10 }}>{r.w ? `${r.w}w` : ''}{r.h ? `×${r.h}h` : ''}</span>
               <span style={{ color: '#777', fontVariantNumeric: 'tabular-nums' }}

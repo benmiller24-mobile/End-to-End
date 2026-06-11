@@ -188,6 +188,86 @@ export function placementIssues(walls, items, cand) {
   return issues;
 }
 
+/**
+ * Contextual placement snaps (AutoKitchen "other insertions"): sink bases pull
+ * to window centers, uppers/hoods pull to the range/cooktop center below.
+ * Returns { item, hint } — hint set only when a snap applied.
+ */
+export function contextSnap(walls, items, it) {
+  const w = walls.find(x => x.id === it.wall);
+  if (!w) return { item: it };
+  const center = it.position + it.width / 2;
+  const clampPos = (pos) => Math.max(0, Math.min(Math.round(pos * 2) / 2, w.length - it.width));
+  const sku = String(it.sku || '').replace(/^FC-/, '');
+  const isSink = it.applianceType === 'sink' || /^(VSB|SB\d|SBA|FSB|GSB)/i.test(sku);
+  if (isSink) {
+    for (const op of (w.openings || [])) {
+      if (op.type !== 'window') continue;
+      const oc = (op.position ?? op.posFromLeft ?? 0) + (op.width || 36) / 2;
+      if (Math.abs(center - oc) < 15) {
+        return { item: { ...it, position: clampPos(oc - it.width / 2) }, hint: 'centered on window' };
+      }
+    }
+  }
+  if (it.zone === 'upper') {
+    const stove = items.find(i => i.wall === it.wall && (i.applianceType === 'range' || i.applianceType === 'cooktop'));
+    if (stove) {
+      const sc = stove.position + stove.width / 2;
+      if (Math.abs(center - sc) < 15) {
+        return { item: { ...it, position: clampPos(sc - it.width / 2) }, hint: 'centered over range' };
+      }
+    }
+  }
+  return { item: it };
+}
+
+/**
+ * Insert-between with neighbor shift (no kitchen tool does this well): when a
+ * cabinet doesn't fit the gap under the cursor but the RUN has slack, ripple
+ * the neighbors outward — right side first — to open exactly enough room.
+ * Returns { items, position, shifted } or null when impossible/unneeded.
+ */
+export function insertWithShift(items, wallLen, cand) {
+  const others = items.filter(i => i.id !== cand.id && i.wall === cand.wall && competes(i, cand))
+    .sort((a, b) => a.position - b.position);
+  if (!others.length) return null;
+  const center = cand.position + cand.width / 2;
+  const left = others.filter(o => o.position + o.width / 2 <= center);
+  const right = others.filter(o => o.position + o.width / 2 > center);
+  const leftEdge = left.length ? left[left.length - 1].position + left[left.length - 1].width : 0;
+  const rightEdge = right.length ? right[0].position : wallLen;
+  const deficit = cand.width - (rightEdge - leftEdge);
+  if (deficit <= 0.01) return null;                       // already fits — no shift needed
+  const rightSlackMax = (wallLen - right.reduce((s, o) => s + o.width, 0)) - rightEdge;
+  const leftSlackMax = leftEdge - left.reduce((s, o) => s + o.width, 0);
+  if (deficit > rightSlackMax + leftSlackMax + 0.01) return null;   // run is physically full
+  const pushR = Math.min(deficit, rightSlackMax);
+  const pushL = deficit - pushR;
+  const moved = new Map();
+  // ripple the right chain rightward: only items that must move, move
+  let edge = rightEdge + pushR;
+  for (const o of right) {
+    const np = Math.max(o.position, edge);
+    if (np !== o.position) moved.set(o.id, np);
+    edge = np + o.width;
+  }
+  // ripple the left chain leftward
+  edge = leftEdge - pushL;
+  for (let i = left.length - 1; i >= 0; i--) {
+    const o = left[i];
+    const np = Math.min(o.position, edge - o.width);
+    if (np !== o.position) moved.set(o.id, np);
+    edge = np;
+  }
+  const position = Math.round((leftEdge - pushL) * 2) / 2;
+  const shifted = moved.size;
+  if (!shifted) return null;
+  return {
+    items: items.map(i => moved.has(i.id) ? { ...i, position: moved.get(i.id) } : i),
+    position, shifted,
+  };
+}
+
 // ── Validation (flag, never auto-fix — a pro may break a rule deliberately) ──
 export function manualChecks(walls, items) {
   const v = [];
