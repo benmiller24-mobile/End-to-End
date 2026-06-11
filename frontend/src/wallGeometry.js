@@ -35,9 +35,13 @@ export function wallFrames(walls, layoutType, opts = {}) {
   const { x0 = 0, y0 = 0, normalize = false } = opts;
   if (!walls || !walls.length) return [];
   if (/galley/.test(layoutType || '') && walls.length === 2) {
+    // Wall B faces wall A across the aisle, so its frame runs at 180° from its
+    // RIGHT end: its interior normal points back toward the aisle (drawing it
+    // at 0° put run B on the far side of its wall — a ~70" phantom aisle), and
+    // a viewer facing wall B sees position 0 on THEIR left, which is plan-right.
     return [
       { id: walls[0].id, x: x0, y: y0, angle: 0, length: walls[0].length, turn: 90 },
-      { id: walls[1].id, x: x0, y: y0 + GALLEY_GAP, angle: 0, length: walls[1].length, turn: 90 },
+      { id: walls[1].id, x: x0 + walls[1].length, y: y0 + GALLEY_GAP, angle: 180, length: walls[1].length, turn: 90 },
     ];
   }
   const out = [];

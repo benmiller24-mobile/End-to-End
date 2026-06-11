@@ -1001,16 +1001,26 @@ function ScribeAnnotation({ x, y1, y2, side = 'left' }) {
       <rect x={xPos} y={y1} width={sw} height={y2 - y1}
         fill={C.fillerFill} stroke={C.scribeColor} strokeWidth={0.3}
         strokeDasharray="1.5,1" />
-      {/* Annotation line + text */}
-      <line x1={side === 'left' ? xPos - 2 : xPos + sw + 2} y1={midY}
-        x2={side === 'left' ? xPos - 14 : xPos + sw + 14} y2={midY}
-        stroke={C.scribeColor} strokeWidth={0.3} />
-      <text x={side === 'left' ? xPos - 15 : xPos + sw + 15} y={midY + 1.2}
-        fill={C.scribeColor}
-        fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
-        textAnchor={side === 'left' ? 'end' : 'start'} fontWeight="500">
-        ¾" SCRIBE
-      </text>
+      {/* Annotation: left side leaders out into the margin; right side rotates
+          alongside the strip so it can't collide with the AFF ladder. */}
+      {side === 'left' ? (
+        <>
+          <line x1={xPos - 2} y1={midY} x2={xPos - 14} y2={midY}
+            stroke={C.scribeColor} strokeWidth={0.3} />
+          <text x={xPos - 15} y={midY + 1.2} fill={C.scribeColor}
+            fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+            textAnchor="end" fontWeight="500">
+            ¾" SCRIBE
+          </text>
+        </>
+      ) : (
+        <text x={xPos + sw + 3.6} y={midY} fill={C.scribeColor}
+          fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+          textAnchor="middle" fontWeight="500"
+          transform={`rotate(-90 ${xPos + sw + 3.6} ${midY})`}>
+          ¾" SCRIBE
+        </text>
+      )}
     </g>
   );
 }
@@ -1065,7 +1075,7 @@ function LightRailSegment({ x1, x2, y, frontFill = C.lrFill }) {
 // SINGLE WALL ELEVATION RENDERER
 // ═══════════════════════════════════════════════════════════════════════
 
-function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], soffit = null, trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [], construction = null }) {
+function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, openings = [], soffit = null, cornerStart = 0, cornerEnd = 0, trim = {}, tagStart = 1, debug = false, styleSpec = { panel: 'flat', topRail: 2.5 }, species = 'White Oak', stone = null, finishColor = null, grainHorizontal = false, doorStyle = 'MET-V', titleBlock = {}, sheetNo = '', isIsland = false, hardware = 'knob', hardwareFinish = 'Brushed Nickel', appliances = [], construction = null }) {
   const sfx = String(wallId).replace(/[^A-Za-z0-9]/g, '') || 'w';
   const frontFill = woodFill(sfx);
   const steel = steelFill(sfx);
@@ -1706,8 +1716,10 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                 {appLabel(cab.applianceType)}
               </text>
             )}
-            {/* Height label for talls */}
-            {!isApp && (
+            {/* Height label for talls — skipped for skinny panels (REP/end
+                panels ≤9" wide): centered text over a 1½" strip just collides
+                with the CLG line; their height lives in the schedule. */}
+            {!isApp && (cab.width || 0) >= 9 && (
               <text x={x + w / 2} y={y - 3} fill={C.annotColor}
                 fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
                 textAnchor="middle" fontWeight="500">
@@ -2043,40 +2055,63 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           const dimY1 = floorY + 20;   // per-cabinet dims
           const dimY2 = floorY + 36;   // overall wall dim
 
-          // ── Per-cabinet dimension tick marks + labels ──
-          allCabs.forEach((cab, i) => {
-            const lx = cab.position * S;
-            const rx = (cab.position + cab.width) * S;
-            // Extension lines
+          // ── COMPLETE dimension chain: cabinets + corner zones + open gaps.
+          // The string must sum to the wall length or the sheet can't be set
+          // out in the field. Gaps get labeled segments instead of silence.
+          const segs = [];
+          let cursor = 0;
+          const pushGap = (x0, x1) => {
+            const wdt = x1 - x0;
+            if (wdt < 0.26) return;
+            let lbl = fmt(wdt), kind = 'open';
+            if (cornerStart > 0 && x0 <= 0.26 && x1 <= cornerStart + 0.6) { lbl = `CORNER ${fmt(wdt)}`; kind = 'corner'; }
+            else if (cornerEnd > 0 && x1 >= wallLen - 0.26 && x0 >= wallLen - cornerEnd - 0.6) { lbl = `CORNER ${fmt(wdt)}`; kind = 'corner'; }
+            else if (wdt >= 12) lbl = `OPEN ${fmt(wdt)}`;
+            segs.push({ x0, x1, lbl, gap: true, kind });
+          };
+          allCabs.forEach(cab => {
+            const s = cab.position, e = cab.position + cab.width;
+            if (s > cursor + 0.26) pushGap(cursor, s);
+            segs.push({ x0: Math.max(s, cursor), x1: e, lbl: fmt(cab.width) });
+            cursor = Math.max(cursor, e);
+          });
+          if (wallLen > cursor + 0.26) pushGap(cursor, wallLen);
+
+          let narrowFlip = false;   // consecutive sliver labels alternate depth below the line
+          segs.forEach((sg, i) => {
+            const lx = sg.x0 * S;
+            const rx = sg.x1 * S;
+            const isNarrow = (sg.x1 - sg.x0) < 6;
+            let labelY = dimY1 - 4;
+            if (isNarrow) { labelY = narrowFlip ? dimY1 + 10 : dimY1 + 6.5; narrowFlip = !narrowFlip; }
+            else narrowFlip = false;
             els.push(
               <line key={`eL${i}`} x1={lx} y1={floorY + 2} x2={lx} y2={dimY1 + 3}
                 stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
             );
             els.push(
-              <line key={`eR${i}`} x1={rx} y1={floorY + 2} x2={rx} y2={dimY1 + 3}
-                stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
-            );
-            // Tick marks (diagonal slashes)
-            els.push(
               <line key={`tL${i}`} x1={lx - 1.5} y1={dimY1 + 1.5} x2={lx + 1.5} y2={dimY1 - 1.5}
                 stroke={C.dimLine} strokeWidth={0.5} />
             );
-            if (i === allCabs.length - 1) {
+            if (i === segs.length - 1) {
+              els.push(
+                <line key={`eR${i}`} x1={rx} y1={floorY + 2} x2={rx} y2={dimY1 + 3}
+                  stroke={C.dimLine} strokeWidth={0.25} strokeDasharray="1.5,1" />
+              );
               els.push(
                 <line key={`tR${i}`} x1={rx - 1.5} y1={dimY1 + 1.5} x2={rx + 1.5} y2={dimY1 - 1.5}
                   stroke={C.dimLine} strokeWidth={0.5} />
               );
             }
-            // Dimension line segment
             els.push(
               <line key={`dl${i}`} x1={lx} y1={dimY1} x2={rx} y2={dimY1}
-                stroke={C.dimLine} strokeWidth={0.4} />
+                stroke={C.dimLine} strokeWidth={0.4} strokeDasharray={sg.gap ? '2,1.5' : undefined} />
             );
-            // Width label
             els.push(
-              <text key={`w${i}`} x={(lx + rx) / 2} y={dimY1 - 4} fill={C.dimText}
-                fontSize={4.2} fontFamily="Helvetica,Arial,sans-serif"
-                textAnchor="middle" fontWeight="600">{fmt(cab.width)}</text>
+              <text key={`w${i}`} x={(lx + rx) / 2} y={labelY} fill={sg.gap ? C.annotColor : C.dimText}
+                fontSize={sg.gap ? 3.6 : isNarrow ? 3.4 : 4.2} fontFamily="Helvetica,Arial,sans-serif"
+                fontStyle={sg.gap ? 'italic' : undefined}
+                textAnchor="middle" fontWeight={sg.gap ? '400' : '600'}>{sg.lbl}</text>
             );
           });
 
@@ -2199,7 +2234,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             <line x1={wW + 10} y1={upperTopY} x2={wW + 38} y2={upperTopY}
               stroke={C.dimLine} strokeWidth={0.3} strokeDasharray="2,1.5" />
             <text x={wW + 40} y={upperTopY + 1.5} fill={C.dimText}
-              fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif" fontWeight="600">{fmt(upperTopAFF)}" AFF</text>
+              fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif" fontWeight="600">{fmt(upperTopAFF)} AFF</text>
           </>
         )}
 
@@ -2251,7 +2286,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         <line x1={wW + 48} y1={ceilY} x2={wW + 52} y2={ceilY}
           stroke={C.dimLine} strokeWidth={0.45} />
         <text x={wW + 56} y={(floorY + ceilY) / 2 + 1.5} fill={C.dimText}
-          fontSize={4.2} fontFamily="Helvetica,Arial,sans-serif" fontWeight="700">{fmt(ceilH)}</text>
+          fontSize={4.2} fontFamily="Helvetica,Arial,sans-serif" fontWeight="700"
+          textAnchor="middle" transform={`rotate(-90 ${wW + 56} ${(floorY + ceilY) / 2})`}>{fmt(ceilH)}</text>
         </>)}
       </g>
 
@@ -2571,20 +2607,29 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
       });
     });
 
-    // 2. Corner cabinets → assign to wallA
+    // 2. Corner cabinets → assign to wallA; record the consumed zones on BOTH
+    // walls so the dimension chain can label them (a chain that skips the
+    // corner leg doesn't sum to the wall — uninstallable sheet).
     corners.forEach(corner => {
       const wid = corner.wallA;
-      if (!wid || !data[wid]) return;
-      const wl = wallLayouts.find(w => w.wallId === wid);
-      const pos = wl ? wl.wallLength - corner.size : 0;
-      data[wid].bases.push({
-        sku: corner.sku,
-        type: 'corner',
-        width: corner.size,
-        position: Math.max(0, pos),
-        _elev: corner._elev || { zone: 'BASE', yMount: 4.5, height: 30 },
-        _cornerSide: 'right',  // corner is at end of wallA = right side
-      });
+      if (wid && data[wid]) {
+        data[wid].cornerEnd = Math.max(data[wid].cornerEnd || 0, corner.wallAConsumption || corner.size || 0);
+        if (corner.sku) {   // open corners (angled junctions) reserve space but have no unit to draw
+          const wl = wallLayouts.find(w => w.wallId === wid);
+          const pos = wl ? wl.wallLength - corner.size : 0;
+          data[wid].bases.push({
+            sku: corner.sku,
+            type: 'corner',
+            width: corner.size,
+            position: Math.max(0, pos),
+            _elev: corner._elev || { zone: 'BASE', yMount: 4.5, height: 30 },
+            _cornerSide: 'right',  // corner is at end of wallA = right side
+          });
+        }
+      }
+      if (corner.wallB && data[corner.wallB]) {
+        data[corner.wallB].cornerStart = Math.max(data[corner.wallB].cornerStart || 0, corner.wallBConsumption || corner.size || 0);
+      }
     });
 
     // 3. Tall cabinets
@@ -2652,6 +2697,8 @@ export default function ElevationView({ solverResult, trim = {}, debug = false, 
             hood={wd.hood}
             openings={wd.openings}
             soffit={wd.soffit}
+            cornerStart={wd.cornerStart || 0}
+            cornerEnd={wd.cornerEnd || 0}
             trim={trim}
             tagStart={start}
             debug={debug}

@@ -200,16 +200,18 @@ function VTick({ x, y, k = TICK }) {
 }
 
 /** Horizontal dimension line with 45° ticks and centered label. */
-function HDim({ x1, x2, y, label, above = true }) {
+function HDim({ x1, x2, y, label, above = true, flip = false }) {
   const len = Math.abs(x2 - x1);
   if (len < 6) return null;
   const ly = above ? y - 3.5 : y + 5;
+  const mx = (x1 + x2) / 2;
   return (
     <g>
       <line x1={x1} y1={y} x2={x2} y2={y} stroke={C.dimLine} strokeWidth={W.dim} />
       <HTick x={x1} y={y} /><HTick x={x2} y={y} />
-      <text x={(x1 + x2) / 2} y={ly} fill={C.dimText}
+      <text x={mx} y={ly} fill={C.dimText}
         fontSize={4.5} fontFamily="Helvetica,Arial,sans-serif"
+        transform={flip ? `rotate(180 ${mx} ${ly - 1.5})` : undefined}
         textAnchor="middle" fontWeight="500">{label}</text>
     </g>
   );
@@ -402,6 +404,12 @@ function DoorSwing({ x, y, w, d, hingeSide, sku }) {
 // ─── WALL SEGMENT RENDERER ───────────────────────────────────────────
 
 function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wallId }) {
+  // Labels render inside this group's rotate(angle) transform — between 90°
+  // and 270° they'd print upside-down (galley wall B, U-shape far wall).
+  // `up(x, y)` counter-rotates a label about its own anchor to keep it legible.
+  const _norm = ((angle % 360) + 360) % 360;
+  const flipText = _norm > 90 && _norm <= 270;
+  const up = (x, y) => (flipText ? `rotate(180 ${x} ${y})` : undefined);
   const bases = (baseCabs || [])
     .filter(p => typeof p.position === 'number' && !isNaN(p.position) && p.width > 0)
     .sort((a, b) => a.position - b.position);
@@ -455,6 +463,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
               : <PlanDoor x={ox} w={ow} type={ty} />}
             <text x={ox + ow / 2} y={-WALL_T / 2 - 2} fill={C.dimText}
               fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
+              transform={up(ox + ow / 2, -WALL_T / 2 - 3)}
               textAnchor="middle" fontWeight="600" letterSpacing="0.3">
               {ty === 'window' ? `WDW ${ow}"` : ty === 'door' ? 'DOOR' : ty.toUpperCase()}
             </text>
@@ -554,21 +563,25 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
             {w >= 12 && (
               <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? BASE_D : d) / 2 + 1.2} fill={C.dimText}
                 fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
+                transform={up(x + w / 2, WALL_T / 2 + (isCorner ? BASE_D : d) / 2)}
                 textAnchor="middle" fontWeight="500">{cab.sku ? `${cab.sku}` : `${w}"`}</text>
             )}
             {cab.sku && w >= 20 && (
               <text x={x + w / 2} y={WALL_T / 2 + (isCorner ? BASE_D : d) / 2 + 4.8} fill="#5c6370"
                 fontSize={2.5} fontFamily="Helvetica,Arial,sans-serif"
+                transform={up(x + w / 2, WALL_T / 2 + (isCorner ? BASE_D : d) / 2 + 3.8)}
                 textAnchor="middle" fontWeight="400" opacity={0.65}>{w}"</text>
             )}
             {isTall && !isApp && (
               <text x={x + 1} y={WALL_T / 2 + 4} fill={C.dimText}
                 fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
+                transform={up(x + 4, WALL_T / 2 + 3)}
                 fontStyle="italic" opacity={0.6}>TALL</text>
             )}
             {isApp && w >= 15 && (
               <text x={x + w / 2} y={WALL_T / 2 + d / 2 - 2} fill={C.dimText}
                 fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
+                transform={up(x + w / 2, WALL_T / 2 + d / 2 - 3)}
                 textAnchor="middle" fontStyle="italic" opacity={0.7}>
                 {(() => { const at = (cab.applianceType || '').toLowerCase();
                   return at === 'range' ? 'RANGE' : at === 'refrigerator' ? 'REF'
@@ -605,6 +618,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
             {w >= 12 && (
               <text x={x + w / 2} y={uy + UPPER_D / 2 + 1} fill={C.dimText}
                 fontSize={3} fontFamily="Helvetica,Arial,sans-serif"
+                transform={up(x + w / 2, uy + UPPER_D / 2)}
                 textAnchor="middle" opacity={0.6}>{w}"</text>
             )}
           </g>
@@ -626,7 +640,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
               strokeWidth={W.ext} strokeDasharray={DASH.ext} opacity={0.45} />
             <text x={bx - 2.5} y={my} fill={C.dimText} fontSize={3.6}
               fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="600"
-              transform={`rotate(-90, ${bx - 2.5}, ${my})`}>{fmtDepth(BASE_D)}</text>
+              transform={`rotate(${flipText ? 90 : -90}, ${bx - 2.5}, ${my})`}>{fmtDepth(BASE_D)}</text>
           </g>
         );
       })()}
@@ -644,13 +658,13 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
               strokeWidth={W.ext} strokeDasharray={DASH.ext} opacity={0.45} />
             <text x={ux - 2.5} y={my} fill={C.dimText} fontSize={3.4}
               fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="600"
-              transform={`rotate(-90, ${ux - 2.5}, ${my})`}>{fmtDepth(UPPER_D)}</text>
+              transform={`rotate(${flipText ? 90 : -90}, ${ux - 2.5}, ${my})`}>{fmtDepth(UPPER_D)}</text>
           </g>
         );
       })()}
 
       {/* ── OVERALL WALL DIMENSION ── outermost, above ── */}
-      <HDim x1={0} x2={length} y={overallY} label={`${length}"`} above={true} />
+      <HDim x1={0} x2={length} y={overallY} label={`${length}"`} above={true} flip={flipText} />
 
       {/* ── CENTERLINE LOCATIONS (fixtures + windows) — single outboard tier ── */}
       {(fixtures.length > 0 || ops.some(o => (o.type || 'window').toLowerCase() === 'window')) && (() => {
@@ -678,6 +692,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
             if (b - a > 6) els.push(
               <text key={`ct-l${i}`} x={(a + b) / 2} y={clTierY - 2.6} fill={C.dimText}
                 fontSize={3.4} fontFamily="Helvetica,Arial,sans-serif"
+                transform={up((a + b) / 2, clTierY - 3.6)}
                 textAnchor="middle" fontWeight="500">{Math.round(b - a)}"</text>
             );
           }
@@ -706,6 +721,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
             strokeDasharray={DASH.ext} opacity={0.5} />);
           if (cab.width >= 8) els.push(
             <text key={`wl${i}`} x={(lx + rx) / 2} y={dimRunY - 3} fill={C.dimText}
+              transform={up((lx + rx) / 2, dimRunY - 4)}
               fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
               textAnchor="middle" fontWeight="500">{cab.width}"</text>
           );

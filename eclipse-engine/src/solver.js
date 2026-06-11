@@ -2296,6 +2296,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
 
   // Capture placement warnings
   const placementWarnings = positioned._warnings || [];
+  if (process.env.DBG) console.error('[DBG positioned]', wall.id, 'avail', availableLength, 'offset', leftConsumed, '→', positioned.map(p => p.type + '@' + p.position + '+' + (p.width || '?')).join(' | '));
 
   // Inject door/entry openings as pseudo-appliances so buildSegments skips those zones
   if (wall.openings) {
@@ -2709,8 +2710,14 @@ function positionAppliances(appliances, available, offset, wall, prefs) {
   const wallEnd = offset + available;
   const wallDef = wall || {};
 
-  // Filter hoods — they don't consume floor space
-  const floorApps = appliances.filter(a => a.type !== "hood");
+  // Filter hoods — they don't consume floor space.
+  // Every appliance gets a CONCRETE width here: a width-less sink used to ride
+  // through as undefined → sinkEnd = NaN → the DW-adjacency guard no-oped,
+  // segments treated the sink as zero footprint, and the overlap corrector
+  // shrank the sink base to width 0 (still fully priced).
+  const DEFAULT_W = { sink: 36, dishwasher: 24, range: 30, cooktop: 36, refrigerator: 36, freezer: 36, wineColumn: 24, wallOven: 30, microwave: 24, beverageCenter: 24, iceMaker: 15, warmingDrawer: 27 };
+  const floorApps = appliances.filter(a => a.type !== "hood")
+    .map(a => (a.width > 0 ? a : { ...a, width: DEFAULT_W[a.type] || 30 }));
   if (floorApps.length === 0) return Object.assign([], { _warnings });
 
   // Pre-claim door zones

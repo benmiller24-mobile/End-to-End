@@ -22,7 +22,7 @@ const CONFIGS = [
             { id: 'B', length: 132, openings: [{ type: 'door', posFromLeft: 96, position: 96, width: 32 }] }],
     appliances: [{ type: 'sink', wall: 'A', pinned: true }, { type: 'range', width: 36 }, { type: 'refrigerator', width: 36 }, { type: 'dishwasher', width: 24 }] },
   { id: 'U-9ft-soffit', layoutType: 'u-shape', ceiling: 108,
-    walls: [{ id: 'A', length: 144, soffit: { height: 12, depth: 14 } }, { id: 'B', length: 108 }, { id: 'C', length: 144 }], appliances: APPS_STD },
+    walls: [{ id: 'A', length: 144, soffit: { drop: 12, depth: 14 } }, { id: 'B', length: 108 }, { id: 'C', length: 144 }], appliances: APPS_STD },
   { id: 'U-tight', layoutType: 'u-shape', walls: [{ id: 'A', length: 96 }, { id: 'B', length: 84 }, { id: 'C', length: 96 }], appliances: APPS_STD },
   { id: 'G-shape', layoutType: 'g-shape', walls: [{ id: 'A', length: 144 }, { id: 'B', length: 96 }, { id: 'C', length: 120 }, { id: 'D', length: 84 }], appliances: APPS_STD },
   { id: 'galley', layoutType: 'galley', walls: [{ id: 'A', length: 144 }, { id: 'B', length: 144 }], appliances: APPS_STD },
