@@ -334,7 +334,7 @@ export function buildManualResult({ walls, items, island, roomType = 'kitchen', 
   return {
     layoutType: lt, roomType,
     walls: wallLayouts, uppers, upperCorners: [], talls,
-    island: island && island.length ? { length: island.length, depth: island.depth || 42, overhang: island.overhang || 12 } : null,
+    island: island && island.length ? { ...island, depth: island.depth || 42, overhang: island.overhang ?? 12 } : null,
     peninsula: null, corners: [], accessories: [],
     placements,
     validation: manualChecks(walls, items),

@@ -126,19 +126,27 @@ function placeIsland(wp, layoutType, island) {
   if (wC && Math.abs((wC.angle || 0) - 180) < 1) bottomFace = wC.y - WALL_T / 2 - BASE_D; // U far wall
   else if (wB && Math.abs(wB.angle || 0) < 1) bottomFace = wB.y - WALL_T / 2 - BASE_D;    // galley far wall
 
-  // Horizontal: center on wall A, then clamp to preserve the work aisle to wall B.
-  let ix = wA.x + (wA.length - iw) / 2;
-  if (rightFaceX != null && ix + iw > rightFaceX - ISL.workAisle) ix = rightFaceX - ISL.workAisle - iw;
-  if (ix < wA.x) ix = wA.x;
-
-  // Vertical: open room → 42" off wall A; bounded room → centered between the runs.
-  let iy;
-  if (bottomFace != null) {
-    const span = bottomFace - topFace;
-    iy = topFace + Math.max(ISL.workAisle, (span - id) / 2);
-    if (iy + id > bottomFace - ISL.workAisle) iy = Math.max(topFace + ISL.minClear, bottomFace - ISL.workAisle - id);
+  let ix, iy;
+  if (island.x != null && island.y != null) {
+    // Designer dragged the island in the studio — honor that position. Studio
+    // coordinates share the chain anchored at wall A's start, so the offset is
+    // just wall A's plan-frame origin.
+    ix = wA.x + island.x - iw / 2;
+    iy = wA.y + island.y - id / 2;
   } else {
-    iy = topFace + ISL.workAisle;
+    // Horizontal: center on wall A, then clamp to preserve the work aisle to wall B.
+    ix = wA.x + (wA.length - iw) / 2;
+    if (rightFaceX != null && ix + iw > rightFaceX - ISL.workAisle) ix = rightFaceX - ISL.workAisle - iw;
+    if (ix < wA.x) ix = wA.x;
+
+    // Vertical: open room → 42" off wall A; bounded room → centered between the runs.
+    if (bottomFace != null) {
+      const span = bottomFace - topFace;
+      iy = topFace + Math.max(ISL.workAisle, (span - id) / 2);
+      if (iy + id > bottomFace - ISL.workAisle) iy = Math.max(topFace + ISL.minClear, bottomFace - ISL.workAisle - id);
+    } else {
+      iy = topFace + ISL.workAisle;
+    }
   }
 
   const clTop = iy - topFace;
@@ -578,7 +586,8 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
                 transform={up(x + 4, WALL_T / 2 + 3)}
                 fontStyle="italic" opacity={0.6}>TALL</text>
             )}
-            {isApp && w >= 15 && (
+            {isApp && w >= 15 && String(cab.sku || '').toUpperCase() !== (() => { const at = (cab.applianceType || '').toLowerCase();
+              return at === 'range' ? 'RANGE' : at === 'refrigerator' ? 'REF' : at === 'dishwasher' ? 'DW' : at === 'sink' ? 'SINK' : at.toUpperCase().substring(0, 6); })() && (
               <text x={x + w / 2} y={WALL_T / 2 + d / 2 - 2} fill={C.dimText}
                 fontSize={2.8} fontFamily="Helvetica,Arial,sans-serif"
                 transform={up(x + w / 2, WALL_T / 2 + d / 2 - 3)}
@@ -717,30 +726,46 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
         return <g>{els}</g>;
       })()}
 
-      {/* ── CABINET-RUN WIDTH STRING (inner, room side below cabinets) ── */}
+      {/* ── CABINET-RUN WIDTH STRING — COMPLETE chain (cabinets + slivers +
+          gaps) so the segments always sum to the span they cover ── */}
       {bases.length > 0 && (() => {
         const els = [];
-        const first = bases[0].position;
-        const lastCab = bases[bases.length - 1];
-        const end = lastCab.position + lastCab.width;
+        // build a gapless segment list: panels/scribe slivers and open gaps
+        // become labeled segments instead of silent holes in the chain
+        const segs = [];
+        let cursor = bases[0].position;
+        bases.forEach(cab => {
+          const cs = cab.position, ce = cab.position + cab.width;
+          if (cs > cursor + 0.26) {
+            const g = cs - cursor;
+            segs.push({ x0: cursor, x1: cs, lbl: g >= 12 ? `OPEN ${Math.round(g * 8) / 8}"` : `${Math.round(g * 8) / 8}"`, gap: true });
+          }
+          segs.push({ x0: Math.max(cs, cursor), x1: ce, lbl: `${cab.width}"`, w: cab.width });
+          cursor = Math.max(cursor, ce);
+        });
+        const first = segs[0].x0, end = segs[segs.length - 1].x1;
         els.push(<line key="cl" x1={first} y1={dimRunY} x2={end} y2={dimRunY}
           stroke={C.dimLine} strokeWidth={W.dim} />);
-        bases.forEach((cab, i) => {
-          const lx = cab.position;
-          const rx = cab.position + cab.width;
-          els.push(<HTick key={`tl${i}`} x={lx} y={dimRunY} />);
-          if (i === bases.length - 1) els.push(<HTick key={`tr${i}`} x={rx} y={dimRunY} />);
-          els.push(<line key={`el${i}`} x1={lx} y1={WALL_T / 2 + (cab.depth || BASE_D)}
-            x2={lx} y2={dimRunY + 2} stroke={C.dimLine} strokeWidth={W.ext}
+        let slimFlip = false;
+        segs.forEach((sg, i) => {
+          els.push(<HTick key={`tl${i}`} x={sg.x0} y={dimRunY} />);
+          if (i === segs.length - 1) els.push(<HTick key={`tr${i}`} x={sg.x1} y={dimRunY} />);
+          els.push(<line key={`el${i}`} x1={sg.x0} y1={WALL_T / 2 + BASE_D}
+            x2={sg.x0} y2={dimRunY + 2} stroke={C.dimLine} strokeWidth={W.ext}
             strokeDasharray={DASH.ext} opacity={0.5} />);
-          if (i === bases.length - 1) els.push(<line key={`er${i}`} x1={rx} y1={WALL_T / 2 + (cab.depth || BASE_D)}
-            x2={rx} y2={dimRunY + 2} stroke={C.dimLine} strokeWidth={W.ext}
+          if (i === segs.length - 1) els.push(<line key={`er${i}`} x1={sg.x1} y1={WALL_T / 2 + BASE_D}
+            x2={sg.x1} y2={dimRunY + 2} stroke={C.dimLine} strokeWidth={W.ext}
             strokeDasharray={DASH.ext} opacity={0.5} />);
-          if (cab.width >= 8) els.push(
-            <text key={`wl${i}`} x={(lx + rx) / 2} y={dimRunY - 3} fill={C.dimText}
-              transform={up((lx + rx) / 2, dimRunY - 4)}
-              fontSize={3.5} fontFamily="Helvetica,Arial,sans-serif"
-              textAnchor="middle" fontWeight="500">{cab.width}"</text>
+          const slim = (sg.x1 - sg.x0) < 8;
+          let ly = dimRunY - 3;
+          if (slim) { ly = slimFlip ? dimRunY + 8.5 : dimRunY + 5; slimFlip = !slimFlip; }
+          else slimFlip = false;
+          els.push(
+            <text key={`wl${i}`} x={(sg.x0 + sg.x1) / 2} y={ly} fill={sg.gap ? '#8a8378' : C.dimText}
+              transform={up((sg.x0 + sg.x1) / 2, ly - 1)}
+              fontSize={slim ? 2.8 : 3.5} fontFamily="Helvetica,Arial,sans-serif"
+              fontStyle={sg.gap ? 'italic' : undefined}
+              textAnchor="middle" fontWeight="500">{sg.lbl}</text>
           );
         });
         return els;
@@ -829,9 +854,10 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
         maxY = Math.max(maxY, pl.iy + pl.id + ohD + 16);
       }
     }
-    // Reserve room at the bottom for the title block + scale bar strip.
-    const vw = Math.max(maxX + 110, 300);
-    const vh = Math.max(maxY + 130, 220) + 64;
+    // Tight fit: content margin for dims/tags below the drawing, then a
+    // legend lane and the title-block row — no dead band in between.
+    const vw = Math.max(maxX + 110, 440);
+    const vh = Math.max(maxY + 60, 200) + 14 + 48 + 12;
     return { str: `0 0 ${vw} ${vh}`, w: vw, h: vh };
   }, [wallPositions, island, layoutType]);
 
@@ -1161,8 +1187,8 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
         );
       })()}
 
-      {/* ── LEGEND ── */}
-      <g transform={`translate(14, ${viewBox.h - 22})`}>
+      {/* ── LEGEND — its own lane above the title-block row ── */}
+      <g transform={`translate(14, ${viewBox.h - 48 - 20})`}>
         {[
           { label: 'Base Cabinet', dash: false, fill: C.cabFill },
           { label: 'Upper (overhead)', dash: true, fill: C.upperFill },
@@ -1196,7 +1222,8 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
         ];
         const rowH = tbH / 3;
         // Graphic scale: plan units are 1 SVG unit = 1 inch, so 12 units = 1 ft.
-        const ft = 12, sbX = tbX - 4 - 4 * ft, sbY = tbY + tbH - 8;
+        // Lives bottom-LEFT so it can never run into the title block.
+        const ft = 12, sbX = 14, sbY = tbY + tbH - 10;
         return (
           <g>
             <text x={sbX} y={sbY - 3} fill={C.dimText} fontSize={4}

@@ -399,18 +399,20 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
           const il = isl.length, idp = isl.depth || 40;
           const offset = BASE_D + AISLE + idp / 2;     // island sits an aisle off wall A
           const along = f.length / 2;
-          const cx = f.x + Math.cos(a) * along + nx * offset;
-          const cz = f.y + Math.sin(a) * along + nz * offset;
+          // Designer-positioned island (Design Studio x/y) shares this frame
+          // space directly — honor it over the default placement.
+          const cx = isl.x != null ? isl.x : f.x + Math.cos(a) * along + nx * offset;
+          const cz = isl.y != null ? isl.y : f.y + Math.sin(a) * along + nz * offset;
           addBox(il, BASE_TOP - TOE, idp, cx, (TOE + BASE_TOP) / 2, cz, -a, islandMat);
           addBox(il - 2, TOE, idp - 3, cx, TOE / 2, cz, -a, toeMat);
           addBox(il + 2, CTR, idp + (isl.overhang || 12), cx, BASE_TOP + CTR / 2, cz - nz * ((isl.overhang || 12) / 2), -a, stoneMat);
           // Work-side fronts: a virtual wall frame on the island's aisle face
           // (rotated 180° so panels project toward the aisle, not into the box).
-          const faceAlong0 = along - il / 2;
+          // Derived from cx/cz so it follows a designer-positioned island.
           const fIsland = {
             id: '__island', angle: f.angle + 180, length: il,
-            x: f.x + Math.cos(a) * (faceAlong0 + il) + nx * (offset - idp / 2),
-            y: f.y + Math.sin(a) * (faceAlong0 + il) + nz * (offset - idp / 2),
+            x: cx + Math.cos(a) * (il / 2) - nx * (idp / 2),
+            y: cz + Math.sin(a) * (il / 2) - nz * (idp / 2),
           };
           const nPan = Math.max(2, Math.round(il / 30));
           const pw = il / nPan;
