@@ -3,7 +3,7 @@ import { OFFICIAL_V88 } from '../../eclipse-pricing/src/officialV88.js';
 import { SHILOH_CATALOG } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
 import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
-import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, skuInfo, priceLookup, manualChecks } from './manualDesign.js';
+import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isCornerSku, skuInfo, priceLookup, manualChecks } from './manualDesign.js';
 
 /**
  * Design Studio — drag-and-drop room + cabinet design (the "2020-style" mode),
@@ -99,9 +99,10 @@ const APPLIANCE_PALETTE = [
   { type: 'dishwasher', label: 'Dishwasher 24"', width: 24 }, { type: 'refrigerator', label: 'Refrigerator 36"', width: 36 },
 ];
 
-export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', ghost = null, mode = 'full', layoutType = '', onApplyShape = null }) {
+export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', ghost = null, mode = 'full', layoutType = '', onApplyShape = null, island = null, onIslandChange = null }) {
   const roomOnly = mode === 'room';
   const svgRef = useRef(null);
+  const elevRef = useRef(null);
   const [sel, setSel] = useState(null);             // selected item id | 'op:wallIdx:opIdx'
   const [armed, setArmed] = useState(null);          // {sku} | {applianceType,width} awaiting placement
   const [editDim, setEditDim] = useState(null);      // {wallIdx, value}
@@ -109,6 +110,8 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   const [hoverPt, setHoverPt] = useState(null);      // cursor world point while armed (ghost preview)
   const [lastPlacedId, setLastPlacedId] = useState(null); // auto-advance anchor (Winner cursor)
   const [fillGap, setFillGap] = useState(null);      // {wallIdx, band, start, end} gap being filled
+  const [elevWall, setElevWall] = useState(null);    // wall id whose elevation strip is open
+  const [editIsl, setEditIsl] = useState(null);      // 'length' | 'depth' island dim being typed
   const [drag, setDrag] = useState(null);
   const [cat, setCat] = useState('Base');
   const [search, setSearch] = useState('');
@@ -117,8 +120,8 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   // ── Undo/redo: coalesced snapshots of {walls, items}. A burst of changes
   // (one drag) records once; Ctrl+Z walks back whole gestures. ──
   const histRef = useRef({ past: [], future: [], stamp: 0 });
-  const presentRef = useRef({ walls, items });
-  useEffect(() => { presentRef.current = { walls, items }; }, [walls, items]);
+  const presentRef = useRef({ walls, items, island });
+  useEffect(() => { presentRef.current = { walls, items, island }; }, [walls, items, island]);
   const record = useCallback(() => {
     const h = histRef.current, now = Date.now();
     if (now - h.stamp > 500) {
@@ -130,18 +133,23 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   }, []);
   const changeWalls = useCallback((ws) => { record(); onWallsChange(ws); }, [record, onWallsChange]);
   const changeItems = useCallback((its) => { record(); onItemsChange(its); }, [record, onItemsChange]);
+  const changeIsland = useCallback((isl) => { record(); onIslandChange && onIslandChange(isl); }, [record, onIslandChange]);
+  const applySnap = useCallback((snap) => {
+    onWallsChange(snap.walls); onItemsChange(snap.items);
+    if (onIslandChange && snap.island !== undefined) onIslandChange(snap.island);
+  }, [onWallsChange, onItemsChange, onIslandChange]);
   const undo = useCallback(() => {
     const h = histRef.current; if (!h.past.length) return;
     h.future.push(JSON.parse(JSON.stringify(presentRef.current)));
     const prev = h.past.pop(); h.stamp = 0;
-    onWallsChange(prev.walls); onItemsChange(prev.items);
-  }, [onWallsChange, onItemsChange]);
+    applySnap(prev);
+  }, [applySnap]);
   const redo = useCallback(() => {
     const h = histRef.current; if (!h.future.length) return;
     h.past.push(JSON.parse(JSON.stringify(presentRef.current)));
     const next = h.future.pop(); h.stamp = 0;
-    onWallsChange(next.walls); onItemsChange(next.items);
-  }, [onWallsChange, onItemsChange]);
+    applySnap(next);
+  }, [applySnap]);
 
   const fr = useMemo(() => frames(walls, layoutType), [walls, layoutType]);
   const all = useMemo(() => catalogList(brand), [brand]);
@@ -192,6 +200,69 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     return best;
   }, [fr, projectOnWall]);
 
+  // Interior corners between consecutive wall runs (none in a galley).
+  const corners = useMemo(() => {
+    if (/galley/.test(layoutType || '') || walls.length < 2) return [];
+    return fr.slice(0, -1).map((f, i) => ({ idx: i, pt: toWorld(f, f.length, 0) }));
+  }, [fr, walls.length, layoutType]);
+  const cornerSnap = useCallback((p, sku) => {
+    if (!sku || !isCornerSku(sku)) return null;
+    let best = null, bd = 30;   // snap radius
+    for (const c of corners) {
+      const d = Math.hypot(p.x - c.pt.x, p.y - c.pt.y);
+      if (d < bd) { bd = d; best = c; }
+    }
+    return best;
+  }, [corners]);
+
+  // Island frame (axis-aligned; walls run 0/90/180/270): default to the room's
+  // interior centroid until the designer drags it.
+  const islandBox = useMemo(() => {
+    if (!island || !island.length) return null;
+    const L = island.length, D = island.depth || 42;
+    let cx = island.x, cy = island.y;
+    if (cx == null || cy == null) {
+      const pts = fr.map(f => toWorld(f, f.length / 2, BASE_D + 40));
+      cx = pts.reduce((s, p) => s + p.x, 0) / Math.max(1, pts.length);
+      cy = pts.reduce((s, p) => s + p.y, 0) / Math.max(1, pts.length);
+    }
+    return { cx, cy, L, D, x: cx - L / 2, y: cy - D / 2 };
+  }, [island, fr]);
+
+  // Aisle clearances: island edge → facing cabinet face on each wall
+  // (NKBA: 42" work aisle; flag under 36" hard).
+  const islandClear = useMemo(() => {
+    if (!islandBox) return [];
+    const out = [];
+    fr.forEach((f, i) => {
+      const w = walls[i];
+      const hasRun = items.some(it => it.wall === w.id && it.zone !== 'upper');
+      const face = hasRun ? BASE_D : 0;
+      const horiz = f.angle % 180 === 0;
+      if (horiz) {
+        const wallY = f.y, inward = islandBox.cy > wallY ? 1 : -1;
+        const faceY = wallY + inward * face;
+        const edgeY = inward === 1 ? islandBox.y : islandBox.y + islandBox.D;
+        const clear = (edgeY - faceY) * inward;
+        // only count walls the island actually faces (x-ranges overlap)
+        const x0 = Math.min(f.x, toWorld(f, f.length, 0).x), x1 = Math.max(f.x, toWorld(f, f.length, 0).x);
+        if (islandBox.x < x1 && islandBox.x + islandBox.L > x0 && clear > 0 && clear < 90) {
+          out.push({ clear, x: Math.max(x0, islandBox.x) + (Math.min(x1, islandBox.x + islandBox.L) - Math.max(x0, islandBox.x)) / 2, y0: faceY, y1: edgeY, horiz: true });
+        }
+      } else {
+        const wallX = f.x, inward = islandBox.cx > wallX ? 1 : -1;
+        const faceX = wallX + inward * face;
+        const edgeX = inward === 1 ? islandBox.x : islandBox.x + islandBox.L;
+        const clear = (edgeX - faceX) * inward;
+        const y0r = Math.min(f.y, toWorld(f, f.length, 0).y), y1r = Math.max(f.y, toWorld(f, f.length, 0).y);
+        if (islandBox.y < y1r && islandBox.y + islandBox.D > y0r && clear > 0 && clear < 90) {
+          out.push({ clear, y: Math.max(y0r, islandBox.y) + (Math.min(y1r, islandBox.y + islandBox.D) - Math.max(y0r, islandBox.y)) / 2, x0: faceX, x1: edgeX, horiz: false });
+        }
+      }
+    });
+    return out;
+  }, [islandBox, fr, walls, items]);
+
   // ── pointer handlers ──
   const onPointerMove = useCallback((evt) => {
     if (!drag) return;
@@ -217,8 +288,27 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
       op.position = newPos; op.posFromLeft = newPos;
       ops[drag.opIdx] = op;
       changeWalls(walls.map((ww, i) => i === drag.wallIdx ? { ...ww, openings: ops } : ww));
+    } else if (drag.kind === 'island' && island) {
+      changeIsland({ ...island, x: Math.round(p.x * 2) / 2, y: Math.round(p.y * 2) / 2 });
+    } else if (drag.kind === 'elevItem') {
+      // elevation strip drag: horizontal slides along the wall, vertical
+      // remounts wall cabinets (the whole point of the strip)
+      const svg = elevRef.current; if (!svg) return;
+      const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+      const ep = pt.matrixTransform(svg.getScreenCTM().inverse());
+      const it = items.find(i => i.id === drag.id); if (!it) return;
+      const w = walls.find(x => x.id === it.wall); if (!w) return;
+      const ceilH = w.ceilingHeight || 96;
+      let next = { ...it, position: ep.x - 18 - it.width / 2 };
+      if (it.zone === 'upper') {
+        const h = it.height || 36;
+        const yM = Math.round((ceilH - (ep.y - 8) - h / 2) * 2) / 2;
+        next.yMount = Math.max(0, Math.min(yM, ceilH - h));
+      }
+      next = slideItem(items, w.length, next, { free: evt.ctrlKey || evt.metaKey });
+      changeItems(items.map(i => i.id === it.id ? next : i));
     }
-  }, [drag, fr, walls, items, changeWalls, changeItems, svgPoint, projectOnWall, nearestWall]);
+  }, [drag, fr, walls, items, island, changeWalls, changeItems, changeIsland, svgPoint, projectOnWall, nearestWall]);
 
   const onPointerUp = useCallback(() => setDrag(null), []);
   useEffect(() => {
@@ -231,34 +321,40 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   // place, tinted green (legal) or red (blocked, with the first reason).
   const ghostPlace = useMemo(() => {
     if (!armed || !hoverPt || drag) return null;
-    const hit = nearestWall(hoverPt);
-    if (!hit || hit.dist > 60) return null;
-    const w = walls[hit.i];
+    // corner SKUs snap to the corner itself (2020's "double-magnet")
+    const cSnap = cornerSnap(hoverPt, armed.sku);
+    const hit = cSnap ? null : nearestWall(hoverPt);
+    if (!cSnap && (!hit || hit.dist > 60)) return null;
+    const wIdx = cSnap ? cSnap.idx : hit.i;
+    const w = walls[wIdx];
     const proto = armed.applianceType
       ? makeAppliance(armed.applianceType, w.id, 0, armed.width)
       : makeItem(armed.sku, w.id, 0, brand);
     proto.id = '_ghost';
-    proto.position = hit.along - proto.width / 2;
-    const settled = settleItem(items, w.length, proto);
-    return { item: settled, frameIdx: hit.i, issues: placementIssues(walls, items, settled) };
-  }, [armed, hoverPt, drag, walls, items, brand, nearestWall]);
+    proto.position = cSnap ? w.length - proto.width : hit.along - proto.width / 2;
+    const settled = cSnap ? proto : settleItem(items, w.length, proto);
+    return { item: settled, frameIdx: wIdx, corner: !!cSnap, issues: placementIssues(walls, items, settled) };
+  }, [armed, hoverPt, drag, walls, items, brand, nearestWall, cornerSnap]);
 
   const onCanvasClick = useCallback((evt) => {
     if (!armed) { setSel(null); setEditGap(null); return; }
     const p = svgPoint(evt);
-    const hit = nearestWall(p);
-    if (!hit || hit.dist > 60) return;
-    const wallLen = walls[hit.i].length;
+    const cSnap = cornerSnap(p, armed.sku);
+    const hit = cSnap ? null : nearestWall(p);
+    if (!cSnap && (!hit || hit.dist > 60)) return;
+    const wIdx = cSnap ? cSnap.idx : hit.i;
+    const w = walls[wIdx];
     let it = armed.applianceType
-      ? makeAppliance(armed.applianceType, walls[hit.i].id, hit.along - (armed.width || 30) / 2, armed.width)
-      : makeItem(armed.sku, walls[hit.i].id, hit.along - (skuInfo(armed.sku, brand).w) / 2, brand);
-    it = settleItem(items, wallLen, it);
+      ? makeAppliance(armed.applianceType, w.id, (hit ? hit.along : 0) - (armed.width || 30) / 2, armed.width)
+      : makeItem(armed.sku, w.id, (hit ? hit.along : 0) - (skuInfo(armed.sku, brand).w) / 2, brand);
+    if (cSnap) { it.position = w.length - it.width; it._corner = true; }
+    else it = settleItem(items, w.length, it);
     // Red ghost = blocked drop (door opening, window, no room). Alt-click forces.
     if (placementIssues(walls, items, it).length && !evt.altKey) return;
     changeItems([...items, it]);
     setSel(it.id); setLastPlacedId(it.id);
     if (!evt.shiftKey) setArmed(null);   // hold shift to place several
-  }, [armed, items, walls, brand, svgPoint, nearestWall, changeItems]);
+  }, [armed, items, walls, brand, svgPoint, nearestWall, cornerSnap, changeItems]);
 
   // ── R5 auto-advance: with a SKU armed and a just-placed (or selected) anchor,
   // one-click arrows butt the next cabinet flush left/right and show the
@@ -363,21 +459,49 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     setFillGap(null);
   }, [fillGap, walls, items, brand, changeItems]);
 
-  // keyboard: delete, undo/redo, escape
+  // keyboard: delete, undo/redo, escape, nudge (1" / Shift ¼" / Alt ⅛")
   useEffect(() => {
     const h = (e) => {
       const inField = /input|textarea|select/i.test(document.activeElement?.tagName || '');
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !inField) {
         e.preventDefault(); (e.shiftKey ? redo : undo)(); return;
       }
-      if (e.key === 'Escape') { setArmed(null); setEditGap(null); return; }
+      if (e.key === 'Escape') { setArmed(null); setEditGap(null); setFillGap(null); return; }
       if ((e.key === 'Delete' || e.key === 'Backspace') && sel && !inField) {
+        if (sel === 'island') { onIslandChange && changeIsland(null); setSel(null); return; }
         changeItems(items.filter(i => i.id !== sel)); setSel(null);
+        return;
+      }
+      if (/^Arrow/.test(e.key) && sel && !inField) {
+        const step = e.altKey ? 0.125 : e.shiftKey ? 0.25 : 1;
+        if (sel === 'island' && island) {
+          e.preventDefault();
+          const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+          const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+          const bx = islandBox || { cx: 0, cy: 0 };
+          changeIsland({ ...island, x: (island.x ?? bx.cx) + dx, y: (island.y ?? bx.cy) + dy });
+          return;
+        }
+        const it = items.find(i => i.id === sel); if (!it) return;
+        const w = walls.find(x => x.id === it.wall); if (!w) return;
+        e.preventDefault();
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          const next = { ...it, position: it.position + (e.key === 'ArrowRight' ? step : -step) };
+          const clamped = { ...next, position: Math.max(0, Math.min(next.position, w.length - it.width)) };
+          if (!placementIssues(walls, items, clamped).length || e.ctrlKey || e.metaKey) {
+            changeItems(items.map(i => i.id === it.id ? clamped : i));
+          }
+        } else if (it.zone === 'upper') {
+          const ceilH = w.ceilingHeight || 96;
+          const h2 = it.height || 36;
+          const yM = Math.max(0, Math.min((it.yMount ?? 54) + (e.key === 'ArrowUp' ? step : -step), ceilH - h2));
+          changeItems(items.map(i => i.id === it.id ? { ...i, yMount: yM } : i));
+        }
       }
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
-  }, [sel, items, changeItems, undo, redo]);
+  }, [sel, items, walls, island, islandBox, changeItems, changeIsland, onIslandChange, undo, redo]);
 
   const checks = useMemo(() => manualChecks(walls, items), [walls, items]);
 
@@ -439,6 +563,9 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
           <button onClick={removeWall} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>− Wall</button>
           <button onClick={undo} title="Undo (Ctrl+Z)" style={{ fontSize: 12, padding: '2px 8px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>↶</button>
           <button onClick={redo} title="Redo (Ctrl+Shift+Z)" style={{ fontSize: 12, padding: '2px 8px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>↷</button>
+          {onIslandChange && !roomOnly && (island && island.length
+            ? <button onClick={() => { changeIsland(null); if (sel === 'island') setSel(null); }} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>− Island</button>
+            : <button onClick={() => changeIsland({ length: 72, depth: 36, overhang: 12 })} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>+ Island</button>)}
           {armed && <span style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Placing {armed.sku || armed.applianceType} — green = drop, red = blocked (Alt forces) · Shift = multiple · Esc cancels</span>}
           {sel && <button onClick={() => { changeItems(items.filter(i => i.id !== sel)); setSel(null); }}
             style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: `1px solid ${C.danger}`, color: C.danger, borderRadius: 4, background: '#fff' }}>✕ Remove selected</button>}
@@ -504,7 +631,11 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             const endHandle = toWorld(f, f.length, -WALL_T);
             return (
               <g key={f.id}>
-                <line x1={f.x} y1={f.y} x2={e.x} y2={e.y} stroke={C.wall} strokeWidth={WALL_T} strokeLinecap="square" />
+                <line x1={f.x} y1={f.y} x2={e.x} y2={e.y} stroke={elevWall === w.id ? '#5a4a2a' : C.wall} strokeWidth={WALL_T} strokeLinecap="square"
+                  style={{ cursor: roomOnly ? 'default' : 'pointer' }}
+                  onClick={roomOnly ? undefined : (ev) => { ev.stopPropagation(); setElevWall(elevWall === w.id ? null : w.id); }}>
+                  <title>{`Click for wall ${w.id} elevation (set wall-cabinet heights)`}</title>
+                </line>
                 {/* openings */}
                 {(w.openings || []).map((op, oi) => {
                   const start = op.position ?? op.posFromLeft ?? 0;
@@ -568,6 +699,62 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
               </g>
             );
           })}
+          {/* corner drop targets: diagonal markers, gold when a corner SKU is armed */}
+          {!roomOnly && corners.map(c => {
+            const f1 = fr[c.idx], f2 = fr[c.idx + 1];
+            const a = toWorld(f1, f1.length - 13, 2), b = toWorld(f2, 13, 2);
+            const hot = armed?.sku && isCornerSku(armed.sku);
+            return (
+              <g key={`cn${c.idx}`} pointerEvents="none" opacity={hot ? 1 : 0.45}>
+                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={hot ? C.accent : '#b9ad99'} strokeWidth={hot ? 1.6 : 0.8} strokeDasharray="3,2" />
+                {hot && (() => { const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; return (
+                  <text x={m.x} y={m.y - 3} fontSize={6.5} textAnchor="middle" fill={C.accent} fontFamily="Helvetica" fontWeight={700}>corner</text>
+                ); })()}
+              </g>
+            );
+          })}
+          {/* island: draggable, with live aisle clearances (NKBA 42"/36") */}
+          {islandBox && (() => {
+            const seld = sel === 'island';
+            return (
+              <g>
+                {islandClear.map((cl, i) => {
+                  const col = cl.clear < 36 ? C.danger : cl.clear < 42 ? '#c08a2e' : '#3a7d44';
+                  const lx = cl.horiz ? cl.x : (cl.x0 + cl.x1) / 2;
+                  const ly = cl.horiz ? (cl.y0 + cl.y1) / 2 : cl.y;
+                  return (
+                    <g key={i} pointerEvents="none">
+                      <line x1={cl.horiz ? cl.x : cl.x0} y1={cl.horiz ? cl.y0 : cl.y} x2={cl.horiz ? cl.x : cl.x1} y2={cl.horiz ? cl.y1 : cl.y}
+                        stroke={col} strokeWidth={0.6} strokeDasharray="3,2" />
+                      <rect x={lx - 12} y={ly - 5.5} width={24} height={11} rx={2} fill="#fff" stroke={col} strokeWidth={0.6} />
+                      <text x={lx} y={ly + 2.6} fontSize={6.2} textAnchor="middle" fill={col} fontFamily="Helvetica">{fmtIn(cl.clear)}</text>
+                    </g>
+                  );
+                })}
+                <g style={{ cursor: 'grab' }}
+                  onPointerDown={(ev) => { ev.stopPropagation(); setSel('island'); setDrag({ kind: 'island' }); }}>
+                  <rect x={islandBox.x} y={islandBox.y} width={islandBox.L} height={islandBox.D}
+                    fill={C.base} stroke={seld ? C.sel : '#6b6257'} strokeWidth={seld ? 1.8 : 1} />
+                  <text x={islandBox.cx} y={islandBox.cy - 2} fontSize={7} textAnchor="middle" fill="#3b352d" fontFamily="Helvetica" pointerEvents="none">ISLAND</text>
+                  {editIsl ? (
+                    <foreignObject x={islandBox.cx - 26} y={islandBox.cy + 1} width={52} height={20}>
+                      <input autoFocus defaultValue={editIsl === 'length' ? islandBox.L : islandBox.D} style={{ width: '100%', fontSize: 10, textAlign: 'center' }}
+                        onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}
+                        onBlur={(ev) => { const v = parseFloat(ev.target.value); if (v >= 12 && v <= 144) changeIsland({ ...island, [editIsl]: Math.round(v * 2) / 2 }); setEditIsl(null); }}
+                        onKeyDown={(ev) => { if (ev.key === 'Enter') ev.target.blur(); if (ev.key === 'Escape') setEditIsl(null); }} />
+                    </foreignObject>
+                  ) : (
+                    <text x={islandBox.cx} y={islandBox.cy + 8} fontSize={6.2} textAnchor="middle" fill="#8a8378" fontFamily="Helvetica" style={{ cursor: 'text' }}
+                      onPointerDown={(ev) => ev.stopPropagation()}>
+                      <tspan onClick={(ev) => { ev.stopPropagation(); setEditIsl('length'); }}>{fmtIn(islandBox.L)}</tspan>
+                      <tspan> × </tspan>
+                      <tspan onClick={(ev) => { ev.stopPropagation(); setEditIsl('depth'); }}>{fmtIn(islandBox.D)}</tspan>
+                    </text>
+                  )}
+                </g>
+              </g>
+            );
+          })()}
           {/* gap dimensions — leftover run space; click a chip to fill the gap */}
           {gapDims.filter(g => g.band === 'floor' || (selItem && bandOf(selItem) === 'upper')).map((g, i) => {
             const f = fr[g.wallIdx];
@@ -682,6 +869,68 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
         {checks.filter(c => c.severity === 'error').slice(0, 3).map((c, i) => (
           <div key={i} style={{ padding: '4px 12px', fontSize: 11, color: C.danger, borderTop: '1px solid #f3e0dc', background: '#fdf5f3' }}>⚠ {c.message}</div>
         ))}
+        {/* ── elevation strip: synchronized editable view of one wall ── */}
+        {elevWall && !roomOnly && (() => {
+          const w = walls.find(x => x.id === elevWall);
+          if (!w) return null;
+          const ceilH = w.ceilingHeight || 96;
+          const M = 18;
+          const wallItems = items.filter(i => i.wall === w.id);
+          const elevFill = (it) => it.zone === 'upper' ? C.upper : it.zone === 'tall' ? C.tall : it.zone === 'appliance' ? C.appliance : C.base;
+          return (
+            <div style={{ borderTop: '1px solid #eee7dc' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '5px 10px', fontSize: 10.5, color: '#777' }}>
+                <b style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Elevation — wall {w.id}</b>
+                <span>drag wall cabinets ↑↓ to set mount heights (stacking allowed) · ←→ slides · plan stays in sync</span>
+                <button onClick={() => setElevWall(null)} style={{ marginLeft: 'auto', fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: '1px solid #ccc', borderRadius: 4, background: '#fff', color: '#888' }}>✕ close</button>
+              </div>
+              <svg ref={elevRef} viewBox={`0 0 ${w.length + M * 2} ${ceilH + 22}`} style={{ width: '100%', maxHeight: 250, display: 'block', touchAction: 'none' }}>
+                <rect x={M} y={8} width={w.length} height={ceilH} fill="#fcfaf6" stroke="#a99" strokeWidth={0.8} />
+                {/* openings */}
+                {(w.openings || []).map((op, oi) => {
+                  const start = op.position ?? op.posFromLeft ?? 0;
+                  const isWin = op.type === 'window';
+                  const oh = op.height || (isWin ? 36 : 82);
+                  const sill = isWin ? (op.sill ?? 42) : 0;
+                  return (
+                    <g key={oi} pointerEvents="none">
+                      <rect x={M + start} y={8 + ceilH - sill - oh} width={op.width || 36} height={oh}
+                        fill={isWin ? '#dfe9f5' : '#efe3cd'} stroke={isWin ? C.window : C.door} strokeWidth={0.7} />
+                      <text x={M + start + (op.width || 36) / 2} y={8 + ceilH - sill - oh / 2} fontSize={6} textAnchor="middle" fill="#888" fontFamily="Helvetica">{op.type}</text>
+                    </g>
+                  );
+                })}
+                {/* 54" datum line */}
+                <line x1={M} y1={8 + ceilH - 54} x2={M + w.length} y2={8 + ceilH - 54} stroke="#d9cfc0" strokeWidth={0.5} strokeDasharray="4,3" />
+                <text x={M + 2} y={8 + ceilH - 55.5} fontSize={5} fill="#b3a78f" fontFamily="Helvetica">54"</text>
+                {/* items */}
+                {wallItems.map(it => {
+                  const [y0, y1] = yRangeOf(it);
+                  const y = 8 + ceilH - y1;
+                  const seld = sel === it.id;
+                  return (
+                    <g key={it.id} style={{ cursor: it.zone === 'upper' ? 'move' : 'ew-resize' }}
+                      onPointerDown={(ev) => { ev.stopPropagation(); setSel(it.id); setDrag({ kind: 'elevItem', id: it.id }); }}>
+                      <rect x={M + it.position} y={y} width={it.width} height={y1 - y0}
+                        fill={elevFill(it)} stroke={seld ? C.sel : '#6b6257'} strokeWidth={seld ? 1.6 : 0.7} />
+                      <text x={M + it.position + it.width / 2} y={y + (y1 - y0) / 2 + 2} fontSize={6} textAnchor="middle" fill="#3b352d" fontFamily="Helvetica" pointerEvents="none">
+                        {(it.sku || it.applianceType || '').replace(/^FC-/, '').slice(0, 10)}
+                      </text>
+                      {it.zone === 'upper' && (
+                        <text x={M + it.position + it.width / 2} y={y + (y1 - y0) + 6.5} fontSize={5.2} textAnchor="middle" fill={seld ? C.accent : '#8a8378'} fontFamily="Helvetica" pointerEvents="none">
+                          @{fmtIn(it.yMount ?? 54)}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+                {/* floor line */}
+                <line x1={M - 6} y1={8 + ceilH} x2={M + w.length + 6} y2={8 + ceilH} stroke="#555" strokeWidth={1} />
+                <text x={M + w.length + 2} y={16} fontSize={5.5} fill="#999" fontFamily="Helvetica">{fmtIn(ceilH)} clg</text>
+              </svg>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ════ CATALOG BROWSER ════ */}

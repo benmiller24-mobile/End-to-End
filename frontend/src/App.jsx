@@ -2392,7 +2392,8 @@ export default function App() {
                       <DesignStudio walls={walls} onWallsChange={setWalls}
                         items={manualItems} onItemsChange={setManualItems}
                         brand={materials.brand} mode="full"
-                        layoutType={layoutType} onApplyShape={applyShape} />
+                        layoutType={layoutType} onApplyShape={applyShape}
+                        island={island} onIslandChange={setIsland} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
                         <button onClick={() => setStudio3D(v => !v)}
                           style={{ ...btnPrimary, background: studio3D ? C.muted : 'linear-gradient(135deg,#8b5cf6,#3b82f6)' }}>

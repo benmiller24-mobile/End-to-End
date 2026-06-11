@@ -50,6 +50,14 @@ export function priceLookup(sku, brand) {
   return brand === 'shiloh' ? findShilohSku(sku) : findSku(sku);
 }
 
+/** Corner units (lazy susans, blind corners, diagonal walls) get a dedicated
+ *  corner drop target. Official categories first, nomenclature fallback. */
+export function isCornerSku(sku) {
+  const off = findOfficial(sku);
+  if (off && off.cat) return ['BC', 'WC', 'GBC'].includes(off.cat);
+  return /^(FC-)?(LS|BLB|BBC|WDC|EZ|CW\d)/i.test(String(sku || ''));
+}
+
 // ── Placement creation & movement ──
 export function makeItem(sku, wall, position, brand) {
   const info = skuInfo(sku, brand);
@@ -69,10 +77,25 @@ export const isPanelItem = (it) => (it.sku && PANEL_RE.test(String(it.sku).repla
 /** Zones that compete for the same floor/wall band. */
 export const bandOf = (it) => isPanelItem(it) ? 'panel' : (it.zone === 'upper' ? 'upper' : 'floor');
 
+/** Vertical extent — uppers carry a mounting height (default 54" datum). */
+export const yRangeOf = (it) => {
+  const y0 = it.zone === 'upper' ? (it.yMount ?? 54) : 0;
+  return [y0, y0 + (it.height || (it.zone === 'upper' ? 36 : it.zone === 'tall' ? 93 : 34.5))];
+};
+
+/** Two items compete for space when they share a band — and, for uppers,
+ *  when their mounting heights actually intersect (stacked cabinets don't). */
+export const competes = (a, b) => {
+  if (bandOf(a) !== bandOf(b)) return false;
+  if (bandOf(a) !== 'upper') return true;
+  const [a0, a1] = yRangeOf(a), [b0, b1] = yRangeOf(b);
+  return a0 < b1 - 0.01 && a1 > b0 + 0.01;
+};
+
 /** Snap + clamp a moving item against its wall neighbors (flush-butt under 1.5"). */
 export function settleItem(items, wallLen, moving) {
   let pos = Math.max(0, Math.min(moving.position, wallLen - moving.width));
-  const others = items.filter(i => i.id !== moving.id && i.wall === moving.wall && bandOf(i) === bandOf(moving))
+  const others = items.filter(i => i.id !== moving.id && i.wall === moving.wall && competes(i, moving))
     .sort((a, b) => a.position - b.position);
   // snap flush to nearest edges
   for (const o of others) {
@@ -104,7 +127,7 @@ export function slideItem(items, wallLen, moving, opts = {}) {
   if (opts.free || isPanelItem(moving)) {
     return { ...moving, position: Math.round(want * 2) / 2 };
   }
-  const others = items.filter(i => i.id !== moving.id && i.wall === moving.wall && bandOf(i) === bandOf(moving))
+  const others = items.filter(i => i.id !== moving.id && i.wall === moving.wall && competes(i, moving))
     .sort((a, b) => a.position - b.position);
   // Build the free gaps along the wall, then clamp the wanted position into
   // the gap that contains (or is nearest to) the cursor's target center.
@@ -151,7 +174,7 @@ export function placementIssues(walls, items, cand) {
   if (cand.width > w.length + 0.01) issues.push(`wider than wall ${w.id} (${w.length}")`);
   else if (cand.position < -0.125 || cand.position + cand.width > w.length + 0.125) issues.push(`extends past wall ${w.id}`);
   if (!isPanelItem(cand)) {
-    const clash = items.find(i => i.id !== cand.id && i.wall === cand.wall && bandOf(i) === bandOf(cand)
+    const clash = items.find(i => i.id !== cand.id && i.wall === cand.wall && competes(i, cand)
       && cand.position < i.position + i.width - 0.01 && cand.position + cand.width > i.position + 0.01);
     if (clash) issues.push(`overlaps ${clash.sku || clash.applianceType}`);
   }
@@ -174,8 +197,11 @@ export function manualChecks(walls, items) {
     for (const band of ['floor', 'upper']) {   // 'panel' band intentionally unchecked
       const list = wallItems.filter(i => bandOf(i) === band).sort((a, b) => a.position - b.position);
       for (let i = 1; i < list.length; i++) {
-        const gap = list[i].position - (list[i - 1].position + list[i - 1].width);
-        if (gap < -0.125) push('error', 'manual_overlap', `Wall ${w.id}: ${list[i].sku || list[i].applianceType} overlaps ${list[i - 1].sku || list[i - 1].applianceType} by ${(-gap).toFixed(2)}"`, w.id);
+        for (let j = 0; j < i; j++) {
+          if (!competes(list[i], list[j])) continue;   // stacked uppers at different heights coexist
+          const gap = list[i].position - (list[j].position + list[j].width);
+          if (gap < -0.125) push('error', 'manual_overlap', `Wall ${w.id}: ${list[i].sku || list[i].applianceType} overlaps ${list[j].sku || list[j].applianceType} by ${(-gap).toFixed(2)}"`, w.id);
+        }
       }
       const last = list[list.length - 1];
       if (last && last.position + last.width > w.length + 0.125) push('error', 'manual_overflow', `Wall ${w.id}: run extends ${(last.position + last.width - w.length).toFixed(2)}" past the wall`, w.id);
