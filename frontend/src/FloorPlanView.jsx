@@ -450,8 +450,8 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
   // as in 2020 Design plans); centerline locations + overall length stack OUTBOARD
   // of the wall so the room interior stays clean (NKBA Ch.3 line hierarchy).
   const dimRunY  = WALL_T / 2 + BASE_D + 9;   // cabinet-run width string (room side, above tags)
-  const clTierY  = -WALL_T / 2 - UPPER_D - 12; // fixture + window centerline locations
-  const overallY = -WALL_T / 2 - UPPER_D - 24; // overall wall length (outermost)
+  const clTierY  = -WALL_T / 2 - 12; // fixture + window centerline locations
+  const overallY = -WALL_T / 2 - 24; // overall wall length (outermost)
 
   return (
     <g transform={`translate(${wx}, ${wy}) rotate(${angle})`}>
@@ -618,17 +618,17 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
       {uppers.map((cab, i) => {
         const x = cab.position;
         const w = cab.width;
-        const uy = -WALL_T / 2 - UPPER_D - 2;
+        const uy = WALL_T / 2;   // NKBA: uppers dash OVER the base run, inside the wall
         return (
           <g key={`upper-${i}`}>
             <rect x={x} y={uy} width={w} height={UPPER_D}
-              fill={C.upperFill} stroke={C.cabStroke} strokeWidth={W.upper}
-              strokeDasharray={DASH.upper} opacity={0.9} />
+              fill="none" stroke={C.cabStroke} strokeWidth={W.upper}
+              strokeDasharray={DASH.upper} opacity={0.95} />
             {w >= 12 && (
-              <text x={x + w / 2} y={uy + UPPER_D / 2 + 1} fill={C.dimText}
-                fontSize={3} fontFamily="Helvetica,Arial,sans-serif"
-                transform={up(x + w / 2, uy + UPPER_D / 2)}
-                textAnchor="middle" opacity={0.6}>{w}"</text>
+              <text x={x + w / 2} y={uy + 3.6} fill={C.dimText}
+                fontSize={2.6} fontFamily="Helvetica,Arial,sans-serif"
+                transform={up(x + w / 2, uy + 2.8)}
+                textAnchor="middle" opacity={0.65}>{w}"</text>
             )}
           </g>
         );
@@ -655,7 +655,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
       })()}
       {uppers.length > 0 && (() => {
         const ux = uppers[0].position - 7;
-        const uTop = -WALL_T / 2 - UPPER_D - 2, uBot = -WALL_T / 2 - 2;
+        const uTop = WALL_T / 2, uBot = WALL_T / 2 + UPPER_D;
         const my = (uTop + uBot) / 2;
         return (
           <g>
@@ -924,8 +924,8 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
           const rad = (wp.angle * Math.PI) / 180;
           const cos = Math.cos(rad), sin = Math.sin(rad);
           const along = tag.position + tag.width / 2;
-          const edge = tag.isUpper ? -(WALL_T / 2 + UPPER_D + 1) : (WALL_T / 2 + (tag.depth || BASE_D) + 1);
-          const perp0 = tag.isUpper ? -(WALL_T / 2 + UPPER_D + 10) : (WALL_T / 2 + (tag.depth || BASE_D) + 18);
+          const edge = tag.isUpper ? -(WALL_T / 2 + 1) : (WALL_T / 2 + (tag.depth || BASE_D) + 1);
+          const perp0 = tag.isUpper ? -(WALL_T / 2 + 10) : (WALL_T / 2 + (tag.depth || BASE_D) + 18);
           tags.push({
             i, num: tag.num, row: `${tag.wallId}|${tag.isUpper ? 'u' : 'b'}`,
             cos, sin, along, perp: perp0,

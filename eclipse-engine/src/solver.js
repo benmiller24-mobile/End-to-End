@@ -1077,6 +1077,23 @@ export function solve(input) {
   // can use _elev.yMount and _elev.height for precise vertical positioning.
   assignElevToSourceObjects(wallLayouts, upperLayouts, talls, assignedAppliances, corners);
 
+  // ── Sync placements' _elev from the (just-tagged) SOURCE objects ──
+  // compilePlacements ran earlier and holds shallow COPIES — without this the
+  // copies keep whatever stale _elev the spatial model guessed (the RW above
+  // the fridge said yMount 54 while the uppers source said 84). Anything that
+  // consumes placements._elev (order package, exports) needs the truth.
+  {
+    const key = (wall, sku, pos) => `${wall}|${sku}|${Math.round((pos || 0) * 4)}`;
+    const src = new Map();
+    for (const wl of wallLayouts) for (const c of (wl.cabinets || [])) if (c._elev) src.set(key(wl.wallId, c.sku, c.position), c._elev);
+    for (const ul of upperLayouts) for (const c of (ul.cabinets || [])) if (c._elev) src.set(key(ul.wallId, c.sku, c.position), c._elev);
+    for (const t of talls) if (t._elev) src.set(key(t.wall, t.sku, t.position), t._elev);
+    for (const p of placements) {
+      const hit = src.get(key(p.wall, p.sku, p.position));
+      if (hit) p._elev = hit;
+    }
+  }
+
   // ── POST-PLACEMENT OVERLAP DETECTION & AUTO-CORRECTION ──
   // Scan each wall's base cabinet run for overlaps and gaps that violate
   // standard cabinet widths. If an overlap is found, shift the offending
