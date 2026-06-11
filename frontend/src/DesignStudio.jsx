@@ -567,6 +567,14 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             ? <button onClick={() => { changeIsland(null); if (sel === 'island') setSel(null); }} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>− Island</button>
             : <button onClick={() => changeIsland({ length: 72, depth: 36, overhang: 12 })} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>+ Island</button>)}
           {armed && <span style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Placing {armed.sku || armed.applianceType} — green = drop, red = blocked (Alt forces) · Shift = multiple · Esc cancels</span>}
+          {selItem && (
+            <button onClick={() => changeItems(items.map(i => i.id === selItem.id ? { ...i, locked: !i.locked } : i))}
+              title="Locked items survive 'Design around my picks' — the solver builds around them and never moves them"
+              style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', borderRadius: 4,
+                border: `1px solid ${selItem.locked ? C.accent : '#ddd'}`, background: selItem.locked ? '#c8a96e22' : '#fff', color: selItem.locked ? C.accent : '#555', fontWeight: selItem.locked ? 700 : 400 }}>
+              {selItem.locked ? '🔒 Locked' : '🔓 Lock'}
+            </button>
+          )}
           {sel && <button onClick={() => { changeItems(items.filter(i => i.id !== sel)); setSel(null); }}
             style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: `1px solid ${C.danger}`, color: C.danger, borderRadius: 4, background: '#fff' }}>✕ Remove selected</button>}
           <span style={{ marginLeft: 'auto', fontSize: 10.5, color: checks.some(c => c.severity === 'error') ? C.danger : '#7a7'}}>
@@ -696,6 +704,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                   {(it.sku || it.applianceType || '').replace(/^FC-/, '').slice(0, 12)}
                 </text>
                 <text x={cx} y={cy + 9.5} fontSize={5.4} textAnchor="middle" fill="#8a8378" fontFamily="Helvetica" pointerEvents="none">{fmtIn(it.width)}</text>
+                {it.locked && <text x={cx} y={cy - 5} fontSize={6} textAnchor="middle" fill={C.accent} fontFamily="Helvetica" pointerEvents="none">🔒</text>}
               </g>
             );
           })}

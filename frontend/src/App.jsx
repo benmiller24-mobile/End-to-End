@@ -28,7 +28,7 @@ import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
 export { setPricingBrand, findSkuNormalized };
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
 import DesignStudio from './DesignStudio.jsx';
-import { buildManualResult, seedFromSolverResult } from './manualDesign.js';
+import { buildManualResult, seedFromSolverResult, competes } from './manualDesign.js';
 import { evaluateOrderReadiness } from './orderReadiness.js';
 import { parseAcknowledgment, reconcile } from './ackReconcile.js';
 
@@ -1119,10 +1119,119 @@ function loadDealerSettings() {
   catch { return { ...DEALER_DEFAULTS }; }
 }
 
+/** Multi-Quote (ProKitchen's killer sales feature): the SAME design priced in
+ *  up to 4 species/door-style columns side-by-side, through the identical
+ *  pricing path the main quote uses. Pure function of placements × style. */
+function MultiQuotePanel({ baseMaterials, priceWith }) {
+  const [open, setOpen] = useState(false);
+  const speciesOpts = Object.keys(SPECIES_PCT);
+  const doorOpts = DOORS.map(d => d.v);
+  const [cols, setCols] = useState(() => {
+    const alt = speciesOpts.filter(s => s !== baseMaterials.species);
+    return [
+      { species: baseMaterials.species, door: baseMaterials.door },
+      { species: alt[0] || baseMaterials.species, door: baseMaterials.door },
+      { species: alt[alt.length - 1] || baseMaterials.species, door: baseMaterials.door },
+    ];
+  });
+  const quotes = useMemo(() => open ? cols.map(c => {
+    try { return priceWith({ ...baseMaterials, species: c.species, door: c.door }); }
+    catch { return null; }
+  }) : [], [open, cols, baseMaterials, priceWith]);
+  if (!open) {
+    return (
+      <div style={{ ...panelStyle, cursor: 'pointer' }} onClick={() => setOpen(true)}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>▸ Multi-Quote — compare species &amp; door styles side-by-side</div>
+        <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>Price this exact design in up to 4 finishes at once — the showroom "Maple vs Walnut vs Paint" conversation, with real list numbers.</div>
+      </div>
+    );
+  }
+  const base = quotes[0];
+  const totalOf = (q) => q ? (q.subtotal || 0) + (q.fabrication?.subtotal || 0) : 0;
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>▾ Multi-Quote</div>
+        <span style={{ fontSize: 10.5, color: C.dim }}>same cabinets, same mods — list pricing per style; your dealer multiplier applies equally</span>
+        {cols.length < 4 && (
+          <button onClick={() => setCols(cs => [...cs, { ...cs[cs.length - 1] }])}
+            style={{ marginLeft: 'auto', fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 4, background: 'transparent' }}>+ column</button>
+        )}
+        <button onClick={() => setOpen(false)} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 4, background: 'transparent', color: C.dim, marginLeft: cols.length < 4 ? 0 : 'auto' }}>collapse</button>
+      </div>
+      <div style={{ overflowX: 'auto', marginTop: 10 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+              <th style={{ padding: '6px 8px', textAlign: 'left', color: C.dim, fontSize: 10, textTransform: 'uppercase' }}>SKU</th>
+              {cols.map((c, j) => (
+                <th key={j} style={{ padding: '6px 8px', textAlign: 'right', minWidth: 150 }}>
+                  <select value={c.species} onChange={e => setCols(cs => cs.map((x, k) => k === j ? { ...x, species: e.target.value } : x))}
+                    style={{ width: '100%', fontSize: 11, padding: 2 }}>
+                    {speciesOpts.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={c.door} onChange={e => setCols(cs => cs.map((x, k) => k === j ? { ...x, door: e.target.value } : x))}
+                    style={{ width: '100%', fontSize: 11, padding: 2, marginTop: 3 }}>
+                    {doorOpts.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  {cols.length > 2 && (
+                    <button onClick={() => setCols(cs => cs.filter((_, k) => k !== j))}
+                      style={{ fontSize: 9.5, marginTop: 3, padding: '1px 6px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 3, background: 'transparent', color: C.dim }}>remove</button>
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(base?.items || []).map((row, i) => (
+              <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
+                <td style={{ padding: '4px 8px', fontFamily: 'monospace', fontSize: 11 }}>{row.sku}{(row.qty || 1) > 1 ? ` ×${row.qty}` : ''}</td>
+                {quotes.map((q, j) => {
+                  const it = q?.items?.[i];
+                  return (
+                    <td key={j} style={{ padding: '4px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: it?.error ? C.warn : C.text }}>
+                      {it?.error ? 'n/a' : formatCurrency(it?.totalPrice || 0)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            {base?.fabrication?.subtotal > 0 && (
+              <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                <td style={{ padding: '4px 8px', fontSize: 11, color: C.muted }}>Trim, panels &amp; fabrication</td>
+                {quotes.map((q, j) => (
+                  <td key={j} style={{ padding: '4px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(q?.fabrication?.subtotal || 0)}</td>
+                ))}
+              </tr>
+            )}
+            <tr style={{ borderTop: `2px solid ${C.border}`, fontWeight: 700 }}>
+              <td style={{ padding: '6px 8px' }}>List total</td>
+              {quotes.map((q, j) => (
+                <td key={j} style={{ padding: '6px 8px', textAlign: 'right', color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(totalOf(q))}</td>
+              ))}
+            </tr>
+            <tr style={{ fontSize: 11, color: C.dim }}>
+              <td style={{ padding: '2px 8px' }}>vs column 1</td>
+              {quotes.map((q, j) => {
+                const d = totalOf(q) - totalOf(base);
+                return (
+                  <td key={j} style={{ padding: '2px 8px', textAlign: 'right', color: d > 0 ? C.warn : d < 0 ? '#3a7d44' : C.dim, fontVariantNumeric: 'tabular-nums' }}>
+                    {j === 0 ? '—' : `${d > 0 ? '+' : ''}${formatCurrency(d)}`}
+                  </td>
+                );
+              })}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
   projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {},
-  lineMods = {}, onChangeLineMods, onEditInStudio }) {
+  lineMods = {}, onChangeLineMods, onEditInStudio, priceWith = null }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1756,6 +1865,9 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             </div>
           )}
 
+          {/* Multi-Quote: same design, up to 4 styles side-by-side */}
+          {priceWith && <MultiQuotePanel baseMaterials={materials} priceWith={priceWith} />}
+
           {/* Dealer pricing — margin, freight, install, tax → customer total */}
           <div style={panelStyle}>
             <div style={sectionTitle}>Dealer Pricing</div>
@@ -2150,6 +2262,35 @@ export default function App() {
     setManualItems(items => items.filter(i => keep.has(i.wall)));
   }, [walls]);
 
+  // ── Lock-and-resolve: the solver designs AROUND hand-placed locked items.
+  // Locked appliances become pinned solver inputs; solver output that collides
+  // with any locked item is dropped; the result returns as editable items. ──
+  const [resolvePreview, setResolvePreview] = useState(null);
+  const handleResolveAround = useCallback(() => {
+    try {
+      const ceilH = Number(prefs.ceilingHeight) || 96;
+      const wallsC = walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || ceilH }));
+      const locked = manualItems.filter(i => i.locked);
+      const lockedApps = locked.filter(i => i.zone === 'appliance' && i.applianceType)
+        .map(i => ({ type: i.applianceType, width: i.width, wall: i.wall, position: i.position, pinned: true }));
+      const apps = appliances.map(a => {
+        const l = lockedApps.find(x => x.type === a.type);
+        return l ? { ...a, ...l } : a;
+      });
+      lockedApps.forEach(l => { if (!apps.some(a => a.type === l.type)) apps.push(l); });
+      const result = solve({ layoutType, roomType, walls: wallsC, appliances: apps, prefs, ...(island ? { island } : {}) });
+      const seeded = seedFromSolverResult(result);
+      const hitsLocked = (s) => locked.some(l => l.wall === s.wall && competes(l, s)
+        && s.position < l.position + l.width - 0.01 && s.position + s.width > l.position + 0.01);
+      const fill = seeded.filter(s => !hitsLocked(s));
+      setResolvePreview({
+        locked, fill,
+        removed: manualItems.filter(i => !i.locked),
+        merged: [...locked, ...fill],
+      });
+    } catch (err) { setError(err.message); }
+  }, [walls, prefs, manualItems, appliances, layoutType, roomType, island]);
+
   // ── Studio autosave: crash/refresh insurance for hand-placed designs.
   // Debounced full-state draft; offered back when the studio opens empty. ──
   const [studioDraft, setStudioDraft] = useState(() => {
@@ -2194,19 +2335,20 @@ export default function App() {
     }
   }, []);
 
-  // Price (or re-price) a solved design — used by handleSolve and whenever
-  // per-line modifications change (mods reprice without a re-solve).
-  const priceDesign = useCallback((result, mods) => {
+  // Price (or re-price) a solved design — used by handleSolve, mods repricing,
+  // and Multi-Quote (which runs the SAME path under variant materials).
+  const priceWithMaterials = useCallback((result, mods, mats) => {
     const { cabinets, fabrication } = buildPricingPlacements(result.placements || [], mods);
-    setPricingBrand(materials.brand);
+    setPricingBrand(mats.brand);
     const quoteResult = calculateLayoutPrice(cabinets, {
-      species: materials.species, construction: materials.construction,
-      door: materials.door, drawerFront: 'DF-' + materials.door, drawerBox: '5/8-STD',
-      profile: pricingProfileOf(materials.frameStyle),
+      species: mats.species, construction: mats.construction,
+      door: mats.door, drawerFront: 'DF-' + mats.door, drawerBox: '5/8-STD',
+      profile: pricingProfileOf(mats.frameStyle),
     }, findSkuNormalized);
     quoteResult.fabrication = priceFabricationItems(fabrication);
     return quoteResult;
-  }, [materials]);
+  }, []);
+  const priceDesign = useCallback((result, mods) => priceWithMaterials(result, mods, materials), [priceWithMaterials, materials]);
 
   useEffect(() => {
     if (solverResult) setQuote(priceDesign(solverResult, lineMods));
@@ -2346,6 +2488,7 @@ export default function App() {
             projectMeta={projectMeta} revisions={revisions} onRestoreRevision={handleRestoreRevision}
             walls={walls} orderSpec={orderSpec}
             lineMods={lineMods} onChangeLineMods={setLineMods}
+            priceWith={(mats) => priceWithMaterials(solverResult, lineMods, mats)}
             onEditInStudio={() => {
               setManualItems(seedFromSolverResult(solverResult));
               setDesignMode('manual');
@@ -2394,13 +2537,54 @@ export default function App() {
                         brand={materials.brand} mode="full"
                         layoutType={layoutType} onApplyShape={applyShape}
                         island={island} onIslandChange={setIsland} />
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         <button onClick={() => setStudio3D(v => !v)}
                           style={{ ...btnPrimary, background: studio3D ? C.muted : 'linear-gradient(135deg,#8b5cf6,#3b82f6)' }}>
                           {studio3D ? 'Hide 3D preview' : '⬡ View my layout in 3D'}
                         </button>
+                        <button onClick={handleResolveAround}
+                          title="The solver fills the rest of the room around your 🔒 locked items (locked appliances stay pinned to their wall and position). Unlocked items are replaced — lock anything you want kept."
+                          style={{ ...btnPrimary, background: 'linear-gradient(135deg,#b8944e,#8a6d1a)' }}>
+                          ⟲ Design around my picks ({manualItems.filter(i => i.locked).length} locked)
+                        </button>
                         {studio3D && <span style={{ fontSize: 11, color: C.dim }}>Live preview of {manualItems.length} placed item{manualItems.length === 1 ? '' : 's'} — updates as you edit. Drag to orbit.</span>}
                       </div>
+                      {/* solver proposal diff — nothing changes until Apply */}
+                      {resolvePreview && (
+                        <div style={{ marginTop: 10, border: `1px solid ${C.accent}`, borderRadius: 8, background: '#fdfaf3', padding: '10px 14px' }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
+                            Solver proposal — keeps {resolvePreview.locked.length} locked · adds {resolvePreview.fill.length} · replaces {resolvePreview.removed.length} unlocked
+                          </div>
+                          {resolvePreview.locked.length === 0 && (
+                            <div style={{ fontSize: 11, color: C.warn, marginBottom: 6 }}>
+                              Nothing is locked — this replaces the whole layout with the solver's design. Lock items first (select → 🔒) to design around them.
+                            </div>
+                          )}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 11 }}>
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#3a7d44', marginBottom: 3 }}>+ Solver adds</div>
+                              {resolvePreview.fill.slice(0, 14).map((i, k) => (
+                                <div key={k} style={{ fontFamily: 'monospace' }}>{i.sku || i.applianceType} <span style={{ color: C.dim }}>wall {i.wall} @ {Math.round(i.position)}"</span></div>
+                              ))}
+                              {resolvePreview.fill.length > 14 && <div style={{ color: C.dim }}>… +{resolvePreview.fill.length - 14} more</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, color: C.warn, marginBottom: 3 }}>− Replaced (unlocked)</div>
+                              {resolvePreview.removed.slice(0, 14).map((i, k) => (
+                                <div key={k} style={{ fontFamily: 'monospace' }}>{i.sku || i.applianceType} <span style={{ color: C.dim }}>wall {i.wall}</span></div>
+                              ))}
+                              {resolvePreview.removed.length > 14 && <div style={{ color: C.dim }}>… +{resolvePreview.removed.length - 14} more</div>}
+                              {!resolvePreview.removed.length && <div style={{ color: C.dim }}>nothing</div>}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                            <button onClick={() => { setManualItems(resolvePreview.merged); setResolvePreview(null); }} style={btnPrimary}>
+                              Apply proposal
+                            </button>
+                            <button onClick={() => setResolvePreview(null)} style={btnOutline}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
                       {studio3D && (() => {
                         const preview = buildManualResult({
                           walls: walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || Number(prefs.ceilingHeight) || 96 })),
