@@ -346,9 +346,17 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
           else { bot = aboveTall ? (e.yMount || 84) : (e.yMount ?? UPPER_BOT); top = upperTopAFF; }
           const dep = e.depth || UPPER_D;   // over-fridge (RW) cabs carry a deeper (~24-27") depth
           placeOnWall(f, c.position, c.width, dep, bot, top, woodMat);
-          // upper fronts: doors with pulls at the BOTTOM rail (the convention)
+          // upper fronts: doors with pulls at the BOTTOM rail (the convention).
+          // Aventos lift-up mods get ONE wide flap (no vertical split) with a
+          // horizontal pull centered on the bottom rail.
+          const isAventos = (c.modifications || []).some(m => /^AVENTOS/i.test(m.mod || m.type || ''));
           if (!isPlainPanelSku(c.sku) && top - bot > 8) {
-            addDoors(f, c.position, c.width, bot, top, dep, woodMat, recessMat, 'bottom');
+            if (isAventos) {
+              addPanel(f, c.position, c.width, bot, top, dep, woodMat, recessMat);
+              addPull(f, c.position + c.width / 2, bot + 1.6, dep + FRONT_T, true, Math.min(10, c.width * 0.4));
+            } else {
+              addDoors(f, c.position, c.width, bot, top, dep, woodMat, recessMat, 'bottom');
+            }
           }
         });
       });

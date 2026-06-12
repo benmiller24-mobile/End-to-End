@@ -36,14 +36,14 @@ const items = [
   it('B30', 243, 'base', 30, 34.5, 24, { rot: 'DROT5/8', rotQ: 2 }),  // two hardwood roll-outs
   it('B18L', 273, 'base', 18, 34.5, 24, { mods: { ESFR: true } }),  // finished side to floor at run end
   // uppers — Aventos lifting-flap fronts in the CMK design, standard W proxies here
-  it('W3324', 54, 'upper', 33, 24, 13, { yMount: 60, mods: { AVENTOS_HK: 2, PFG: true } }),  // CMK lifting-flap glass fronts
+  it('W3324', 54, 'upper', 33, 24, 13, { yMount: 60, mods: { AVENTOS_HK: 1 } }),  // CMK folding-lifting flap
+  it('W3624', 123, 'upper', 36, 24, 13, { yMount: 60, mods: { AVENTOS_HK: 1 } }),  // CMK folding-lifting flap
   // Zephyr AK9234BS Monsoon I liner (34⅜" for the 36" chase) centered over the cooktop
   { id: `c${_n++}`, sku: null, wall: 'A', position: 87.81, zone: 'upper', width: 34.375, height: 12, depth: 19, yMount: 66, applianceType: 'hood', _liner: true },
-  it('W3624', 123, 'upper', 36, 24, 13, { yMount: 60 }),
   it('W1824L', 159, 'upper', 18, 24, 13, { yMount: 60 }),
   it('RW3624-27', 177, 'upper', 36, 24, 27, { yMount: 84 }),  // above-fridge
   // ── ISLAND work side (CMK island-front): wine ref · trash pull-out · sink · DW · drawers ──
-  { id: `c${_n++}`, sku: 'B24R', wall: ISLAND_WALL, position: 0, zone: 'base', width: 24, height: 34.5, depth: 24, mods: { NTK: true } },  // furniture-look island end (no toe)
+  { id: `c${_n++}`, sku: 'B24R', wall: ISLAND_WALL, position: 0, zone: 'base', width: 24, height: 34.5, depth: 24 },
   { id: `c${_n++}`, sku: 'BWDMA18', wall: ISLAND_WALL, position: 24, zone: 'base', width: 18, height: 34.5, depth: 24 },
   { id: `c${_n++}`, sku: 'SB36', wall: ISLAND_WALL, position: 42, zone: 'base', width: 36, height: 34.5, depth: 24 },
   { id: `c${_n++}`, sku: null, wall: ISLAND_WALL, position: 78, zone: 'appliance', width: 24, height: 34.5, depth: 24, applianceType: 'dishwasher' },

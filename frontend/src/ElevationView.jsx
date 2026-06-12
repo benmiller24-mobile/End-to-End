@@ -764,6 +764,56 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
 
 
 // ═══════════════════════════════════════════════════════════════════════
+// COMPONENT: AventosFront — Blum Aventos lift-up wall cabinet (catalog E2)
+// One wide TOP-HINGED flap (HK stay-lift / HL lift-up) or a bi-fold pair
+// (HF): single panel per flap, horizontal grain, no vertical door split —
+// matches how dealer drawings render "folding-lifting mech" uppers.
+// ═══════════════════════════════════════════════════════════════════════
+
+function AventosFront({ x, y, w, h, flaps = 1, glass = false, frontFill = C.fill, hardware = 'knob' }) {
+  const els = [];
+  els.push(<rect key="box" x={x} y={y} width={w} height={h} fill={frontFill} stroke={C.line} strokeWidth={0.7} />);
+  const R = 0.094 * S;          // 3/32" full-overlay reveal
+  const RAIL = 2.5 * S;
+  const fh = h / flaps;
+  for (let i = 0; i < flaps; i++) {
+    const fy = y + i * fh;
+    const px = x + R, py = fy + R, pw = w - 2 * R, ph = fh - 2 * R;
+    if (pw <= 2 || ph <= 2) continue;
+    els.push(<rect key={`f${i}`} x={px} y={py} width={pw} height={ph} fill="none" stroke={C.thinLine} strokeWidth={0.4} rx={0.3} />);
+    if (glass) {
+      drawGlassPanel(els, `g${i}`, x, fy, w, fh, false);
+    } else {
+      // single recessed panel, grain running HORIZONTAL (catalog note 3)
+      const ix = px + RAIL, iy = py + RAIL, iw = pw - 2 * RAIL, ih = ph - 2 * RAIL;
+      if (iw > 2 && ih > 2) {
+        els.push(<rect key={`p${i}`} x={ix} y={iy} width={iw} height={ih} fill="#00000008" stroke={C.thinLine} strokeWidth={0.3} />);
+        const n = Math.max(2, Math.floor(ih / (2.2 * S)));
+        for (let g = 1; g < n; g++) {
+          const gy = iy + (ih * g) / n;
+          els.push(<line key={`gr${i}_${g}`} x1={ix} y1={gy} x2={ix + iw} y2={gy} stroke={C.thinLine} strokeWidth={0.16} opacity={0.35} />);
+        }
+      }
+    }
+    // lift-up swing notation: apex at the TOP center, dashes from the bottom
+    // corners (the flap pivots up) — the inverse of a side-hinged door.
+    els.push(<line key={`s1${i}`} x1={px} y1={py + ph} x2={px + pw / 2} y2={py} stroke={C.thinLine} strokeWidth={0.22} opacity={0.32} strokeDasharray="2,1.6" />);
+    els.push(<line key={`s2${i}`} x1={px + pw} y1={py + ph} x2={px + pw / 2} y2={py} stroke={C.thinLine} strokeWidth={0.22} opacity={0.32} strokeDasharray="2,1.6" />);
+    // pull: horizontal bar centered on the BOTTOM rail (lift-up reach point);
+    // bi-fold pairs open from the lower flap only.
+    if (i === flaps - 1) {
+      if (hardware === 'knob') {
+        els.push(<circle key={`k${i}`} cx={px + pw / 2} cy={py + ph - 1.4 * S} r={0.9} fill={C.hwColor} />);
+      } else {
+        const pl = Math.min(pw * 0.28, 6 * S);
+        els.push(<line key={`k${i}`} x1={px + pw / 2 - pl / 2} y1={py + ph - 1.4 * S} x2={px + pw / 2 + pl / 2} y2={py + ph - 1.4 * S} stroke={C.hwColor} strokeWidth={0.85} strokeLinecap="round" />);
+      }
+    }
+  }
+  return <>{els}</>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // COMPONENT: FillerStrip — Hatched filler visualization
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1726,6 +1776,10 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const hinge = doors === 1
           ? computeHingeSide(sortedUppers[i - 1], sortedUppers[i + 1], i === 0, i === sortedUppers.length - 1)
           : 'left';
+        // Aventos lift-up mod → one wide top-hinged flap (HF = bi-fold pair),
+        // never side-by-side vertical doors.
+        const upMods = modCodesOf(cab);
+        const aventos = ['AVENTOS_HF', 'AVENTOS_HFSD', 'AVENTOS_HK', 'AVENTOS_HKSD', 'AVENTOS_HL', 'AVENTOS_HLSD'].find(c => upMods.has(c));
 
         return (
           <g key={`u${i}`}>
@@ -1734,11 +1788,14 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : isFill ? (
               <FillerStrip x={x} y={y} w={w} h={uH}
                 label={`${cab.width <= FILLER_MIN ? 'FILLER' : (cab.sku || 'FILLER')} · ${fmt(cab.width)}`} frontFill={frontFill} />
+            ) : aventos ? (
+              <AventosFront x={x} y={y} w={w} h={uH} flaps={/^AVENTOS_HF/.test(aventos) ? 2 : 1}
+                glass={frontTypeOf(cab, styleSpec) !== 'solid'} frontFill={frontFill} hardware={hardware} />
             ) : (
               <CabFront x={x} y={y} w={w} h={uH} doors={wallBlind ? 1 : doors} drawers={0} isUpper hinge={hinge}
                 isCorner={wallBlind} cornerSide={cab._cornerSide || 'left'} blindCorner={wallBlind}
                 styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction}
-                stiles={(() => { const ms = modCodesOf(cab); return (ms.has('WSL') || ms.has('WSR') || ms.has('CENTER_STILE')) ? { left: ms.has('WSL'), right: ms.has('WSR'), center: ms.has('CENTER_STILE') } : null; })()} />
+                stiles={(upMods.has('WSL') || upMods.has('WSR') || upMods.has('CENTER_STILE')) ? { left: upMods.has('WSL'), right: upMods.has('WSR'), center: upMods.has('CENTER_STILE') } : null} />
             )}
             {/* SKU callout — upper pulls sit at the bottom, so label upper-center. */}
             {!isFill && !isRepPanel && cab.width >= 9 && cab.sku && (
