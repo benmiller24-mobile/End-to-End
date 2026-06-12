@@ -343,7 +343,12 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
           const isStack = c.role === 'stacked_main';
           let bot, top;
           if (isStack) { bot = e.yMount ?? UPPER_BOT; top = bot + (e.height || UPPER_H_DEF); }
-          else { bot = aboveTall ? (e.yMount || 84) : (e.yMount ?? UPPER_BOT); top = upperTopAFF; }
+          else {
+            // true geometry when the height is known — short uppers (Aventos
+            // flaps, over-fridge cabs) must not stretch to the tallest top
+            bot = aboveTall ? (e.yMount || 84) : (e.yMount ?? UPPER_BOT);
+            top = (e.height || c.height) ? Math.min(CEIL, bot + (e.height || c.height)) : upperTopAFF;
+          }
           const dep = e.depth || UPPER_D;   // over-fridge (RW) cabs carry a deeper (~24-27") depth
           placeOnWall(f, c.position, c.width, dep, bot, top, woodMat);
           // upper fronts: doors with pulls at the BOTTOM rail (the convention).

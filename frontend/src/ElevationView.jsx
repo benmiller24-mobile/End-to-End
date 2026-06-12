@@ -1249,7 +1249,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
   // stacked uppers reach the right line. Over-fridge cabs (ABOVE_TALL) clamp
   // DOWN to the line — they don't drive it up.
   const _upperTops = sortedUppers
-    .filter(u => u._elev?.zone !== 'ABOVE_TALL')
+    .filter(u => u._elev?.zone !== 'ABOVE_TALL' && (u._elev?.yMount ?? 54) <= 60)
     .map(u => (u._elev?.yMount ?? 54) + (u._elev?.height || u.height || UPPER_H_DEF));
   const upperTopAFF = Math.min(ceilH, Math.max(54 + UPPER_H_DEF, ..._upperTops, ..._tallTops));
   const upperTopY = floorY - upperTopAFF * S;   // common top line (screen y)
@@ -1318,7 +1318,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
     if (isFiller(cab)) return 'Filler / scribe';
     const { doors, drawers } = parseDoorDrawer(cab.sku || '', cab.width);
     const mods = (cab.modifications || []).map(m => m.mod || m.type).filter(Boolean).join(', ');
-    const cfg = [drawers ? `${drawers} dwr` : '', doors ? `${doors} dr` : ''].filter(Boolean).join(' + ');
+    // Aventos lift-up mods replace the door/drawer config \u2014 the front IS the flap.
+    const avMod = (cab.modifications || []).map(m => (m.mod || m.type || '').toUpperCase()).find(m => /^AVENTOS/.test(m));
+    const cfg = avMod
+      ? (/^AVENTOS_HF/.test(avMod) ? 'bi-fold lift-up flap' : 'lift-up flap')
+      : [drawers ? `${drawers} dwr` : '', doors ? `${doors} dr` : ''].filter(Boolean).join(' + ');
     return [cfg, mods].filter(Boolean).join(' \u00b7 ');
   };
   const schedRows = [];
@@ -1759,7 +1763,19 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           const topAFF = (elev.yMount ?? 54) + (elev.height || UPPER_H_DEF);
           y = floorY - topAFF * S;
           uH = (elev.height || UPPER_H_DEF) * S;
+        } else if (elev.height || cab.height) {
+          // TRUE GEOMETRY: a wall cabinet with a known height renders exactly
+          // mount→mount+height. A 24"-tall Aventos flap cabinet must read as a
+          // horizontal box — never stretched to the tallest top on the wall
+          // (the old datum-stretch turned short uppers into vertical slabs
+          // whenever an over-fridge cabinet topped out higher).
+          const mountAFF = elev.yMount ?? (aboveTall ? 84 : 54);
+          const hIn = Math.max(6, Math.min(elev.height || cab.height, ceilH - mountAFF));
+          y = floorY - (mountAFF + hIn) * S;
+          uH = hIn * S;
         } else {
+          // height unknown — fall back to the shared band between 54" AFF and
+          // the common top datum
           y = upperTopY;
           if (aboveTall) {
             const mountAFF = elev.yMount || 0;
