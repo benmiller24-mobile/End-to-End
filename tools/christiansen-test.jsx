@@ -47,7 +47,7 @@ const items = [
   { id: `c${_n++}`, sku: 'BWDMA18', wall: ISLAND_WALL, position: 24, zone: 'base', width: 18, height: 34.5, depth: 24 },
   { id: `c${_n++}`, sku: 'SB36', wall: ISLAND_WALL, position: 42, zone: 'base', width: 36, height: 34.5, depth: 24 },
   { id: `c${_n++}`, sku: null, wall: ISLAND_WALL, position: 78, zone: 'appliance', width: 24, height: 34.5, depth: 24, applianceType: 'dishwasher' },
-  { id: `c${_n++}`, sku: 'B3D18', wall: ISLAND_WALL, position: 102, zone: 'base', width: 18, height: 34.5, depth: 24 },
+  { id: `c${_n++}`, sku: 'B3D15', wall: ISLAND_WALL, position: 102, zone: 'base', width: 15, height: 34.5, depth: 24 },  // 2½" scribe gap closes the 119½" island
 ];
 
 // ── Island: 119½" with waterfall ends; sink/DW/wine/trash live here in the
@@ -58,7 +58,7 @@ const result = buildManualResult({ walls, items, island, roomType: 'kitchen', la
 result._inputWalls = walls;
 
 // ── 1. Validation through the studio's own checks ──
-const checks = manualChecks(walls, items);
+const checks = manualChecks(walls, items, island);
 const errors = checks.filter(c => c.severity === 'error');
 
 // ── 2. Render the documents ──
