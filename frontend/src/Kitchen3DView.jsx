@@ -290,10 +290,10 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
             }
             return;
           }
-          if (/range|cooktop|dishwasher|oven/.test(at)) {
-            const top = /dishwasher/.test(at) ? BASE_TOP : (/range/.test(at) ? 36 : BASE_TOP);
+          if (/range|cooktop|dishwasher|oven|microwave/.test(at)) {
+            const top = /dishwasher|microwave/.test(at) ? BASE_TOP : (/range/.test(at) ? 36 : BASE_TOP);
             placeOnWall(f, c.position, c.width, BASE_D, TOE, top, steelMat);
-            if (/dishwasher/.test(at)) addPull(f, c.position + c.width / 2, BASE_TOP - 2.5, BASE_D, true, Math.min(14, c.width * 0.6));
+            if (/dishwasher|microwave/.test(at)) addPull(f, c.position + c.width / 2, BASE_TOP - 2.5, BASE_D, true, Math.min(14, c.width * 0.6));
             if (!/range|cooktop/.test(at)) {
               placeOnWall(f, c.position, c.width, BASE_D, BASE_TOP, COUNTER_AFF, stoneMat); // counter over DW
               addCounterEdge(f, c.position, c.width, BASE_D + 1, BASE_TOP + CTR / 2);
@@ -373,6 +373,28 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
         const h = e.height || t.height || 90;
         const isFridge = /refrigerator|fridge/.test(appType(t));
         placeOnWall(f, t.position, t.width || 24, BASE_D, 0, h, isFridge ? steelMat : woodMat);
+        const isOvenCab = /^O\d/.test(String(t.sku || '').replace(/^FC-/, ''));
+        if (isOvenCab && (t.width || 24) >= 24) {
+          // Built-in oven tower at MANUFACTURER heights: stainless bezel with
+          // dark-glass doors + handle bars; wood drawer below, doors above.
+          const tw = t.width || 30;
+          const isDouble = h >= 78;
+          const sb = isDouble ? 21.5 : 30;
+          const sh = Math.min(isDouble ? 49 : 29, h - sb - 8);
+          const glassMat = new THREE.MeshStandardMaterial({ color: '#22262a', roughness: 0.16, metalness: 0.45 });
+          placeOnWall(f, t.position + 0.5, tw - 1, BASE_D + 0.7, sb, sb + sh, steelMat);
+          const secs = sh > 38 ? [[0, 0.4], [0.4, 1]] : [[0, 1]];
+          for (const [f0, f1] of secs) {
+            const secTop = sb + sh - f0 * sh, secBot = sb + sh - f1 * sh;
+            const gTop = secTop - 7;             // below control strip + handle
+            const gBot = secBot + 1.4;
+            if (gTop - gBot > 4) placeOnWall(f, t.position + tw * 0.08, tw * 0.84, BASE_D + 1.4, gBot, gTop, glassMat);
+            addPull(f, t.position + tw / 2, gTop + 1.7, BASE_D + 0.9, true, tw * 0.72);
+          }
+          addDrawers(f, t.position, tw, TOE, sb, BASE_D, woodMat, recessMat, 1);
+          if (h - (sb + sh) > 6) addDoors(f, t.position, tw, sb + sh + REVEAL, h, BASE_D, woodMat, recessMat, 'bottom');
+          return;
+        }
         if (!isFridge && !isPlainPanelSku(t.sku) && (t.width || 24) >= 12) {
           // utility/pantry: lower doors (pull top) + upper doors (pull bottom), split at counter-ish height
           const split = Math.min(h - 10, Math.max(40, h * 0.45));

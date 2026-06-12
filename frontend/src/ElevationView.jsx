@@ -787,6 +787,50 @@ function REPPanel({ x, y, w, h, frontFill = C.repFill }) {
 // COMPONENT: ApplianceSym — Appliance symbol in elevation
 // ═══════════════════════════════════════════════════════════════════════
 
+/**
+ * Realistic built-in oven stack (Thermador Masterpiece look, from mfr specs):
+ * stainless bezel; per section a gray-glass control strip with a display,
+ * a tubular handle at the TOP of the door, and dark door glass (~86% width)
+ * with a reflection streak. sections: 1 = single (29" class), 2 = double /
+ * steam-combo (49-52" class, upper section shallower like MEDS302WS).
+ */
+function OvenStackSym({ x, y, w, h, sections = 2, steelFill = '#e9ecef' }) {
+  const els = [];
+  const pad = 0.7 * S;
+  els.push(<rect key="bez" x={x} y={y} width={w} height={h} fill={steelFill} stroke={C.line} strokeWidth={0.55} rx={0.4} />);
+  const secs = sections === 2 ? [[0, 0.4], [0.4, 1]] : [[0, 1]];
+  secs.forEach(([f0, f1], si) => {
+    const sy = y + f0 * h, sh = (f1 - f0) * h;
+    const ctrlH = Math.min(5.5 * S, sh * 0.22);
+    // gray-glass control band + display
+    els.push(<rect key={`c${si}`} x={x + pad} y={sy + pad} width={w - 2 * pad} height={ctrlH}
+      fill="#3a3f44" stroke={C.line} strokeWidth={0.25} rx={0.4} />);
+    els.push(<rect key={`d${si}`} x={x + w / 2 - w * 0.14} y={sy + pad + ctrlH * 0.3} width={w * 0.28} height={ctrlH * 0.4}
+      fill="#bfe3f7" opacity={0.85} rx={0.3} />);
+    // tubular handle at the top of the door (proud of the face)
+    const hy = sy + pad + ctrlH + 1.7 * S;
+    els.push(<line key={`hs${si}`} x1={x + 2 * S} y1={hy + 0.5} x2={x + w - 2 * S} y2={hy + 0.5}
+      stroke="#9aa0a6" strokeWidth={1.3} strokeLinecap="round" opacity={0.55} />);
+    els.push(<line key={`h${si}`} x1={x + 2 * S} y1={hy} x2={x + w - 2 * S} y2={hy}
+      stroke="#d8dde2" strokeWidth={1.1} strokeLinecap="round" />);
+    // dark door glass with thin frame + reflection
+    const gy = hy + 1.4 * S;
+    const gh = sy + sh - pad - gy;
+    if (gh > 2) {
+      els.push(<rect key={`g${si}`} x={x + w * 0.07} y={gy} width={w * 0.86} height={gh}
+        fill="#2c3136" stroke="#54595e" strokeWidth={0.35} rx={0.6} />);
+      els.push(<line key={`r${si}`} x1={x + w * 0.13} y1={gy + gh * 0.12} x2={x + w * 0.13} y2={gy + gh * 0.88}
+        stroke="#ffffff" strokeWidth={0.6} opacity={0.14} strokeLinecap="round" />);
+      els.push(<line key={`r2${si}`} x1={x + w * 0.17} y1={gy + gh * 0.18} x2={x + w * 0.17} y2={gy + gh * 0.7}
+        stroke="#ffffff" strokeWidth={0.3} opacity={0.1} strokeLinecap="round" />);
+    }
+    // seam between stacked sections (continuous bezel, ~1/2" shadow line)
+    if (si > 0) els.push(<line key={`s${si}`} x1={x + pad} y1={sy} x2={x + w - pad} y2={sy}
+      stroke="#7d838a" strokeWidth={0.4} opacity={0.7} />);
+  });
+  return <g>{els}</g>;
+}
+
 function ApplianceSym({ x, y, w, h, aType, styleSpec = { panel: 'flat', topRail: 2.5 }, steelFill = '#e9ecef', frontFill = C.applFill }) {
   const els = [];
   const STEEL = new Set(['range','refrigerator','freezer','dishwasher','wallOven','speedOven','steamOven','warmingDrawer','microwave','coffee','wine']);
@@ -921,25 +965,33 @@ function ApplianceSym({ x, y, w, h, aType, styleSpec = { panel: 'flat', topRail:
         fill="none" stroke={C.thinLine} strokeWidth={0.35} rx={0.3} />
     );
   } else if (aType === 'wallOven' || aType === 'speedOven' || aType === 'steamOven') {
-    const d = 2 * S;
-    // Oven door outline
-    els.push(
-      <rect key="door" x={x + d} y={y + d} width={w - 2 * d} height={h - 2 * d}
-        fill="none" stroke={C.line} strokeWidth={0.4} />
-    );
-    // Glass window
-    const wi = 4 * S;
-    els.push(
-      <rect key="win" x={x + wi} y={y + wi}
-        width={w - 2 * wi} height={(h - 2 * wi) * 0.5}
-        fill="#e8e8e8" stroke={C.line} strokeWidth={0.3} rx={0.5} />
-    );
-    // Handle
-    els.push(
-      <line key="hdl" x1={x + wi} y1={y + h - d - 2 * S}
-        x2={x + w - wi} y2={y + h - d - 2 * S}
-        stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
-    );
+    // Realistic stainless oven front — double stack when tall enough (≥38"),
+    // single 29"-class otherwise.
+    els.push(<OvenStackSym key="ostk" x={x + 0.6 * S} y={y + 0.6 * S} w={w - 1.2 * S} h={h - 1.2 * S}
+      sections={h > 38 * S ? 2 : 1} steelFill={steelFill} />);
+  } else if (aType === 'microwave') {
+    // Microwave DRAWER (under-counter): solid stainless drawer front — NO
+    // window. Gray-glass control strip along the top edge, full-width handle
+    // immediately below, blank brushed front beneath (MD24WS anatomy).
+    const m2 = 1.2 * S;
+    const mwH = Math.min(16.3 * S, h - 1.5 * S);     // 16-5/16" front
+    const my = y + 1 * S;
+    els.push(<rect key="mwf" x={x + m2} y={my} width={w - 2 * m2} height={mwH}
+      fill={steelFill} stroke={C.line} strokeWidth={0.45} rx={0.4} />);
+    els.push(<rect key="mwc" x={x + m2 + 0.6 * S} y={my + 0.6 * S} width={w - 2 * m2 - 1.2 * S} height={2.6 * S}
+      fill="#3a3f44" stroke={C.line} strokeWidth={0.25} rx={0.3} />);
+    els.push(<rect key="mwd" x={x + w / 2 - w * 0.1} y={my + 1.1 * S} width={w * 0.2} height={1.4 * S}
+      fill="#bfe3f7" opacity={0.85} rx={0.3} />);
+    const hy2 = my + 0.6 * S + 2.6 * S + 1.6 * S;
+    els.push(<line key="mwhs" x1={x + m2 + 1.5 * S} y1={hy2 + 0.5} x2={x + w - m2 - 1.5 * S} y2={hy2 + 0.5}
+      stroke="#9aa0a6" strokeWidth={1.2} strokeLinecap="round" opacity={0.55} />);
+    els.push(<line key="mwh" x1={x + m2 + 1.5 * S} y1={hy2} x2={x + w - m2 - 1.5 * S} y2={hy2}
+      stroke="#d8dde2" strokeWidth={1} strokeLinecap="round" />);
+    // flush panel seam below the drawer front
+    if (y + h - (my + mwH) > 2) {
+      els.push(<line key="mws" x1={x + m2} y1={my + mwH + 1 * S} x2={x + w - m2} y2={my + mwH + 1 * S}
+        stroke={C.thinLine} strokeWidth={0.3} opacity={0.5} />);
+    }
   } else if (aType === 'sink') {
     // FRONT elevation of a sink BASE cabinet: a tilt-out false drawer front at
     // the top (no real drawer — the bowl is behind it) over two doors below.
@@ -1681,25 +1733,33 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               const isOven = /^O\d/.test(upperSku);
               const isFHD = upperSku.includes('FHD');
               if (isOven) {
-                // Oven cabinet: door below, oven cutout above
-                const ovenH = tH * 0.4;
-                const doorH = tH * 0.45;
-                const gapH = tH * 0.15;
+                // Oven cabinet drawn to MANUFACTURER anatomy (not fractions):
+                // drawer below → appliance opening → doors above. Double/steam
+                // stack (MEDS302/MED302 class): ~49" face, bottom ≈ 21.5" AFF;
+                // short cabinets fall back to a single 29" oven at ~30" AFF.
+                const isDouble = topAFF >= 78;
+                const stackBottomAFF = isDouble ? 21.5 : 30;
+                const stackFaceH = Math.min(isDouble ? 49 : 29, topAFF - stackBottomAFF - 8);
+                const yStackTop = floorY - (stackBottomAFF + stackFaceH) * S;
+                const yStackBot = floorY - stackBottomAFF * S;
+                const yToe = floorY - TOEKICK * S;
                 return (
                   <g>
                     <rect x={x} y={y} width={w} height={tH} fill={C.fill} stroke={C.line} strokeWidth={0.7} />
-                    {/* Oven cutout */}
-                    <rect x={x + 3 * S} y={y + gapH * 0.3} width={w - 6 * S} height={ovenH}
-                      fill="#e8e8e8" stroke={C.line} strokeWidth={0.4} rx={0.5} />
-                    {/* Oven glass window */}
-                    <rect x={x + 5 * S} y={y + gapH * 0.3 + 2 * S} width={w - 10 * S} height={ovenH * 0.45}
-                      fill="#d8d8d8" stroke={C.line} strokeWidth={0.3} rx={0.3} />
-                    {/* Oven handle */}
-                    <line x1={x + 5 * S} y1={y + gapH * 0.3 + ovenH - 2 * S}
-                      x2={x + w - 5 * S} y2={y + gapH * 0.3 + ovenH - 2 * S}
-                      stroke={C.line} strokeWidth={0.5} strokeLinecap="round" />
-                    {/* Door panel below */}
-                    <CabFront x={x} y={y + ovenH + gapH} w={w} h={doorH} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+                    {/* drawer below the appliance opening */}
+                    <CabFront x={x} y={yStackBot} w={w} h={Math.max(2, yToe - yStackBot)} doors={0} drawers={1} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType="drawer" construction={construction} />
+                    {/* the oven stack — face overlays the opening */}
+                    <OvenStackSym x={x + 0.4 * S} y={yStackTop} w={w - 0.8 * S} h={stackFaceH * S}
+                      sections={stackFaceH > 38 ? 2 : 1} steelFill={steel} />
+                    {/* doors above the stack */}
+                    {yStackTop - y > 3 && (
+                      <CabFront x={x} y={y} w={w} h={yStackTop - y} doors={doors} drawers={0} hinge={hinge} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+                    )}
+                    {/* spec note (pro convention) */}
+                    <text x={x + w / 2} y={yStackBot + 3} fill={C.annotColor} fontSize={2.2}
+                      fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontStyle="italic" opacity={0.8}>
+                      VERIFY CUTOUT W/ MFR SPEC
+                    </text>
                   </g>
                 );
               }

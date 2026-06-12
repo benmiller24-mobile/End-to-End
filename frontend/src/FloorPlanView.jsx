@@ -595,6 +595,7 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
                 {(() => { const at = (cab.applianceType || '').toLowerCase();
                   return at === 'range' ? 'RANGE' : at === 'refrigerator' ? 'REF'
                     : at === 'dishwasher' ? 'DW' : at === 'sink' ? 'SINK'
+                    : at === 'microwave' ? 'MW DWR'
                     : at.toUpperCase().substring(0, 6); })()}
               </text>
             )}

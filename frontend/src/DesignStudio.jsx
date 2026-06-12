@@ -119,6 +119,7 @@ const APPLIANCE_PALETTE = [
   { type: 'range', label: 'Range 30"', width: 30 }, { type: 'range', label: 'Range 36"', width: 36 },
   { type: 'range', label: 'Range 48"', width: 48 }, { type: 'cooktop', label: 'Cooktop 36"', width: 36 },
   { type: 'dishwasher', label: 'Dishwasher 24"', width: 24 }, { type: 'refrigerator', label: 'Refrigerator 36"', width: 36 },
+  { type: 'microwave', label: 'Micro Drawer 24"', width: 24 },
 ];
 
 export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', ghost = null, mode = 'full', layoutType = '', onApplyShape = null, island = null, onIslandChange = null }) {

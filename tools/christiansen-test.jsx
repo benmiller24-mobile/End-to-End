@@ -28,7 +28,7 @@ const items = [
   it('B4D12', 75, 'base', 12, 34.5, 24),
   { id: `c${_n++}`, sku: null, wall: 'A', position: 87, zone: 'appliance', width: 36, height: 34.5, depth: 24, applianceType: 'cooktop' },  // Thermador CIT367YGS induction
   it('B4D12', 123, 'base', 12, 34.5, 24),
-  it('B3D24', 135, 'base', 24, 34.5, 24),   // Thermador MD24WS microwave drawer below counter
+  { id: `c${_n++}`, sku: null, wall: 'A', position: 135, zone: 'appliance', width: 24, height: 34.5, depth: 24, applianceType: 'microwave' },  // Thermador MD24WS microwave drawer
   it('B3D18', 159, 'base', 18, 34.5, 24),
   { id: `c${_n++}`, sku: null, wall: 'A', position: 177, zone: 'appliance', width: 36, height: 84, depth: 27, applianceType: 'refrigerator' },  // 36" Thermador panel-ready bottom-freezer
   it('O3084', 213, 'tall', 30, 84, 24),     // 30" Thermador double oven / steam tower

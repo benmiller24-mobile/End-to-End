@@ -71,7 +71,7 @@ export function makeItem(sku, wall, position, brand) {
 }
 
 export function makeAppliance(applianceType, wall, position, width) {
-  const dims = { range: 30, cooktop: 36, dishwasher: 24, refrigerator: 36, sink: 33 }[applianceType] || 30;
+  const dims = { range: 30, cooktop: 36, dishwasher: 24, refrigerator: 36, sink: 33, microwave: 24 }[applianceType] || 30;
   return { id: newId(), sku: null, wall, position: Math.max(0, position), width: width || dims, depth: 24, height: applianceType === 'refrigerator' ? 84 : 34.5, zone: 'appliance', applianceType };
 }
 
