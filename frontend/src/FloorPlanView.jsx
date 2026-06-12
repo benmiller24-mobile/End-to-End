@@ -980,7 +980,7 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
         const work = island.workSide || [];
         const back = island.backSide || [];
         const oh = island.overhang || null;
-        const ohD = oh && oh.depth ? oh.depth : 0;
+        const ohD = oh ? (typeof oh === 'number' ? oh : (oh.depth || 0)) : 0;
         const backDepth = back.length ? (back[0].depth || 13.875) : 0;
         const workDepth = 24;
 
@@ -988,9 +988,11 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
         const islCab = (c, x, y, w, d, key) => {
           const sk = norm(c.sku);
           const role = (c.role || '').toLowerCase();
-          const isSink = role.includes('sink') || /^SB|^BSB|^DSB/.test(sk);
+          const at = (c.applianceType || '').toLowerCase();
+          const isSink = role.includes('sink') || at === 'sink' || /^SB|^BSB|^DSB/.test(sk);
           const isWaste = role.includes('waste') || /WDM|BWD/.test(sk);
           const isDrawer = /^B[234]D/.test(sk) || role.includes('drawer');
+          const label = c.sku || (at ? (at === 'dishwasher' ? 'DW' : at.toUpperCase().slice(0, 6)) : '');
           return (
             <g key={key}>
               <rect x={x} y={y} width={w} height={d}
@@ -1010,7 +1012,7 @@ export default function FloorPlanView({ solverResult, inputWalls, debug = false,
               {w >= 14 && (
                 <text x={x + w / 2} y={y + d / 2 + 1} fill={C.dimText}
                   fontSize={2.6} fontFamily="Helvetica,Arial,sans-serif"
-                  textAnchor="middle" opacity={0.85}>{c.sku}</text>
+                  textAnchor="middle" opacity={0.85}>{label}</text>
               )}
             </g>
           );

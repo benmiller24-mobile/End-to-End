@@ -16,6 +16,12 @@ import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
 let _id = 1;
 export const newId = () => 'mi_' + (_id++) + '_' + Math.random().toString(36).slice(2, 6);
 
+/** The island's work face behaves as a pseudo-wall: items carry wall:ISLAND_WALL
+ *  with positions measured from the island's left end. */
+export const ISLAND_WALL = 'ISLAND';
+export const islandPseudoWall = (island) =>
+  island && island.length ? { id: ISLAND_WALL, length: island.length, openings: [] } : null;
+
 // ── Dimensions & zone for any SKU (official data first, nomenclature fallback) ──
 const CAT_ZONE = { B: 'base', BC: 'base', GB: 'base', GBC: 'base', V: 'base', T: 'tall', GT: 'tall', W: 'upper', WC: 'upper', BK: 'tall', GV: 'base' };
 
@@ -269,10 +275,12 @@ export function insertWithShift(items, wallLen, cand) {
 }
 
 // ── Validation (flag, never auto-fix — a pro may break a rule deliberately) ──
-export function manualChecks(walls, items) {
+export function manualChecks(walls, items, island = null) {
   const v = [];
   const push = (severity, rule, message, wall) => v.push({ severity, rule, message, wall, manual: true });
-  for (const w of walls) {
+  const pseudo = islandPseudoWall(island);
+  const allWalls = pseudo ? [...walls, pseudo] : walls;
+  for (const w of allWalls) {
     const wallItems = items.filter(i => i.wall === w.id);
     for (const band of ['floor', 'upper']) {   // 'panel' band intentionally unchecked
       const list = wallItems.filter(i => bandOf(i) === band).sort((a, b) => a.position - b.position);
@@ -320,6 +328,8 @@ export function buildManualResult({ walls, items, island, roomType = 'kitchen', 
         ? { zone: 'TALL', yMount: 0, height: it.height || 93, depth: it.depth || 24, yTop: it.height || 93 }
         : { zone: it.zone === 'appliance' ? 'APPLIANCE' : 'BASE', yMount: 0, height: it.height || 34.5, depth: it.depth || 24, yTop: it.height || 34.5 },
   });
+  const islandItems = items.filter(i => i.wall === ISLAND_WALL)
+    .sort((a, b) => a.position - b.position);
   const wallLayouts = walls.map(w => ({
     wallId: w.id, id: w.id, length: w.length, wallLength: w.length, turn: w.turn,
     cabinets: items.filter(i => i.wall === w.id && (i.zone === 'base' || i.zone === 'appliance')).map(toCab),
@@ -334,10 +344,22 @@ export function buildManualResult({ walls, items, island, roomType = 'kitchen', 
   return {
     layoutType: lt, roomType,
     walls: wallLayouts, uppers, upperCorners: [], talls,
-    island: island && island.length ? { ...island, depth: island.depth || 42, overhang: island.overhang ?? 12 } : null,
+    island: island && island.length ? {
+      ...island, depth: island.depth || 42, overhang: island.overhang ?? 12,
+      // work side faces the kitchen — the views lay these out by position
+      workSide: islandItems.map(i => ({
+        sku: i.sku, width: i.width, position: i.position,
+        depth: i.depth || 24, type: i.applianceType ? 'appliance' : 'base',
+        applianceType: i.applianceType,
+        role: i.applianceType === 'sink' ? 'sink' : i.applianceType,
+        _manualId: i.id,
+        _elev: { zone: i.applianceType ? 'APPLIANCE' : 'BASE', yMount: 0, height: i.height || 34.5, depth: i.depth || 24, yTop: i.height || 34.5 },
+      })),
+      hasSink: islandItems.some(i => i.applianceType === 'sink' || /^(SB|VSB|DSB)/.test(String(i.sku || ''))),
+    } : null,
     peninsula: null, corners: [], accessories: [],
     placements,
-    validation: manualChecks(walls, items),
+    validation: manualChecks(walls, items, island),
     _inputWalls: walls,
     metadata: { totalCabinets, manual: true },
     applianceRecommendation: null,
@@ -395,6 +417,17 @@ export function seedFromSolverResult(result) {
       yMount: t._elev?.yMount,
     });
     if (dedupe(cand)) items.push(cand);
+  }
+  // Island work-side cabinets → studio items on the island pseudo-wall.
+  for (const c of ((result.island && result.island.workSide) || [])) {
+    if (!(c.width > 0)) continue;
+    items.push({
+      id: newId(), sku: c.sku || null, wall: ISLAND_WALL,
+      position: c.position || 0, width: c.width,
+      depth: c.depth || 24, height: c._elev?.height || 34.5,
+      zone: c.sku ? 'base' : 'appliance',
+      applianceType: c.applianceType,
+    });
   }
   // Corner units (lazy susans, blind corners) live in result.corners — seed
   // them anchored at the end of their wallA run.

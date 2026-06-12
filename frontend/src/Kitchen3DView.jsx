@@ -414,11 +414,31 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
             x: cx + Math.cos(a) * (il / 2) - nx * (idp / 2),
             y: cz + Math.sin(a) * (il / 2) - nz * (idp / 2),
           };
-          const nPan = Math.max(2, Math.round(il / 30));
-          const pw = il / nPan;
-          for (let i = 0; i < nPan; i++) {
-            if (i % 2 === 0) addDrawers(fIsland, i * pw, pw, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, 3);
-            else addDoors(fIsland, i * pw, pw, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, 'top');
+          const sideCabs = (isl.workSide || []).filter(c => c.width > 0);
+          if (sideCabs.length) {
+            // REAL island cabinetry (designed in the studio or by the solver).
+            // fIsland's along-axis runs opposite the island's left-based
+            // positions, so map: alongF = il − position − width.
+            for (const c of sideCabs) {
+              const aF = Math.max(0, il - (c.position || 0) - c.width);
+              const at = (c.applianceType || '').toLowerCase();
+              const sk = String(c.sku || '');
+              if (!c.sku && at) {
+                placeOnWall(fIsland, aF, c.width, 1.2, TOE, BASE_TOP, steelMat);
+                if (at === 'dishwasher') addPull(fIsland, aF + c.width / 2, BASE_TOP - 2.5, 1.2, true, Math.min(14, c.width * 0.6));
+              } else if (/^B\dD|^B[234]HD|WDM|BWD/.test(sk)) {
+                addDrawers(fIsland, aF, c.width, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, /^B2/.test(sk) ? 2 : 3);
+              } else {
+                addDoors(fIsland, aF, c.width, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, 'top');
+              }
+            }
+          } else {
+            const nPan = Math.max(2, Math.round(il / 30));
+            const pw = il / nPan;
+            for (let i = 0; i < nPan; i++) {
+              if (i % 2 === 0) addDrawers(fIsland, i * pw, pw, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, 3);
+              else addDoors(fIsland, i * pw, pw, TOE, BASE_TOP, 0.0, islandMat, recessIslandMat, 'top');
+            }
           }
         }
       }

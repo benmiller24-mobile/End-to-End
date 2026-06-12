@@ -2256,7 +2256,7 @@ export default function App() {
     const defaults = [144, 120, 96, 84];
     const next = Array.from({ length: n }, (_, i) =>
       walls[i] ? { ...walls[i] } : { id: String.fromCharCode(65 + i), length: defaults[i], role: 'general' });
-    const keep = new Set(next.map(w => w.id));
+    const keep = new Set([...next.map(w => w.id), 'ISLAND']);
     setWalls(next);
     setLayoutType(shape);
     setManualItems(items => items.filter(i => keep.has(i.wall)));

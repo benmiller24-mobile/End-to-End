@@ -509,6 +509,42 @@ export function solve(input) {
         app.wall = primary.id;
       }
     }
+
+    // Pass 3: CAPACITY REBALANCE — never overcommit a wall past its usable
+    // run. With pinned sinks/DWs holding real widths, the heuristic passes can
+    // stack 4 appliances + a corner reserve onto one wall; the fill then
+    // overflows into the corner zone. Move the largest MOVABLE (unpinned)
+    // appliance to the roomiest other wall until every wall fits.
+    {
+      const pairsForCap = layoutType === "l-shape" ? [[0, 1]]
+        : layoutType === "u-shape" ? [[0, 1], [1, 2]]
+        : layoutType === "g-shape" ? [[0, 1], [1, 2], [2, 3]] : [];
+      const cornerTouch = {};
+      for (const [i, j] of pairsForCap) {
+        if (walls[i]) cornerTouch[walls[i].id] = (cornerTouch[walls[i].id] || 0) + 36;
+        if (walls[j]) cornerTouch[walls[j].id] = (cornerTouch[walls[j].id] || 0) + 36;
+      }
+      const APP_W = (a) => a.width || ({ sink: 36, dishwasher: 24, range: 30, cooktop: 36, refrigerator: 36, freezer: 36, wallOven: 30, wineColumn: 24 }[a.type] || 30);
+      const usable = (w) => w.length - (cornerTouch[w.id] || 0);
+      const committed = (wid) => assignedAppliances
+        .filter(a => a.wall === wid && a.type !== "hood")
+        .reduce((s, a) => s + APP_W(a), 0);
+      let guard = 0;
+      while (guard++ < 8) {
+        const over = walls.find(w => committed(w.id) > usable(w));
+        if (!over) break;
+        const movable = assignedAppliances
+          .filter(a => a.wall === over.id && !a.pinned
+            && ["wallOven", "speedOven", "steamOven", "refrigerator", "freezer", "wineColumn", "range", "cooktop"].includes(a.type))
+          .sort((a, b) => APP_W(b) - APP_W(a))[0];
+        if (!movable) break;
+        const target = walls
+          .filter(w => w.id !== over.id && (usable(w) - committed(w.id)) >= APP_W(movable))
+          .sort((a, b) => (usable(b) - committed(b.id)) - (usable(a) - committed(a.id)))[0];
+        if (!target) break;
+        movable.wall = target.id;
+      }
+    }
   }
 
   // ── Sink placement normalization (NKBA work-triangle + designer convention) ──

@@ -5,7 +5,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import FloorPlanView from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/FloorPlanView.jsx';
 import ElevationView from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/ElevationView.jsx';
-import { buildManualResult, manualChecks } from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/manualDesign.js';
+import { buildManualResult, manualChecks, ISLAND_WALL } from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/manualDesign.js';
 import { setPricingBrand, findSkuNormalized } from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/skuResolver.js';
 import { writeFileSync } from 'fs';
 
@@ -40,6 +40,12 @@ const items = [
   it('W3624', 123, 'upper', 36, 24, 13, { yMount: 60 }),
   it('W1824L', 159, 'upper', 18, 24, 13, { yMount: 60 }),
   it('RW3624-27', 177, 'upper', 36, 24, 27, { yMount: 84 }),  // above-fridge
+  // ── ISLAND work side (CMK island-front): wine ref · trash pull-out · sink · DW · drawers ──
+  { id: `c${_n++}`, sku: 'B24R', wall: ISLAND_WALL, position: 0, zone: 'base', width: 24, height: 34.5, depth: 24 },
+  { id: `c${_n++}`, sku: 'BWDMA18', wall: ISLAND_WALL, position: 24, zone: 'base', width: 18, height: 34.5, depth: 24 },
+  { id: `c${_n++}`, sku: 'SB36', wall: ISLAND_WALL, position: 42, zone: 'base', width: 36, height: 34.5, depth: 24 },
+  { id: `c${_n++}`, sku: null, wall: ISLAND_WALL, position: 78, zone: 'appliance', width: 24, height: 34.5, depth: 24, applianceType: 'dishwasher' },
+  { id: `c${_n++}`, sku: 'B3D18', wall: ISLAND_WALL, position: 102, zone: 'base', width: 18, height: 34.5, depth: 24 },
 ];
 
 // ── Island: 119½" with waterfall ends; sink/DW/wine/trash live here in the
@@ -91,7 +97,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
 <p class="note">Source: Colorado Modern Kitchen design package (02/05/2024) for 2409 S. Humboldt St, Denver.
 Rebuilt through the Eclipse Kitchen Designer <b>Design Studio</b> manual pipeline: same room (292½" back wall + 132" return,
 11-ft ceiling), same appliance positions (36" induction cooktop, microwave drawer, 36" panel-ready refrigerator,
-30" double-oven tower), 119½" island at the designer's position, with the closest Eclipse standard SKUs standing in for
+30" double-oven tower), 119½" island <b>fully furnished</b> per the CMK island-front elevation (wine ref · trash pull-out · sink · DW · drawers) at the designer's position, with the closest Eclipse standard SKUs standing in for
 CMK's custom metric frameless boxes.</p>
 
 <div class="card"><b>Studio validation:</b>
@@ -123,8 +129,9 @@ the 84" above-fridge cabinet), full dimension chains on a 292½" wall, designer-
 zero validation errors, and every cabinet priced through the live quote resolver.<br><br>
 <b>Limitations found (real findings from this test):</b>
 <ul>
-<li><b>Island cabinetry isn't placeable yet</b> — the real design puts the sink, dishwasher, undercounter wine fridge and
-trash pull-out on the island; the studio island is a dimensional slab. The quote above is cabinetry-on-walls only.</li>
+<li><b>Island cabinetry — FIXED.</b> The first run of this test found islands were dimensional slabs; the studio now
+places cabinets and appliances on the island's work face, and they flow to the floor plan, the island elevation sheet,
+3D, the priced quote and the order package. The island above carries the full CMK arrangement.</li>
 <li><b>No hood object in manual mode</b> — the 34¾" Zephyr liner zone over the cooktop is left as labeled open run.</li>
 <li><b>Specialty fronts are proxies</b> — CMK's Aventos lifting-flap uppers and pocket-door system map to standard
 W-series / U-tall pairs (Eclipse mods like lift-up hardware would be added as line mods at order time).</li>
