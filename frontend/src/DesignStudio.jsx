@@ -286,6 +286,11 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   // ── Undo/redo: coalesced snapshots of {walls, items}. A burst of changes
   // (one drag) records once; Ctrl+Z walks back whole gestures. ──
   const histRef = useRef({ past: [], future: [], stamp: 0 });
+  // Clicking an ITEM selects on pointerdown; the same gesture's click event
+  // then bubbles to the canvas, whose handler clears selection — this ref
+  // suppresses that one bubble so selection sticks (the cabinet inspector
+  // depends on it).
+  const suppressClickRef = useRef(false);
   const presentRef = useRef({ walls, items, island });
   useEffect(() => { presentRef.current = { walls, items, island }; }, [walls, items, island]);
   const record = useCallback(() => {
@@ -562,6 +567,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   }, [armed, hoverPt, drag, buildCandidate]);
 
   const onCanvasClick = useCallback((evt) => {
+    if (suppressClickRef.current) { suppressClickRef.current = false; return; }
     if (!armed) { setSel(null); setEditGap(null); return; }
     const cand = buildCandidate(svgPoint(evt));
     if (!cand) return;
@@ -943,7 +949,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                   const a = toWorld(f, start, 0), b = toWorld(f, start + (op.width || 36), 0);
                   return (
                     <g key={oi} style={{ cursor: 'grab' }}
-                      onPointerDown={(ev) => { ev.stopPropagation(); setDrag({ kind: 'opening', wallIdx: wi, opIdx: oi }); setSel(`op:${wi}:${oi}`); }}>
+                      onPointerDown={(ev) => { ev.stopPropagation(); suppressClickRef.current = true; setDrag({ kind: 'opening', wallIdx: wi, opIdx: oi }); setSel(`op:${wi}:${oi}`); }}>
                       <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={op.type === 'window' ? C.window : C.door} strokeWidth={WALL_T} />
                       <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#fff" strokeWidth={1.4} strokeDasharray={op.type === 'window' ? '0' : '4,3'} />
                       {(() => { const c = toWorld(f, start + (op.width || 36) / 2, -11); return (
@@ -1025,7 +1031,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                   );
                 })}
                 <g style={{ cursor: 'grab' }}
-                  onPointerDown={(ev) => { ev.stopPropagation(); setSel('island'); setDrag({ kind: 'island' }); }}>
+                  onPointerDown={(ev) => { ev.stopPropagation(); suppressClickRef.current = true; setSel('island'); setDrag({ kind: 'island' }); }}>
                   <rect x={islandBox.x} y={islandBox.y} width={islandBox.L} height={islandBox.D}
                     fill={C.base} stroke={seld ? C.sel : '#6b6257'} strokeWidth={seld ? 1.8 : 1} />
                   <text x={islandBox.cx} y={islandBox.y + islandBox.D - 6.5} fontSize={7} textAnchor="middle" fill="#3b352d" fontFamily="Helvetica" pointerEvents="none">ISLAND</text>
@@ -1057,7 +1063,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             const seld = sel === it.id;
             return (
               <g key={it.id} style={{ cursor: 'grab' }}
-                onPointerDown={(ev) => { ev.stopPropagation(); setSel(it.id); setDrag({ kind: 'item', id: it.id }); }}>
+                onPointerDown={(ev) => { ev.stopPropagation(); suppressClickRef.current = true; setSel(it.id); setDrag({ kind: 'item', id: it.id }); }}>
                 <rect x={Math.min(a.x, b.x)} y={Math.min(a.y, b.y)} width={Math.abs(b.x - a.x) || depth} height={Math.abs(b.y - a.y) || depth}
                   fill={itemFill(it)} stroke={seld ? C.sel : '#6b6257'} strokeWidth={seld ? 1.8 : 0.8}
                   strokeDasharray={it.zone === 'upper' ? '4,2' : '0'} opacity={it.zone === 'upper' ? 0.85 : 1} />
