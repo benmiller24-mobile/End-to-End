@@ -3,7 +3,7 @@
 You are working on the **Eclipse Kitchen Designer** — a dealer kitchen/bath design + quoting web app for Pinnacle Sales.
 
 ## What it is
-A configurator that takes a room (walls, appliances, prefs) → solves a cabinet layout → renders a **floor plan**, **interior elevations**, a **3D view**, and an **AI photoreal render**, and produces a **priced quote**. Two cabinet lines: **Eclipse** (frameless/European) and **Shiloh** (framed/face-frame, 9 overlay+inset constructions).
+A configurator that takes a room (walls, appliances, prefs) → solves a cabinet layout → renders a **floor plan**, **interior elevations**, a **3D view**, and an **AI photoreal render**, and produces a **priced quote**. It is a **white-label multi-tenant platform**: a tenant = one product line. Built-ins: **Eclipse** (frameless/European) and **Shiloh** (framed, 9 overlay+inset constructions); **Aspect** (frameless value line) is onboarded as a pure data package.
 
 ## Repo, stack, deploy
 - GitHub: `benmiller24-mobile/End-to-End`, branch `main`. Netlify: `endtoendeclipse.netlify.app`.
@@ -23,11 +23,17 @@ A configurator that takes a room (walls, appliances, prefs) → solves a cabinet
 - `eclipse-pricing/src/` — `pricingEngine.js` (W.W. Wood "C3" formula), `skuCatalog.js` (Eclipse `RAW_SKU_DATA`), `shilohSkuCatalog.js` (`findShilohSku`, Shiloh-first then Eclipse fallback). App pricing is brand-aware via `setPricingBrand()` + `findSkuNormalized` in `App.jsx`.
 - `netlify/functions/leonardo.js` — `/api/leonardo`; reads the Leonardo key from the Netlify env var `LEONARDO_API_KEY` (no embedded fallback); modes: photoReal, edge-ControlNet, img2img.
 
+## MULTI-TENANT RULES (non-negotiable)
+- **Never write `if (brand === 'x')` / `=== 'shiloh'` / `=== 'eclipse'` in code.** Manufacturer-specific behavior is a FIELD on the tenant object — `eclipse-pricing/src/tenants/registry.js` documents the schema (branding, catalog interface, constructions, validation gates, price fallback, cover-sheet variants). If a tenant needs new behavior, add a config field with a default, not a conditional.
+- All catalog/pricing lookups go through the ACTIVE TENANT (`setPricingBrand(id)` → `setActiveTenant`); UI brand surfaces (picker, order form codes, schedule headers, provenance banners) derive from `getTenant(...)`/`listTenants()`.
+- **Onboarding a manufacturer = data + config only:** `tools/ingest-spec-book.mjs` (PDF spec book → validated tenant package JSON) → list the package in `tenants/packages/manifest.js` → add eval fixtures in `evals/<id>/`. See `docs/Multi-Tenant-Architecture.md`.
+- **Evals run per tenant:** `node evals/run.mjs [tenant]` — generic suite (registry contract, catalog integrity, resolver round-trip) runs for every tenant automatically; golden-order fixtures live per tenant (Eclipse: Mautz ack to the penny; Shiloh: Soderstrom-verified; Aspect: spec-book spot prices). Adding a tenant means adding its fixtures. Keep evals green alongside the test suites before any deploy.
+
 ## Conventions & gotchas
 - Cabinet fronts are rendered by **family rule** (SKU prefix + width), **not per-SKU art** — fix the rule, not 7,500 SKUs. Examples: `B3D/B4D/B2TD`=drawer base; `SB/VSB`=sink (false front+doors); `BBC/WBC`=blind (access door + blind panel); `BL/BLS/BA`=lazy-susan/angle; `BWDMA`=waste (doors, no drawer); `BWR/WWR/WR`=wine; `VCSD/VSD/VCSB`=vanity combination (column split: sink door + drawer bank). Door pulls: **base = top, upper = bottom**.
 - Uppers are **top-anchored** to a common datum (`upperTopAFF`), not bottom-anchored; over-fridge `RW` cabinets mount higher (`_elev.yMount`) and are deeper (`_elev.depth` ~27″). Read the real ceiling from `_inputWalls[0].ceilingHeight` (not `metadata`).
 - **Render-verify without a browser:** SSR-bundle `ElevationView`/`FloorPlanView` with esbuild (`--format=esm --platform=node`, banner shim for `require`/`import.meta`), render to string, extract the `<svg data-pdf=...>`, rasterize with **`@resvg/resvg-js`** (NOT cairosvg — it blanks the SVG), then view the PNG. `feTurbulence` works in resvg. You **cannot** verify WebGL (Three.js) or live Leonardo headless — those need the deployed site.
-- Pricing for **Shiloh is interim** (scraped from `shiloh_catalog_v342` PDF, ~4,989 SKUs) pending the official price CSV. Eclipse pricing is verified; keep `test-pricing` green.
+- Pricing for **Shiloh is interim** (scraped from `shiloh_catalog_v342` PDF, ~4,989 SKUs + 27 Soderstrom-verified lines) pending the official price CSV; the tenant's `branding.catalogNote` carries the disclaimer. Eclipse pricing is verified against the Mautz acknowledgment ($19,746.06, 35/35 lines); keep `test-pricing` (153/0), `test-mautz`, and `evals/run.mjs` green.
 - The uploaded catalog PDFs (`shiloh_catalog_v342_interactive 2.pdf`, `eclipse_catalog_v880_interactive.pdf`, brochures) are the source of truth for specs/drawings/prices.
 
 ## Current state (recently shipped)

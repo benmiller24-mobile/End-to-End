@@ -8,4 +8,6 @@
  * pricing lookups and evals all derive from the package data.
  */
 
-export const TENANT_PACKAGES = [];
+import aspect from './aspect.package.json' with { type: 'json' };
+
+export const TENANT_PACKAGES = [aspect];

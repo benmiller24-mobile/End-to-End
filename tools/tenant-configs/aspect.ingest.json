@@ -1,0 +1,67 @@
+{
+  "id": "aspect",
+  "branding": {
+    "displayName": "Eclipse Kitchen Designer",
+    "manufacturerName": "Aspect Cabinetry",
+    "lineLabel": "Aspect",
+    "lineSub": "Frameless (value line)",
+    "lineDescriptor": "Aspect (frameless)",
+    "companyName": "Pinnacle Sales",
+    "formCodePrefix": "ASP",
+    "scheduleHeader": "Aspect Frameless",
+    "catalogNote": "Pricing ingested from Aspect interactive catalog v18.3.0 \u2014 verify against acknowledgments before ordering."
+  },
+  "constructions": [
+    "eclipse_frameless"
+  ],
+  "defaultConstruction": "eclipse_frameless",
+  "validation": {
+    "styleCompat": false
+  },
+  "pricing": {
+    "fallbackTenant": null
+  },
+  "sections": {
+    "ASPECT": "Aspect Cabinetry v18.3.0"
+  },
+  "extract": {
+    "pages": "109-262",
+    "minRows": 200,
+    "parsers": [
+      {
+        "kind": "matrix",
+        "headerLabel": "Width",
+        "skuTemplate": "{code}{height}{suffix}",
+        "minCodes": 2,
+        "minPrice": 50,
+        "maxPrice": 20000
+      }
+    ],
+    "typeRules": [
+      {
+        "pattern": "^(WBC|SWC|WSC|RW|PW|PWA|AW|AEW|AAG|SWG|SGD|WGD|MWS|MW|W\\d|SW\\d)",
+        "t": "W"
+      },
+      {
+        "pattern": "^(BBC|BL|BD|B\\d|SB|DB\\d|VSB|PB)",
+        "t": "B"
+      },
+      {
+        "pattern": "^(U\\d|UT|UV|UVT|OC|O\\d|BK|TS|TSD|TSVA|TSVAD)",
+        "t": "T"
+      },
+      {
+        "pattern": "^(V\\d|VB|VD)",
+        "t": "V"
+      },
+      {
+        "pattern": "^(RH|A\\d)",
+        "t": "A"
+      },
+      {
+        "pattern": "^F\\d",
+        "t": "F"
+      }
+    ]
+  }
+}
