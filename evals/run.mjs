@@ -87,6 +87,16 @@ for (const t of listTenants()) {
     for (const f of (r.failures || []).slice(0, 8)) console.log(`      ✗ ${f}`);
   }
 }
+// ── 3. cross-tenant fixtures (evals/_cross) — feature-level goldens ─────
+if (!only || only === '_cross') {
+  console.log(`\n━━ cross-tenant ━━`);
+  for (const r of await fixtureSuites('_cross')) {
+    totalPass += r.pass; totalFail += r.fail;
+    console.log(`  ${r.fail ? '✗' : '✓'} ${r.file}: ${r.pass} passed${r.fail ? `, ${r.fail} FAILED` : ''}`);
+    for (const f of (r.failures || []).slice(0, 8)) console.log(`      ✗ ${f}`);
+  }
+}
+
 console.log(`\n══════════════════════════════════════`);
 console.log(`evals: ${totalPass} passed, ${totalFail} failed`);
 process.exit(totalFail ? 1 : 0);

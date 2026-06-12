@@ -51,3 +51,19 @@ Shiloh framed line + all 9 overlay/inset constructions; brand/construction UI; i
 ## Security status
 - The Leonardo key is read **only** from the Netlify env var `LEONARDO_API_KEY` — the embedded fallback was removed (2026-06-09). The old key is still in git history, so it must stay rotated/revoked at Leonardo; never re-add a key literal to the code.
 - A GitHub PAT used during early development must remain revoked (GitHub → Settings → Developer settings → Tokens). Never commit tokens or keys.
+
+## FLOORPLAN IMPORT (FP-1/2/3)
+- Layout tab → "📐 Import a floorplan". Two engines, one review step:
+  - **Vector path** (`frontend/src/floorplanVector.js`, keyless, deterministic): Cyncly/2020
+    design PDFs with text layers. PLAN-page cabinet labels + reassembled fractional dim
+    chains → walls + every placed cabinet → seeds the Design Studio. Golden fixtures:
+    `evals/_cross/floorplan-vector.eval.mjs` (Mautz reconstructs 102.75/112.5/125.125 +
+    21 cabinets; Christiansen must route to vision).
+  - **Vision path** (`netlify/functions/floorplan.js`): photos/scans/raster plans →
+    Claude API (`claude-opus-4-8`, structured output, per-measurement confidence
+    printed/scaled/guessed). Key: `ANTHROPIC_API_KEY` in Netlify env ONLY (same rule as
+    LEONARDO_API_KEY — never in code). Returns 503 with a friendly message when unset.
+- Imported dims are customer-supplied (NOT field-verified) → budget watermark + order
+  gate stay in force. Labels are geometry ground truth (W28.539 = 28.5" cut width);
+  never let catalog lookups overwrite them.
+- Cross-tenant evals live in `evals/_cross/` (runner section 3); tenant evals unchanged.

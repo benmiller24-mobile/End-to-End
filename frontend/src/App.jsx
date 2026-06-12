@@ -30,7 +30,8 @@ import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
 export { setPricingBrand, findSkuNormalized };
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
 import DesignStudio from './DesignStudio.jsx';
-import { buildManualResult, seedFromSolverResult, competes } from './manualDesign.js';
+import { buildManualResult, seedFromSolverResult, competes, newId, ISLAND_WALL } from './manualDesign.js';
+import FloorplanImport from './FloorplanImport.jsx';
 import { evaluateOrderReadiness } from './orderReadiness.js';
 import { parseAcknowledgment, reconcile } from './ackReconcile.js';
 
@@ -2227,6 +2228,27 @@ export default function App() {
     preferDrawerBases: true, golaChannel: false, featureHood: false,
   });
 
+  // ── Floorplan import (photo/PDF → room, design PDF → room + cabinets). ──
+  const applyImportedRoom = (payload) => {
+    setLayoutType(payload.layoutType || 'l-shape');
+    setWalls(payload.walls);
+    setAppliances(payload.appliances?.length ? payload.appliances : []);
+    setIsland(payload.island ? { length: payload.island.length, depth: payload.island.depth } : null);
+    if (payload.ceilingHeight) setPrefs(pr => ({ ...pr, ceilingHeight: payload.ceilingHeight }));
+    setDesignMode('auto');
+    setManualItems([]);
+  };
+  const applyImportedDesign = (payload) => {
+    applyImportedRoom({ ...payload, appliances: [] });
+    setManualItems((payload.items || []).map(it => ({
+      id: newId(), sku: it.sku, wall: it.wall === '__island__' ? ISLAND_WALL : it.wall,
+      position: it.position, width: it.width, height: it.height,
+      depth: it.zone === 'upper' ? 13 : 24, zone: it.zone,
+      ...(it.zone === 'upper' ? { yMount: it.yMount ?? 54 } : {}),
+    })));
+    setDesignMode('manual');
+  };
+
   // Materials
   const [materials, setMaterials] = useState({
     brand: 'eclipse', frameStyle: 'eclipse_frameless',
@@ -2811,6 +2833,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                  <FloorplanImport brand={materials.brand} onApplyRoom={applyImportedRoom} onApplyDesign={applyImportedDesign} />
                   <WallEditor walls={walls} onChange={setWalls} />
                   <ApplianceEditor appliances={appliances} walls={walls} onChange={setAppliances} />
 

@@ -1,5 +1,5 @@
 [build]
-  command = "cd frontend && npm install && npm run build"
+  command = "npm install --no-audit --no-fund && cd frontend && npm install && npm run build"
   publish = "dist"
   functions = "netlify/functions"
 
