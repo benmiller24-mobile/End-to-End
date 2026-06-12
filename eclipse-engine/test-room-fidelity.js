@@ -78,8 +78,18 @@ console.log('\n═══ Soffit: effective ceiling for uppers + collision warnin
     ((c._elev?.yMount ?? 54) + (c._elev?.height ?? c.height ?? 36)) > 84.01);
   assert(over.length === 0, `no uppers poke through the soffit (got ${over.map(c => c.sku).join(',') || 'none'})`);
 
+  // The top-line alignment pass now AUTO-FITS fridge surround panels to the
+  // soffited ceiling (REP … 84FTK SKUs) instead of emitting a 93" panel plus
+  // a collision warning — assert the conforming behavior. The
+  // soffit_tall_collision rule remains in the solver for talls the pass
+  // cannot legally resize (fixed-height pantries).
+  const tallsA = (r.talls || []).filter(t => t.wall === 'A' && t._elev);
+  assert(tallsA.length > 0 && tallsA.every(t => (t._elev.yMount + t._elev.height) <= 84.01),
+    `soffit wall talls/panels auto-fit under the 84" effective ceiling (tops: ${tallsA.map(t => t._elev.yMount + t._elev.height).join(',')})`);
+  assert(tallsA.filter(t => /REP/.test(t.sku || '')).every(t => /84FTK/.test(t.sku)),
+    'fridge panels re-sized to a real catalog height (… 84FTK …) matching the drawing');
   const warns = (r.validation || []).filter(v => v.rule === 'soffit_tall_collision');
-  assert(warns.length > 0, `tall/panel-vs-soffit collisions are surfaced as validation errors (got ${warns.length})`);
+  assert(warns.length === 0, `no spurious collision warnings once the design conforms (got ${warns.length})`);
 }
 
 console.log('\n═══ Eclipse default regression: no soffit → legacy RW above fridge ═══');
