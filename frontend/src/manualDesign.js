@@ -10,8 +10,7 @@
  *         height, depth, applianceType? }
  */
 import { findOfficial } from '../../eclipse-pricing/src/officialV88.js';
-import { findShilohSku } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
-import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
+import { getTenant } from '../../eclipse-pricing/src/tenants/index.js';
 
 let _id = 1;
 export const newId = () => 'mi_' + (_id++) + '_' + Math.random().toString(36).slice(2, 6);
@@ -52,8 +51,8 @@ export function skuInfo(sku, brand = 'eclipse') {
   return { w: Math.min(60, Math.max(6, w)), d, h, zone, official: false };
 }
 
-export function priceLookup(sku, brand) {
-  return brand === 'shiloh' ? findShilohSku(sku) : findSku(sku);
+export function priceLookup(sku, tenantId) {
+  return getTenant(tenantId).catalog.find(sku);
 }
 
 /** Corner units (lazy susans, blind corners, diagonal walls) get a dedicated

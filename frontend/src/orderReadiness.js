@@ -7,6 +7,7 @@
  * what's missing — the same discipline a careful designer applies by hand.
  */
 import { cutoutFormFor } from './orderPackage.js';
+import { getTenant } from '../../eclipse-pricing/src/tenants/index.js';
 import { checkStyleCompat } from '../../eclipse-pricing/src/officialV88.js';
 
 /**
@@ -82,7 +83,7 @@ export function evaluateOrderReadiness({ solverResult, quote, walls = [], select
   // 8b. Style compatibility (official v8.8 rules): the chosen door must be
   // offered in the chosen species/finish, and the drawer front must pair
   // with the door. Eclipse-only data — skip for Shiloh.
-  if (materials && materials.brand !== 'shiloh') {
+  if (materials && getTenant(materials.brand).validation.styleCompat) {
     const styleIssues = checkStyleCompat({
       door: materials.door, species: materials.species,
       finish: materials.finishColor, drawerFront: 'DF-' + (materials.door || ''),

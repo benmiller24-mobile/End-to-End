@@ -4,8 +4,7 @@
  * setPricingBrand; every result is tagged with HOW it resolved (exact /
  * normalized / substituted) plus the Shiloh→Eclipse _fallback flag.
  */
-import { findSku, searchSkus } from '../../eclipse-pricing/src/index.js';
-import { findShilohSku } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
+import { getActiveTenant, getTenant, setActiveTenant, activeTenantId } from '../../eclipse-pricing/src/tenants/index.js';
 
 // ── SKU normalization ──
 // Pick the catalog SKU of a family whose embedded width is closest to `w`.
@@ -24,9 +23,22 @@ function nearestInFamily(prefix, w) {
   return best || res[0];
 }
 
-let _pricingBrand = 'eclipse';
-export function setPricingBrand(b) { _pricingBrand = b === 'shiloh' ? 'shiloh' : 'eclipse'; }
-function _baseFind(sku) { return _pricingBrand === 'shiloh' ? findShilohSku(sku) : findSku(sku); }
+// The catalog gateway is the ACTIVE TENANT — no brand names in code. Any
+// registered tenant (built-in or data-package) prices through the same path.
+export function setPricingBrand(id) { setActiveTenant(id); }
+export const getPricingBrand = () => activeTenantId();
+function _baseFind(sku) { return getActiveTenant().catalog.find(sku); }
+// Family searches honor the tenant's declared price-fallback line (e.g.
+// Shiloh → Eclipse), tagging results so quotes can flag the substitution.
+function searchSkus(q, limit) {
+  const t = getActiveTenant();
+  let res = t.catalog.search(q, limit) || [];
+  if (!res.length && t.pricing?.fallbackTenant) {
+    const fb = getTenant(t.pricing.fallbackTenant);
+    res = (fb.catalog.search(q, limit) || []).map(e => ({ ...e, _fallback: fb.id }));
+  }
+  return res;
+}
 
 // Strict-resolution wrapper (T4): every lookup is tagged with HOW it resolved —
 //   exact        → the catalog has this SKU verbatim (order-grade)

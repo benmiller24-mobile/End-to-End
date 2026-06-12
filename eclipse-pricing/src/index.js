@@ -12,6 +12,13 @@
  *   import { calculateItemPrice } from '@eclipse/pricing/pricingEngine';
  */
 
+// Tenant registry — manufacturer product lines as data (multi-tenant core)
+export {
+  registerTenant, registerTenantPackage, buildTenantFromPackage,
+  getTenant, listTenants, hasTenant,
+  setActiveTenant, getActiveTenant, activeTenantId,
+} from './tenants/index.js';
+
 // SKU Catalog
 export { RAW_SKU_DATA, CATALOG, findSku, searchSkus, TYPE_NAMES, SECTIONS } from './skuCatalog.js';
 

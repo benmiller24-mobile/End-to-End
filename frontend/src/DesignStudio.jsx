@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { OFFICIAL_V88 } from '../../eclipse-pricing/src/officialV88.js';
-import { SHILOH_CATALOG } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
+import { getTenant } from '../../eclipse-pricing/src/tenants/index.js';
 import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
 import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isPanelItem, isCornerSku, contextSnap, insertWithShift, skuInfo, priceLookup, manualChecks, ISLAND_WALL, islandPseudoWall } from './manualDesign.js';
@@ -194,20 +193,25 @@ function ModStrip({ item, brand, onUpdate }) {
 }
 
 // ── Catalog browser data ──
-function catalogList(brand) {
-  if (brand === 'shiloh') {
-    const rows = [];
-    for (const [sku, e] of SHILOH_CATALOG) {
-      const info = skuInfo(sku, 'shiloh');
-      rows.push({ sku, price: e.p, w: info.w, h: info.h, zone: info.zone, cat: { B: 'Base', W: 'Wall', T: 'Tall', V: 'Vanity' }[e.t] || 'Other', sub: '' });
+// One generic browser over ANY tenant: rich rows from the tenant's official
+// dimension data when it has one, nomenclature-derived rows from the price
+// catalog otherwise. No manufacturer names in code.
+function catalogList(tenantId) {
+  const tenant = getTenant(tenantId);
+  const rows = [];
+  if (tenant.official) {
+    for (const [sku, e] of tenant.official.list()) {
+      rows.push({ sku, w: e.w, h: e.h, dc: e.dc || 0, drc: e.drc || 0, zone: ({ W: 'upper', WC: 'upper', T: 'tall', GT: 'tall', BK: 'tall' })[e.cat] || 'base',
+        cat: ({ B: 'Base', BC: 'Base Corner', T: 'Tall', W: 'Wall', WC: 'Wall Corner', V: 'Vanity', BK: 'Bookcase', GB: 'Gola Base', GBC: 'Gola Corner', GT: 'Gola Tall', GV: 'Gola Vanity' })[e.cat] || 'Other',
+        sub: e.sub || '' });
     }
     return rows;
   }
-  const rows = [];
-  for (const [sku, e] of OFFICIAL_V88) {
-    rows.push({ sku, w: e.w, h: e.h, dc: e.dc || 0, drc: e.drc || 0, zone: ({ W: 'upper', WC: 'upper', T: 'tall', GT: 'tall', BK: 'tall' })[e.cat] || 'base',
-      cat: ({ B: 'Base', BC: 'Base Corner', T: 'Tall', W: 'Wall', WC: 'Wall Corner', V: 'Vanity', BK: 'Bookcase', GB: 'Gola Base', GBC: 'Gola Corner', GT: 'Gola Tall', GV: 'Gola Vanity' })[e.cat] || 'Other',
-      sub: e.sub || '' });
+  for (const e of tenant.catalog.list()) {
+    const sku = e.s;
+    if (!sku) continue;
+    const info = skuInfo(sku, tenantId);
+    rows.push({ sku, price: e.p, w: info.w, h: info.h, zone: info.zone, cat: { B: 'Base', W: 'Wall', T: 'Tall', V: 'Vanity' }[e.t] || 'Other', sub: '' });
   }
   return rows;
 }
@@ -609,7 +613,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     if (!cur || !cur.sku || armed) return null;
     const fam = familyKey(cur.sku, cur.width);
     if (!fam) return null;
-    setPricingBrand(brand === 'shiloh' ? 'shiloh' : 'eclipse');
+    setPricingBrand(brand);
     const curHit = findSkuNormalized(cur.sku);
     const curPrice = curHit?.p ?? null;
     const rows = all.filter(r => r.sku !== cur.sku && familyKey(r.sku, r.w) === fam);
@@ -636,7 +640,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     if (!fillGap) return null;
     const w = wallsAll.find(x => x.id === fillGap.wallId); if (!w) return null;
     const len = fillGap.end - fillGap.start;
-    setPricingBrand(brand === 'shiloh' ? 'shiloh' : 'eclipse');
+    setPricingBrand(brand);
     const priced = (r) => {
       const hit = r.price != null ? { p: r.price, _resolution: 'exact' } : findSkuNormalized(r.sku);
       return { sku: r.sku, w: r.w, price: hit?.p ?? null, approx: hit ? hit._resolution !== 'exact' : false };
@@ -1276,7 +1280,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
       {!roomOnly && <div style={{ border: '1px solid #e4ddd2', borderRadius: 8, background: '#faf8f5', maxHeight: 640, display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '10px 12px', borderBottom: '1px solid #eee7dc' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-            {brand === 'shiloh' ? 'Shiloh' : 'Eclipse'} Catalog
+            {getTenant(brand).branding.lineLabel} Catalog
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Type a SKU + Enter to place (e.g. B30, SB36)"
             onKeyDown={e => {

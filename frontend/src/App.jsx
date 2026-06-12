@@ -48,8 +48,8 @@ import {
 } from '../../eclipse-engine/src/countertopData.js';
 
 // ── Output view imports ──
-import { BRANDS, CONSTRUCTIONS, CONSTRUCTIONS_BY_BRAND, DEFAULT_CONSTRUCTION_BY_BRAND, getConstruction } from './constructionProfiles.js';
-import { findShilohSku, SHILOH_SKU_COUNT } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
+import { CONSTRUCTIONS, getConstruction } from './constructionProfiles.js';
+import { getTenant, listTenants } from '../../eclipse-pricing/src/tenants/index.js';
 import { listProjects, loadProject, saveProject, deleteProject, newProjectId, addRevision, getRevisions } from './lib/projectStore.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
@@ -1359,12 +1359,16 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         </button>
       )}
 
-      {materials?.brand === 'shiloh' && (
+      {/* tenant pricing-provenance banner: shows whenever the active line's
+          catalog carries a disclaimer (interim/scraped data) or any quote
+          lines fell back to another tenant's price list */}
+      {(getTenant(materials?.brand).branding.catalogNote || fallbackCount > 0) && (
         <div style={{ marginBottom: 16, padding: '10px 12px', background: '#c8a96e22', border: `1px solid ${C.gold}`, borderRadius: 8, fontSize: 12, color: C.text }}>
-          <strong>Shiloh (framed) — {getConstruction(materials.frameStyle).label}.</strong> Cabinet pricing below is <strong>interim</strong>: cabinet bodies use <strong>Shiloh catalog v3.42 prices scraped from the spec book</strong> ({SHILOH_SKU_COUNT}{' '}SKUs); accessories/fillers/derived variants fall back to the Eclipse list. Construction, depths, and drawings are Shiloh-correct. Figures will be finalized against the official Shiloh price CSV.
+          <strong>{getTenant(materials?.brand).branding.lineDescriptor} — {getConstruction(materials.frameStyle).label}.</strong>{' '}
+          {getTenant(materials?.brand).branding.catalogNote}
           {fallbackCount > 0 && (
             <div style={{ marginTop: 6, fontWeight: 600, color: C.warn }}>
-              ⚠ {fallbackCount} of {(quote?.items || []).length} line items priced from the <u>Eclipse</u> list (no Shiloh match — marked "≈ Eclipse" below). Shiloh framed typically lists 5–15% higher; review before quoting.
+              ⚠ {fallbackCount} of {(quote?.items || []).length} line items priced from the <u>{getTenant(getTenant(materials?.brand).pricing.fallbackTenant || 'eclipse').branding.lineLabel}</u> list (no {getTenant(materials?.brand).branding.lineLabel} match — marked below). Review before quoting.
             </div>
           )}
         </div>
@@ -1429,7 +1433,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               .sort((a, b) => a.sku.localeCompare(b.sku));
             const constr = getConstruction(materials?.frameStyle);
             const specs = [
-              `${materials.brand === 'shiloh' ? 'Shiloh (framed)' : 'Eclipse (frameless)'} — ${constr.note || constr.label}`,
+              `${getTenant(materials.brand).branding.lineDescriptor} — ${constr.note || constr.label}`,
               `Species/finish: ${materials.species}${materials.finishColor && materials.finishColor !== 'Natural' ? ` · ${materials.finishColor}` : ' · Natural'}${materials.islandSpecies ? ` (island: ${materials.islandSpecies})` : ''}`,
               `Door style: ${materials.door} · Box: ${materials.construction}` ,
               `Hardware: ${materials.hardware === 'bar' ? 'Bar pull' : 'Knob'}${materials.hardwareFinish ? ` (${materials.hardwareFinish})` : ''} — base pulls top rail, upper pulls bottom rail`,
@@ -1738,7 +1742,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         return (
           <div style={panelStyle}>
             <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: C.primary }}>
-              Cabinet Schedule — Eclipse C3 Frameless
+              Cabinet Schedule — {getTenant(materials?.brand).branding.scheduleHeader}
             </h3>
             <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
               Material: {materials?.species || 'Maple'} | Door Style: {materials?.door || 'MET-V'} | Construction: Frameless | Date: {new Date().toLocaleDateString()}
@@ -2101,7 +2105,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             <div style={panelStyle}>
               <div style={sectionTitle}>W.W. Wood Order Package</div>
               <p style={{ fontSize: 12, color: C.muted, margin: '0 0 10px' }}>
-                One PDF in the manufacturer's format: cover sheet ({materials.brand === 'shiloh' ? 'SHI' : 'ECL'}-SO-CS) · item list with drawing-matched cab numbers · pre-filled appliance cutout sheets · custom-quote worksheet. Submit to Orders@wwinc.com{readiness.ready ? '.' : ' — after clearing the blockers above.'}
+                One PDF in the manufacturer's format: cover sheet ({getTenant(materials.brand).branding.formCodePrefix}-SO-CS) · item list with drawing-matched cab numbers · pre-filled appliance cutout sheets · custom-quote worksheet. Submit to Orders@wwinc.com{readiness.ready ? '.' : ' — after clearing the blockers above.'}
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button onClick={handleGenerate} style={{ ...btnPrimary, background: readiness.ready ? '#1c7c45' : C.warn }}>
@@ -2512,7 +2516,7 @@ export default function App() {
       // Record this solve as a revision (newest first). Persists when a
       // project is active; otherwise stays in-session.
       const snapshot = {
-        label: `${result.layoutType || layoutType} · ${materials.species}${materials.brand === 'shiloh' ? ' · Shiloh' : ''}`,
+        label: `${result.layoutType || layoutType} · ${materials.species} · ${getTenant(materials.brand).branding.lineLabel}`,
         cabinetCount: result.metadata?.totalCabinets || (result.placements || []).filter(x => x.type !== 'appliance').length,
         subtotal: (quoteResult.subtotal || 0) + (quoteResult.fabrication?.subtotal || 0),
         state: { layoutType, roomType, walls, appliances, island, peninsula, prefs,
@@ -2787,21 +2791,21 @@ export default function App() {
                   <div style={{ marginBottom: 12, padding: '10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
                     <label style={{ ...labelStyle, marginBottom: 6 }}>Cabinet Line</label>
                     <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                      {BRANDS.map(b => {
-                        const active = (materials.brand || 'eclipse') === b.id;
+                      {listTenants().map(t => {
+                        const active = (materials.brand || 'eclipse') === t.id;
                         return (
-                          <button key={b.id} onClick={() => setMaterials(m => ({ ...m, brand: b.id, frameStyle: DEFAULT_CONSTRUCTION_BY_BRAND[b.id] }))}
+                          <button key={t.id} onClick={() => setMaterials(m => ({ ...m, brand: t.id, frameStyle: t.defaultConstruction }))}
                             style={{ flex: 1, padding: '7px 6px', borderRadius: 6, cursor: 'pointer', textAlign: 'left',
                               border: `1px solid ${active ? C.primary : C.border}`, background: active ? '#c8a96e22' : 'transparent', color: active ? C.text : C.muted }}>
-                            <div style={{ fontSize: 12, fontWeight: 700 }}>{b.label}</div>
-                            <div style={{ fontSize: 10, color: C.dim }}>{b.sub}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700 }}>{t.branding.lineLabel}</div>
+                            <div style={{ fontSize: 10, color: C.dim }}>{t.branding.lineSub}</div>
                           </button>
                         );
                       })}
                     </div>
                     <label style={labelStyle}>Construction</label>
                     <select value={materials.frameStyle || 'eclipse_frameless'} onChange={e => setMaterials(m => ({ ...m, frameStyle: e.target.value }))} style={inputStyle}>
-                      {(CONSTRUCTIONS_BY_BRAND[materials.brand || 'eclipse'] || ['eclipse_frameless']).map(k => (
+                      {(getTenant(materials.brand).constructions || ['eclipse_frameless']).map(k => (
                         <option key={k} value={k}>{CONSTRUCTIONS[k].label}</option>
                       ))}
                     </select>
@@ -2809,7 +2813,7 @@ export default function App() {
                       {getConstruction(materials.frameStyle).frame
                         ? `Framed face-frame line. Doors ${getConstruction(materials.frameStyle).inset ? 'inset within the frame' : 'overlay the frame'}.`
                         : 'Frameless (full overlay) — European, no face frame, maximized openings.'}
-                      {materials.brand === 'shiloh' && <span style={{ color: C.accent }}>{`  · Pricing from Shiloh catalog v3.42 (${SHILOH_SKU_COUNT} SKUs scraped) — interim, pending CSV verification.`}</span>}
+                      {getTenant(materials.brand).branding.catalogNote && <span style={{ color: C.accent }}>{'  · ' + getTenant(materials.brand).branding.catalogNote}</span>}
                     </div>
                   </div>
 
@@ -2930,7 +2934,7 @@ export default function App() {
                 <div style={panelStyle}>
                   <div style={sectionTitle}>Order Spec — Cover Sheet Fields</div>
                   <p style={{ fontSize: 11, color: C.dim, margin: '0 0 10px' }}>
-                    These complete the W.W. Wood standard order cover sheet ({materials.brand === 'shiloh' ? 'SHI-SO-CS' : 'ECL-SO-CS'}). Defaults match the most common spec.
+                    These complete the W.W. Wood standard order cover sheet ({getTenant(materials.brand).branding.formCodePrefix}-SO-CS). Defaults match the most common spec.
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                     <div><label style={labelStyle}>Glaze</label>

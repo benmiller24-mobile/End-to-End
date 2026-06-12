@@ -23,6 +23,7 @@
  * blank for the dealer to complete, never a guess.
  */
 import { jsPDF } from 'jspdf';
+import { getTenant } from '../../eclipse-pricing/src/tenants/index.js';
 
 // ── Item-row construction (ported from the Cabinet List schedule logic) ──
 
@@ -179,8 +180,9 @@ export function generateOrderPackage({ brand, cover, items, cutouts, customQuote
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 48;
-  const brandName = brand === 'shiloh' ? 'Shiloh Cabinetry' : 'Eclipse Cabinetry';
-  const codePrefix = brand === 'shiloh' ? 'SHI' : 'ECL';
+  const tenant = getTenant(brand);
+  const brandName = tenant.branding.manufacturerName;
+  const codePrefix = tenant.branding.formCodePrefix;
   const wm = () => { if (!orderReady) watermark(doc, pageW, pageH, 'BUDGET — NOT FOR ORDER'); };
 
   // ════ 1. COVER SHEET ════
@@ -193,7 +195,7 @@ export function generateOrderPackage({ brand, cover, items, cutouts, customQuote
     ['7. Glaze / Highlight', [cover.glaze, cover.highlight].filter(v => v && !/^no /i.test(v)).join(' / ') || 'None'],
     ['8a. Upper Door Style', cover.upperDoor], ['8b. Lower Door Style', cover.lowerDoor],
     ['9. Edge Profile / Banding', cover.edgeProfile],
-    [brand === 'shiloh' ? '10. Hinge / Cabinet Style' : '10. Drawer Box Type', brand === 'shiloh' ? cover.constructionNote : cover.drawerBox],
+    [tenant.coverFields.field10Label, cover[tenant.coverFields.field10Key]],
     ['11. Drawer Front Style', cover.drawerFrontStyle],
     ['12. Drawer Guide', cover.drawerGuide], ['13. Tip-On', cover.tipOn ? 'YES — all doors & drawers' : 'No'],
     ['14. Material Type', cover.materialType],
