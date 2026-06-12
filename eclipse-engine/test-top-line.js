@@ -75,6 +75,23 @@ for (const [name, input] of CONFIGS) {
       `wall ${wall}: ${c.sku} top ${c._elev.yMount + c._elev.height} meets the ${line}" line`);
     assert(c._elev.yMount >= 66, `wall ${wall}: ${c.sku} bottom ${c._elev.yMount}" ≥ 66" fridge clearance`);
   }
+  // fridge surround panels (REP/FREP) terminate ON the wall line, and the
+  // fridge opening ends where the over-fridge cabinet begins (no overlap)
+  for (const t of (r.talls || []).filter(t => t.role === 'fridge_panel' && t._elev)) {
+    const ul = (r.uppers || []).find(u => u.wallId === t.wall);
+    const wallTops = (ul?.cabinets || []).filter(x => x._elev?.zone === 'UPPER' && !isHood(x))
+      .map(x => x._elev.yMount + x._elev.height);
+    if (!wallTops.length) continue;
+    const line = Math.max(...wallTops);
+    assert(Math.abs((t._elev.yMount + t._elev.height) - line) < 1.6,
+      `wall ${t.wall}: panel ${t.sku} top ${t._elev.yMount + t._elev.height} meets the ${line}" line`);
+  }
+  for (const { c, wall } of rwAll) {
+    const wl = (r.walls || []).find(w => (w.wallId || w.id) === wall);
+    const fr = (wl?.cabinets || []).find(x => (x.applianceType || '') === 'refrigerator' && x._elev);
+    if (fr) assert(fr._elev.yMount + fr._elev.height <= c._elev.yMount + 0.01,
+      `wall ${wall}: fridge opening (${fr._elev.height}") ends at the ${c.sku} bottom (${c._elev.yMount}")`);
+  }
 }
 
 console.log(`\n${'═'.repeat(50)}\nTop-line tests: ${pass} passed, ${fail} failed`);

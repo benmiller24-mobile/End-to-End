@@ -7777,6 +7777,7 @@ function alignUpperTopLine(wallLayouts, upperLayouts, talls, placements) {
     }
     // Over-fridge cabinets: pick the RW height whose top lands ON the line
     // with the bottom nearest the real ~72" fridge opening (never < 66").
+    let rwBottom = null;
     for (const { cab, wallId } of rws) {
       const usable = RW_HEIGHTS.filter(h => target - h >= MIN_FRIDGE_CLEARANCE);
       if (!usable.length) continue;
@@ -7788,7 +7789,41 @@ function alignUpperTopLine(wallLayouts, upperLayouts, talls, placements) {
       cab._elev.height = h;
       cab._elev.yMount = target - h;
       cab._elev.yTop = target;
+      rwBottom = cab._elev.yMount;
       if (cab.sku !== oldSku) retagPlacement(wallId, oldSku, cab.position, cab);
+    }
+    // The fridge OPENING ends where the over-fridge cabinet begins — the
+    // legacy 84" fridge-zone model would collide with the re-mounted RW
+    // (real fridge openings run 66-78", per the Mautz drawing's 69").
+    if (rwBottom != null) {
+      const wl = (wallLayouts || []).find(x => (x.wallId || x.id) === ul.wallId);
+      for (const c of (wl?.cabinets || [])) {
+        const a = (c.applianceType || '').toLowerCase();
+        if ((a === 'refrigerator' || a === 'freezer') && c._elev && c._elev.height > rwBottom) {
+          c._elev.height = rwBottom;
+          c._elev.yTop = c._elev.yMount + rwBottom;
+        }
+      }
+    }
+    // Fridge surround panels (REP/FREP talls) are CUT-TO-HEIGHT items: their
+    // top must sit ON the wall line, not at a ceiling-rule height of their
+    // own. Re-size to the line and rewrite the height token in the SKU
+    // (REP3/4 93FTK-27R → REP3/4 90FTK-27R) so the order matches the drawing.
+    const PANEL_HEIGHTS = [84, 87, 90, 93, 96, 102, 108, 114];
+    for (const t of talls) {
+      if (t.wall !== ul.wallId) continue;
+      const isPanel = t.role === 'fridge_panel' || (/^F?REP/i.test(t.sku || '') && (t.width || 0) < 4);
+      if (!isPanel || !t._elev) continue;
+      const want = target - (t._elev.yMount || 0);
+      const ph = PANEL_HEIGHTS.includes(want) ? want
+        : PANEL_HEIGHTS.reduce((a, b) => Math.abs(b - want) < Math.abs(a - want) ? b : a);
+      if (Math.abs((t._elev.height || 0) - ph) < 0.01) continue;
+      const oldSku = t.sku;
+      t.sku = String(t.sku || '').replace(/(\s)(\d{2,3})(FTK)/, `$1${ph}$3`);
+      t.height = ph;
+      t._elev.height = ph;
+      t._elev.yTop = (t._elev.yMount || 0) + ph;
+      if (t.sku !== oldSku) retagPlacement(ul.wallId, oldSku, t.position, t);
     }
   }
 }
