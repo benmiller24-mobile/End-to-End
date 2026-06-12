@@ -1323,7 +1323,8 @@ function MultiQuotePanel({ baseMaterials, priceWith }) {
 function ResultsView({ solverResult, quote, trainingScore, applianceTotal, countertopEstimate, onBack,
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
   projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {},
-  lineMods = {}, onChangeLineMods, onEditInStudio, priceWith = null }) {
+  lineMods = {}, onChangeLineMods, onEditInStudio, priceWith = null,
+  accessoryLines = [], onChangeAccessoryLines = () => {} }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1827,7 +1828,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             )}
 
             {/* Catalog accessories the dealer adds by SKU */}
-            <AccessoryCatalogPanel lines={accessoryLines} onChange={setAccessoryLines} quote={quote} />
+            <AccessoryCatalogPanel lines={accessoryLines} onChange={onChangeAccessoryLines} quote={quote} />
 
             {/* Non-Plan Items (Toe Kick, Touch-Up Kit, Light Rail) */}
             <div style={{ marginTop: 16 }}>
@@ -2667,6 +2668,7 @@ export default function App() {
             projectMeta={projectMeta} revisions={revisions} onRestoreRevision={handleRestoreRevision}
             walls={walls} orderSpec={orderSpec}
             lineMods={lineMods} onChangeLineMods={setLineMods}
+            accessoryLines={accessoryLines} onChangeAccessoryLines={setAccessoryLines}
             priceWith={(mats) => priceWithMaterials(solverResult, lineMods, mats)}
             onEditInStudio={() => {
               setManualItems(seedFromSolverResult(solverResult));
