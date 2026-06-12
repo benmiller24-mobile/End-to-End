@@ -1113,6 +1113,17 @@ export function solve(input) {
   // can use _elev.yMount and _elev.height for precise vertical positioning.
   assignElevToSourceObjects(wallLayouts, upperLayouts, talls, assignedAppliances, corners);
 
+  // ── ALIGN THE UPPER TOP LINE (per wall) ──
+  // A wall's wall-cabinet tops must read as ONE line — the NKBA shop-drawing
+  // rule (verified against the Mautz acknowledgment, where the over-fridge
+  // RW3624 sits at 69"–93" flush with the 39" uppers). Heights stay true to
+  // their SKUs; alignment happens by MOUNTING: shorter uppers top-anchor to
+  // the wall's tallest standard top, stacked tops ride the line, hood
+  // chimneys terminate at it, and the over-fridge cabinet is re-sized within
+  // the RW height family so its top lands on the line with its bottom at the
+  // real fridge-opening height (≥66" clearance).
+  alignUpperTopLine(wallLayouts, upperLayouts, talls, placements);
+
   // ── Sync placements' _elev from the (just-tagged) SOURCE objects ──
   // compilePlacements ran earlier and holds shallow COPIES — without this the
   // copies keep whatever stale _elev the spatial model guessed (the RW above
@@ -7703,6 +7714,85 @@ function assignElevToSourceObjects(wallLayouts, upperLayouts, talls, appliances,
     corner._elev.yTop = corner._elev.yMount + corner._elev.height;
   }
 }
+
+// ─── UPPER TOP-LINE ALIGNMENT ───────────────────────────────────────────────
+// One wall = one wall-cabinet top line (NKBA shop-drawing rule; verified
+// against the Mautz acknowledgment where RW3624 sits 69"–93" flush with the
+// 39" uppers). Heights stay true to their SKUs — alignment is by MOUNTING,
+// except the over-fridge RW which re-sizes within its height family so its
+// top meets the line and its bottom lands at the real fridge opening.
+const RW_HEIGHTS = [12, 15, 18, 21, 24, 27, 30];
+const MIN_FRIDGE_CLEARANCE = 66;   // fridge-opening top can't drop below this
+
+function alignUpperTopLine(wallLayouts, upperLayouts, talls, placements) {
+  const ceilOf = (wallId) => {
+    const w = (wallLayouts || []).find(x => (x.wallId || x.id) === wallId);
+    return (w && w.ceilingHeight) || 96;
+  };
+  const isHood = (c) => c.role === 'rangeHood' || c.role === 'hood' || c.applianceType === 'hood';
+  const retagPlacement = (wallId, oldSku, position, cab) => {
+    for (const p of (placements || [])) {
+      if (p.wall === wallId && p.sku === oldSku && Math.abs((p.position || 0) - (cab.position || 0)) < 0.26) {
+        p.sku = cab.sku;
+        if (typeof p.height === 'number') p.height = cab.height;
+      }
+    }
+  };
+
+  const rwsByWall = {};
+  for (const t of talls) {
+    if (t._elev && t._elev.zone === 'ABOVE_TALL') (rwsByWall[t.wall] = rwsByWall[t.wall] || []).push({ cab: t, wallId: t.wall });
+  }
+
+  for (const ul of upperLayouts) {
+    const cabs = ul.cabinets || [];
+    const std = cabs.filter(c => c._elev && c._elev.zone === 'UPPER' && !isHood(c) && c.role !== 'stacked_top');
+    const stackTops = cabs.filter(c => c.role === 'stacked_top' && c._elev);
+    const rws = [
+      ...cabs.filter(c => c._elev && c._elev.zone === 'ABOVE_TALL').map(cab => ({ cab, wallId: ul.wallId })),
+      ...(rwsByWall[ul.wallId] || []),
+    ];
+    if (!std.length) continue;                       // fridge-only walls keep their functional mount
+
+    // The line = the tallest standard-upper top on the wall (stacks included),
+    // capped at the wall's effective ceiling.
+    let target = Math.max(...std.map(c => c._elev.yMount + c._elev.height));
+    if (stackTops.length) target = Math.max(target, ...stackTops.map(c => c._elev.yMount + c._elev.height));
+    target = Math.min(target, ceilOf(ul.wallId));
+
+    // Standard uppers top-anchor (bottoms may stagger — the over-appliance look);
+    // never below the 54" reach line.
+    for (const c of std) {
+      c._elev.yMount = Math.max(VERTICAL_ZONES.UPPER.yMin, target - c._elev.height);
+      c._elev.yTop = c._elev.yMount + c._elev.height;
+    }
+    // Stacked tops ride the line exactly.
+    for (const c of stackTops) {
+      c._elev.yMount = target - c._elev.height;
+      c._elev.yTop = target;
+    }
+    // Hood chimneys terminate at the line.
+    for (const c of cabs) {
+      if (c._elev && isHood(c)) c._elev.chimneyTopAFF = target;
+    }
+    // Over-fridge cabinets: pick the RW height whose top lands ON the line
+    // with the bottom nearest the real ~72" fridge opening (never < 66").
+    for (const { cab, wallId } of rws) {
+      const usable = RW_HEIGHTS.filter(h => target - h >= MIN_FRIDGE_CLEARANCE);
+      if (!usable.length) continue;
+      const h = usable.reduce((a, b) => Math.abs((target - b) - 72) < Math.abs((target - a) - 72) ? b : a);
+      const oldSku = cab.sku;
+      const m = String(cab.sku || '').match(/^RW(\d{2})(?:\d{2})?(-\d{2})?$/);
+      if (m) cab.sku = `RW${m[1]}${String(h).padStart(2, '0')}${m[2] || ''}`;
+      cab.height = h;
+      cab._elev.height = h;
+      cab._elev.yMount = target - h;
+      cab._elev.yTop = target;
+      if (cab.sku !== oldSku) retagPlacement(wallId, oldSku, cab.position, cab);
+    }
+  }
+}
+
 
 function assignSpatialData(p) {
   const type = p.type || p.role || '';
