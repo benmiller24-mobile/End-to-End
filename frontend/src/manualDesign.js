@@ -331,6 +331,14 @@ export function buildManualResult({ walls, items, island, roomType = 'kitchen', 
       : it.zone === 'appliance' ? 'appliance' : it.zone === 'tall' ? 'tall' : 'base',
     ...(it.applianceType === 'hood' ? { role: 'range_hood', _hoodMountAFF: it.yMount ?? 66, _overhang: 0, _liner: !!it._liner } : {}),
     applianceType: it.applianceType,
+    // Designer-selected modifications ride the placement: `modifications`
+    // (code list) drives the drawings, `dsMods` (raw selection) + rot drive
+    // pricing. Dimension mods already wrote their numbers onto the item.
+    ...(it.mods && Object.keys(it.mods).some(k => it.mods[k]) ? {
+      modifications: Object.keys(it.mods).filter(k => it.mods[k]).map(code => ({ mod: code })),
+      dsMods: it.mods,
+    } : {}),
+    ...(it.rot && it.rotQ > 0 ? { rot: it.rot, rotQ: it.rotQ } : {}),
     _manualId: it.id,
     _elev: it.zone === 'upper'
       ? { zone: 'UPPER', yMount: it.yMount ?? 54, height: it.height || 36, depth: it.depth || 13, depthSetback: 11, yTop: (it.yMount ?? 54) + (it.height || 36) }
@@ -362,6 +370,11 @@ export function buildManualResult({ walls, items, island, roomType = 'kitchen', 
         depth: i.depth || 24, type: i.applianceType ? 'appliance' : 'base',
         applianceType: i.applianceType,
         role: i.applianceType === 'sink' ? 'sink' : i.applianceType,
+        ...(i.mods && Object.keys(i.mods).some(k => i.mods[k]) ? {
+          modifications: Object.keys(i.mods).filter(k => i.mods[k]).map(code => ({ mod: code })),
+          dsMods: i.mods,
+        } : {}),
+        ...(i.rot && i.rotQ > 0 ? { rot: i.rot, rotQ: i.rotQ } : {}),
         _manualId: i.id,
         _elev: { zone: i.applianceType ? 'APPLIANCE' : 'BASE', yMount: 0, height: i.height || 34.5, depth: i.depth || 24, yTop: i.height || 34.5 },
       })),
@@ -400,6 +413,8 @@ export function seedFromSolverResult(result) {
         depth: c._elev?.depth || 24, height: c._elev?.height || (c.type === 'tall' ? 93 : 34.5),
         zone: isApp && !c.sku ? 'appliance' : (c._elev?.zone === 'TALL' || c.type === 'tall') ? 'tall' : 'base',
         applianceType: c.applianceType,
+        ...(c.dsMods ? { mods: c.dsMods } : {}),
+        ...(c.rot ? { rot: c.rot, rotQ: c.rotQ } : {}),
       });
       if (dedupe(cand)) items.push(cand);
     }
@@ -437,6 +452,8 @@ export function seedFromSolverResult(result) {
       depth: c.depth || 24, height: c._elev?.height || 34.5,
       zone: c.sku ? 'base' : 'appliance',
       applianceType: c.applianceType,
+      ...(c.dsMods ? { mods: c.dsMods } : {}),
+      ...(c.rot ? { rot: c.rot, rotQ: c.rotQ } : {}),
     });
   }
   // Corner units (lazy susans, blind corners) live in result.corners — seed

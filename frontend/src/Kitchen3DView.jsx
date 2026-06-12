@@ -300,8 +300,11 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
             }
             return;
           }
-          // wood base cabinet: dark toe kick recess + box + detailed fronts + counter
-          placeOnWall(f, c.position + 0.4, c.width - 0.8, BASE_D - 3, 0, TOE, toeMat);
+          // wood base cabinet: dark toe kick recess + box + detailed fronts + counter.
+          // NTK/FTK toe-kick mods run the face to the floor (no recess).
+          const noToe = (c.modifications || []).some(m => /^(NTK|FTK)$/i.test(m.mod || m.type || ''));
+          if (noToe) placeOnWall(f, c.position, c.width, BASE_D, 0, TOE, woodMat);
+          else placeOnWall(f, c.position + 0.4, c.width - 0.8, BASE_D - 3, 0, TOE, toeMat);
           placeOnWall(f, c.position, c.width, BASE_D, TOE, BASE_TOP, woodMat);
           addBaseFronts(f, c, woodMat, recessMat);
           placeOnWall(f, c.position - 0.5, c.width + 1, BASE_D + 1, BASE_TOP, COUNTER_AFF, stoneMat);

@@ -396,9 +396,12 @@ function frontTypeOf(cab, styleSpec) {
   if (/WINE|^WR\d|WRK|^BWR|^WWR|WRX/.test(sku) || (cab.applianceType || '').toLowerCase() === 'wine' || role.includes('wine')) return 'wine';
   if (/^SFLS|^OS\d|OPEN/.test(sku) || type.includes('shelf') || type.includes('floating') || role.includes('open')) return 'open';
   if (mods.some(m => /^MD$|MULL/.test(m)) || (styleSpec && styleSpec.panel === 'mullion')) return 'mullion';
-  if (mods.some(m => /GFD|GLASS/.test(m)) || /GFD|GLASS/.test(sku)) return 'glass';
+  if (mods.some(m => /GFD|GLASS|^PFG$/.test(m)) || /GFD|GLASS/.test(sku)) return 'glass';
   return 'solid';
 }
+
+// Designer-selected mod codes riding the placement (Design Studio ModStrip).
+const modCodesOf = (cab) => new Set((cab.modifications || []).map(m => (m.mod || m.type || '').toUpperCase()));
 
 // Glass / mullion door panel: glass field, interior shelf lines, optional muntins.
 function drawGlassPanel(els, key, fx, fy, fw, fh, mullion) {
@@ -420,7 +423,7 @@ function drawGlassPanel(els, key, fx, fy, fw, fh, mullion) {
   els.push(<line key={`${key}rf`} x1={px + pw * 0.22} y1={py + 1.5} x2={px + pw * 0.05} y2={py + ph * 0.6} stroke="#ffffff" strokeWidth={0.5} opacity={0.4} strokeLinecap="round" />);
 }
 
-function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid', construction = null, blindCorner = false, comboCols = null }) {
+function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, hinge = 'left', falseFront = false, styleSpec = { panel: 'flat', topRail: 2.5 }, frontFill = C.fill, hardware = 'knob', frontType = 'solid', construction = null, blindCorner = false, comboCols = null, stiles = null }) {
   const els = [];
   const pad = 1.8 * S;   // stile/rail width (visual inset from cabinet edge to door panel)
 
@@ -429,6 +432,25 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     <rect key="box" x={x} y={y} width={w} height={h}
       fill={frontFill} stroke={C.line} strokeWidth={0.7} />
   );
+
+  // Wide-stile mods (WSL/WSR, catalog C2): a solid frame band on the modified
+  // side — the door/drawer fronts shrink into the remaining width.
+  if (stiles && (stiles.left || stiles.right)) {
+    const wsW = Math.min(4.5 * S, w * 0.25);
+    if (stiles.left) {
+      els.push(<rect key="wsl" x={x} y={y} width={wsW} height={h} fill={frontFill} stroke={C.line} strokeWidth={0.5} />);
+      x += wsW; w -= wsW;
+    }
+    if (stiles.right) {
+      els.push(<rect key="wsr" x={x + w - wsW} y={y} width={wsW} height={h} fill={frontFill} stroke={C.line} strokeWidth={0.5} />);
+      w -= wsW;
+    }
+  }
+  // 3" center stile between butt doors — appended at each return point so it
+  // paints OVER the door fronts (SVG z-order).
+  const centerStile = stiles && stiles.center
+    ? <rect key="cstile" x={x + w / 2 - 1.5 * S} y={y} width={3 * S} height={h} fill={frontFill} stroke={C.line} strokeWidth={0.5} />
+    : null;
 
   // For corner cabinets in elevation, draw diagonal line indicating corner angle
   if (isCorner) {
@@ -513,7 +535,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     // seam between access face and blind panel
     els.push(<line key="bsm" x1={blindLeft ? blindX + blindW : blindX} y1={y} x2={blindLeft ? blindX + blindW : blindX} y2={y + h}
       stroke={C.line} strokeWidth={0.6} opacity={0.7} />);
-    return <>{els}</>;
+    return <>{els}{centerStile}</>;
   }
 
   // ── VANITY COMBINATION (sink door + drawer bank[s]): render columns ──
@@ -574,7 +596,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
       }
       cx0 += cw;
     });
-    return <>{els}</>;
+    return <>{els}{centerStile}</>;
   }
 
   // ── FRAMED constructions (Shiloh): draw a 1½" face frame, then seat each
@@ -637,7 +659,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
         }
       }
     });
-    return <>{els}</>;
+    return <>{els}{centerStile}</>;
   }
 
   // Draw one full-overlay front. Panel style per door style:
@@ -737,7 +759,7 @@ function CabFront({ x, y, w, h, doors, drawers, isCorner, cornerSide, isUpper, h
     }
   }
 
-  return <>{els}</>;
+  return <>{els}{centerStile}</>;
 }
 
 
@@ -1552,14 +1574,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         // dishwashers / micro drawers sit behind the continuous toe line.
         const _at = (cab.applianceType || '').toLowerCase();
         const toFloor = isApp && /^(refrigerator|freezer|range$|wine)/.test(_at);
+        // Toe-kick mods (catalog C1): NTK/FTK fronts run to the floor — the
+        // standard recessed toe only shows on unmodified cabinets.
+        const modSet = modCodesOf(cab);
+        const noToeMod = modSet.has('NTK') || modSet.has('FTK');
         let h, y;
         if (elev.yMount === 0 && elev.height) {
           const hFull = elev.height * S;
           y = floorY - hFull;
-          h = toFloor ? hFull : Math.max(2, hFull - TOEKICK * S);
+          h = (toFloor || noToeMod) ? hFull : Math.max(2, hFull - TOEKICK * S);
         } else {
-          h = BASE_BOX * S;
-          y = tkTopY - h;
+          h = BASE_BOX * S + (noToeMod ? TOEKICK * S : 0);
+          y = (noToeMod ? floorY : tkTopY) - h;
         }
 
         let { doors, drawers, falseFront, blind, combo } = parseDoorDrawer(sku, cab.width);
@@ -1567,6 +1593,10 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         // reveals + door style + wood), not the appliance glyph, so it matches
         // the rest of the run. Tilt-out false front on top, doors below.
         if (isSinkBase) { falseFront = true; drawers = Math.max(drawers, 1); if (!doors) doors = cab.width > 24 ? 2 : 1; }
+        if (modSet.has('FHD')) { drawers = 0; falseFront = false; if (!doors) doors = cab.width > 24 ? 2 : 1; }
+        if (modSet.has('FF_TOP')) { falseFront = true; if (!drawers) drawers = 1; }
+        const stiles = (modSet.has('WSL') || modSet.has('WSR') || modSet.has('CENTER_STILE'))
+          ? { left: modSet.has('WSL'), right: modSet.has('WSR'), center: modSet.has('CENTER_STILE') } : null;
         const hinge = doors === 1
           ? computeHingeSide(sortedBases[i - 1], sortedBases[i + 1], i === 0, i === sortedBases.length - 1)
           : 'left';
@@ -1582,7 +1612,18 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <ApplianceSym x={x} y={y} w={w} h={h} aType={cab.applianceType || 'unknown'} styleSpec={styleSpec} steelFill={steel} frontFill={frontFill} />
             ) : (
               <CabFront x={x} y={y} w={w} h={h} doors={doors} drawers={drawers} hinge={hinge}
-                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} blindCorner={blind} comboCols={combo} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+                falseFront={falseFront} isCorner={isCornerCab} cornerSide={cab._cornerSide} blindCorner={blind} comboCols={combo} styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} stiles={stiles} />
+            )}
+            {/* flush toe kick: face runs to the floor with a seam at 4" AFF */}
+            {modSet.has('FTK') && (
+              <line x1={x} y1={tkTopY} x2={x + w} y2={tkTopY} stroke={C.thinLine} strokeWidth={0.35} opacity={0.6} />
+            )}
+            {/* extended side to floor: the finished side drops past the toe */}
+            {modSet.has('ESFL') && !noToeMod && (
+              <rect x={x} y={tkTopY} width={Math.min(1.5 * S, w)} height={TOEKICK * S} fill={frontFill} stroke={C.line} strokeWidth={0.4} />
+            )}
+            {modSet.has('ESFR') && !noToeMod && (
+              <rect x={x + w - Math.min(1.5 * S, w)} y={tkTopY} width={Math.min(1.5 * S, w)} height={TOEKICK * S} fill={frontFill} stroke={C.line} strokeWidth={0.4} />
             )}
             {/* Appliance label ABOVE cabinet */}
             {isApp && (
@@ -1696,7 +1737,8 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
             ) : (
               <CabFront x={x} y={y} w={w} h={uH} doors={wallBlind ? 1 : doors} drawers={0} isUpper hinge={hinge}
                 isCorner={wallBlind} cornerSide={cab._cornerSide || 'left'} blindCorner={wallBlind}
-                styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction} />
+                styleSpec={styleSpec} frontFill={frontFill} hardware={hardware} frontType={frontTypeOf(cab, styleSpec)} construction={construction}
+                stiles={(() => { const ms = modCodesOf(cab); return (ms.has('WSL') || ms.has('WSR') || ms.has('CENTER_STILE')) ? { left: ms.has('WSL'), right: ms.has('WSR'), center: ms.has('CENTER_STILE') } : null; })()} />
             )}
             {/* SKU callout — upper pulls sit at the bottom, so label upper-center. */}
             {!isFill && !isRepPanel && cab.width >= 9 && cab.sku && (

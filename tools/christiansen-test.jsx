@@ -7,6 +7,7 @@ import FloorPlanView from '/Users/benjaminmiller/Documents/End-to-End/frontend/s
 import ElevationView from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/ElevationView.jsx';
 import { buildManualResult, manualChecks, ISLAND_WALL } from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/manualDesign.js';
 import { setPricingBrand, findSkuNormalized } from '/Users/benjaminmiller/Documents/End-to-End/frontend/src/skuResolver.js';
+import { modChargeList, ROT_OPTIONS } from '/Users/benjaminmiller/Documents/End-to-End/eclipse-pricing/src/modData.js';
 import { writeFileSync } from 'fs';
 
 // ── Room: L footprint, 292½" back wall, 132" return, 11-ft ceiling ──
@@ -32,17 +33,17 @@ const items = [
   it('B3D18', 159, 'base', 18, 34.5, 24),
   { id: `c${_n++}`, sku: null, wall: 'A', position: 177, zone: 'appliance', width: 36, height: 84, depth: 27, applianceType: 'refrigerator' },  // 36" Thermador panel-ready bottom-freezer
   it('O3084', 213, 'tall', 30, 84, 24),     // 30" Thermador double oven / steam tower
-  it('B30', 243, 'base', 30, 34.5, 24),
-  it('B18L', 273, 'base', 18, 34.5, 24),
+  it('B30', 243, 'base', 30, 34.5, 24, { rot: 'DROT5/8', rotQ: 2 }),  // two hardwood roll-outs
+  it('B18L', 273, 'base', 18, 34.5, 24, { mods: { ESFR: true } }),  // finished side to floor at run end
   // uppers — Aventos lifting-flap fronts in the CMK design, standard W proxies here
-  it('W3324', 54, 'upper', 33, 24, 13, { yMount: 60 }),
+  it('W3324', 54, 'upper', 33, 24, 13, { yMount: 60, mods: { AVENTOS_HK: 2, PFG: true } }),  // CMK lifting-flap glass fronts
   // Zephyr AK9234BS Monsoon I liner (34⅜" for the 36" chase) centered over the cooktop
   { id: `c${_n++}`, sku: null, wall: 'A', position: 87.81, zone: 'upper', width: 34.375, height: 12, depth: 19, yMount: 66, applianceType: 'hood', _liner: true },
   it('W3624', 123, 'upper', 36, 24, 13, { yMount: 60 }),
   it('W1824L', 159, 'upper', 18, 24, 13, { yMount: 60 }),
   it('RW3624-27', 177, 'upper', 36, 24, 27, { yMount: 84 }),  // above-fridge
   // ── ISLAND work side (CMK island-front): wine ref · trash pull-out · sink · DW · drawers ──
-  { id: `c${_n++}`, sku: 'B24R', wall: ISLAND_WALL, position: 0, zone: 'base', width: 24, height: 34.5, depth: 24 },
+  { id: `c${_n++}`, sku: 'B24R', wall: ISLAND_WALL, position: 0, zone: 'base', width: 24, height: 34.5, depth: 24, mods: { NTK: true } },  // furniture-look island end (no toe)
   { id: `c${_n++}`, sku: 'BWDMA18', wall: ISLAND_WALL, position: 24, zone: 'base', width: 18, height: 34.5, depth: 24 },
   { id: `c${_n++}`, sku: 'SB36', wall: ISLAND_WALL, position: 42, zone: 'base', width: 36, height: 34.5, depth: 24 },
   { id: `c${_n++}`, sku: null, wall: ISLAND_WALL, position: 78, zone: 'appliance', width: 24, height: 34.5, depth: 24, applianceType: 'dishwasher' },
@@ -77,6 +78,16 @@ for (const i of items) {
   const hit = findSkuNormalized(i.sku);
   if (hit && hit.p != null) { total += hit.p; lines.push({ sku: i.sku, price: hit.p, approx: hit._resolution !== 'exact' }); }
   else { misses++; lines.push({ sku: i.sku, price: null, note: 'NO PRICE RESOLVED' }); }
+  // designer mods + roll-out trays price as catalog C1/C2 list charges
+  const base = hit?.p || 0;
+  for (const ml of modChargeList(i.mods || {}, i)) {
+    const chg = ml.pct ? base * ml.pct : ml.flat;
+    total += chg; lines.push({ sku: `  + MOD ${ml.code.replace(/_/g, ' ')}`, price: chg });
+  }
+  if (i.rot && i.rotQ > 0) {
+    const ro = ROT_OPTIONS.find(r => r.v === i.rot);
+    if (ro) { total += ro.price * i.rotQ; lines.push({ sku: `  + ${i.rot} ×${i.rotQ}`, price: ro.price * i.rotQ }); }
+  }
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');

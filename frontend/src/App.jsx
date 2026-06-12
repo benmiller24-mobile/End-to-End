@@ -24,6 +24,8 @@ import {
   FABRICATION_PREFIXES, priceFabricationItems, calculateDealerPrice,
   findOfficial, checkStyleCompat, applicableMods, findMod,
 } from '../../eclipse-pricing/src/index.js';
+import { modChargeList, ROT_OPTIONS } from '../../eclipse-pricing/src/modData.js';
+import { SECTIONS, TYPE_NAMES } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
 export { setPricingBrand, findSkuNormalized };
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
@@ -78,11 +80,21 @@ function buildPricingPlacements(placements, lineMods = {}) {
       // SKU — use them when present so door/drawer-front/box charges use the
       // factory's numbers; the guess heuristics remain the fallback.
       const off = findOfficial(p.sku);
+      // Design Studio per-item mods (dsMods) + roll-out trays price as mod
+      // lines on the cabinet: percent mods ride the line's own list base,
+      // everything else resolves to a flat charge.
+      const dsModLines = p.dsMods ? modChargeList(p.dsMods, { depth: p._elev?.depth || p.depth, height: h }) : [];
+      if (p.rot && p.rotQ > 0) {
+        const ro = ROT_OPTIONS.find(r => r.v === p.rot);
+        if (ro) dsModLines.push({ code: `${p.rot}×${p.rotQ}`, flat: ro.price * p.rotQ });
+      }
       return { sku: p.sku, qty: p.qty || 1, wall: p.wall || 'other',
         sqin: (p.width && h) ? p.width * h : undefined,
         doorCount: off ? off.dc : guessDoors(p.sku, tc),
         drawerCount: off ? off.drc : guessDrawerCount(p.sku, tc),
-        builtInROT: guessBuiltInROT(p.sku) };
+        builtInROT: guessBuiltInROT(p.sku),
+        ...(p.len > 0 ? { len: p.len } : {}),
+        ...(dsModLines.length ? { dsModLines } : {}) };
     });
   // Stable per-line keys (wall::sku::occurrence) carry user-selected
   // modifications into pricing; stale keys from a prior solve are ignored.
@@ -92,7 +104,10 @@ function buildPricingPlacements(placements, lineMods = {}) {
     occ[base] = (occ[base] || 0) + 1;
     c.lineKey = `${base}::${occ[base]}`;
     const codes = lineMods[c.lineKey] || [];
-    if (codes.length) c.mods = codes.map(code => findMod(code)).filter(Boolean);
+    const official = codes.map(code => findMod(code)).filter(Boolean);
+    const merged = [...(c.dsModLines || []), ...official];
+    if (merged.length) c.mods = merged;
+    delete c.dsModLines;
   }
   return { cabinets, fabrication };
 }
@@ -1024,6 +1039,76 @@ function LineModEditor({ item, lineMods, onChange }) {
   );
 }
 
+// ==================== CATALOG ACCESSORIES (quote add-ons) ====================
+// Search the full price book (valances, mouldings, corbels, loose roll-out
+// trays, turned legs, floating shelves, panels) and add quantities to the
+// quote. Lines price through the engine on the ACC wall group.
+function AccessoryCatalogPanel({ lines, onChange, quote }) {
+  const [q, setQ] = useState('');
+  const results = q.trim().length >= 2 ? searchSkus(q.trim(), 10) : [];
+  const priced = (sku) => (quote?.items || []).find(i => i.wall === 'ACC' && i.sku === sku);
+  const QUICK = [['WNDVA', 'valance'], ['CRN', 'crown'], ['UCA', 'light rail'], ['FLSB', 'floating shelf'], ['DROT', 'roll-out tray'], ['CBL', 'corbel'], ['TL1', 'turned leg'], ['TK', 'toe kick']];
+  return (
+    <div style={{ marginTop: 16 }}>
+      <h4 style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: C.muted }}>Catalog Accessories &amp; Trim</h4>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search price book by SKU (e.g. WNDVA30, 3 1/2CRN, DROT5/8)…"
+          style={{ ...inputStyle, width: 320 }} />
+        <span style={{ fontSize: 10, color: C.dim }}>
+          try: {QUICK.map(([pfx, label], i) => (
+            <button key={pfx} onClick={() => setQ(pfx)} style={{ background: 'transparent', border: 'none', color: C.accent, cursor: 'pointer', fontSize: 10, padding: '0 3px', textDecoration: 'underline' }}>{label}</button>
+          ))}
+        </span>
+      </div>
+      {results.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          {results.map(r => (
+            <button key={r.s} onClick={() => { if (!lines.some(l => l.sku === r.s)) onChange([...lines, { sku: r.s, qty: 1 }]); setQ(''); }}
+              title={`${SECTIONS[(r.r || ' ')[0]] || ''} · ${TYPE_NAMES[r.t] || ''}`}
+              style={{ fontSize: 11, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, border: `1px solid ${C.border}`, background: '#fff' }}>
+              <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{r.s}</span>
+              <span style={{ marginLeft: 5, color: C.dim }}>${Number(r.p).toLocaleString()}{(r.r || '').startsWith('T') ? '/lf' : ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {lines.length > 0 && (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+          <tbody>
+            {lines.map((l, i) => {
+              const entry = findSku(l.sku);
+              const isLf = (entry?.r || '').startsWith('T');
+              const pi = priced(l.sku);
+              return (
+                <tr key={`${l.sku}-${i}`} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff' }}>
+                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', fontWeight: 600, fontSize: 10.5, borderBottom: `1px solid ${C.border}` }}>{l.sku}</td>
+                  <td style={{ padding: '4px 8px', fontSize: 10.5, color: C.muted, borderBottom: `1px solid ${C.border}` }}>{SECTIONS[(entry?.r || ' ')[0]] || 'Accessory'}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>
+                    Qty <input type="number" min="1" max="99" value={l.qty || 1}
+                      onChange={e => onChange(lines.map((x, xi) => xi === i ? { ...x, qty: Math.max(1, +e.target.value || 1) } : x))}
+                      style={{ width: 42, fontSize: 11, padding: '2px 4px', border: `1px solid ${C.border}`, borderRadius: 3 }} />
+                    {isLf && (<span style={{ marginLeft: 6 }}>LF <input type="number" min="1" max="200" value={l.len || 1}
+                      onChange={e => onChange(lines.map((x, xi) => xi === i ? { ...x, len: Math.max(1, +e.target.value || 1) } : x))}
+                      style={{ width: 46, fontSize: 11, padding: '2px 4px', border: `1px solid ${C.border}`, borderRadius: 3 }} /></span>)}
+                  </td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', borderBottom: `1px solid ${C.border}`, fontWeight: 600 }}>
+                    {pi ? formatCurrency(pi.totalPrice || pi.unitPrice || 0) : entry ? formatCurrency(entry.p * (l.qty || 1) * (isLf ? (l.len || 1) : 1)) : '—'}
+                  </td>
+                  <td style={{ padding: '4px 8px', borderBottom: `1px solid ${C.border}` }}>
+                    <button onClick={() => onChange(lines.filter((_, xi) => xi !== i))}
+                      style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 11 }}>✕</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {lines.length === 0 && <div style={{ fontSize: 11, color: C.dim }}>No catalog accessories on this quote yet — search above to add valances, mouldings, corbels, loose roll-out trays, turned legs, or panels.</div>}
+    </div>
+  );
+}
+
 // ==================== ACK RECONCILIATION (T3b) ====================
 // The dealer has 24 hours to review the W.W. Wood confirmation. Paste its
 // text (open the PDF → select all → copy) and diff it against this quote.
@@ -1618,7 +1703,11 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               width: w,
               height: h,
               depth: d,
-              mods: p._modWidth ? p._modWidthNote : (p.hingeSide ? `Hinge ${p.hingeSide}` : ''),
+              mods: [
+                p.dsMods ? Object.keys(p.dsMods).filter(k => p.dsMods[k]).map(k => k.replace(/_/g, ' ')).join(', ') : '',
+                p.rot && p.rotQ > 0 ? `${p.rot}×${p.rotQ}` : '',
+                p._modWidth ? p._modWidthNote : (p.hingeSide ? `Hinge ${p.hingeSide}` : ''),
+              ].filter(Boolean).join(' · '),
               hingeSide: p.hingeSide || determineHinge(p, w, items),
               unitPrice: pricedItem?.unitPrice || 0,
               extPrice: pricedItem?.totalPrice || pricedItem?.unitPrice || 0,
@@ -1725,6 +1814,9 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
                 </table>
               </div>
             )}
+
+            {/* Catalog accessories the dealer adds by SKU */}
+            <AccessoryCatalogPanel lines={accessoryLines} onChange={setAccessoryLines} quote={quote} />
 
             {/* Non-Plan Items (Toe Kick, Touch-Up Kit, Light Rail) */}
             <div style={{ marginTop: 16 }}>
@@ -2171,6 +2263,7 @@ export default function App() {
   const [solverResult, setSolverResult] = useState(null);
   const [quote, setQuote] = useState(null);
   const [lineMods, setLineMods] = useState({});   // lineKey -> [mod codes]
+  const [accessoryLines, setAccessoryLines] = useState([]); // catalog accessories/trim: {sku, qty, len?}
   const [designMode, setDesignMode] = useState('auto');   // 'auto' (solver) | 'manual' (Design Studio)
   const [manualItems, setManualItems] = useState([]);     // hand-placed cabinets/appliances
   const [ghostResult, setGhostResult] = useState(null);   // live solver preview for the room canvas
@@ -2190,7 +2283,7 @@ export default function App() {
   // Full designer state snapshot — everything needed to reproduce a design.
   const collectState = () => ({
     layoutType, roomType, walls, appliances, island, peninsula, prefs,
-    materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, orderSpec, lineMods,
+    materials, selectedBrandAppliances, countertopSelection, trimSelections, selectedTemplate, orderSpec, lineMods, accessoryLines,
     designMode, manualItems,
   });
   const applyState = (s) => {
@@ -2206,6 +2299,7 @@ export default function App() {
     setSelectedTemplate(s.selectedTemplate || null);
     if (s.orderSpec) setOrderSpec(o => ({ ...o, ...s.orderSpec }));
     setLineMods(s.lineMods || {});
+    setAccessoryLines(s.accessoryLines || []);
     setDesignMode(s.designMode || 'auto');
     setManualItems(s.manualItems || []);
     setSolverResult(null); setQuote(null); setView('designer');
@@ -2354,7 +2448,10 @@ export default function App() {
   // Price (or re-price) a solved design — used by handleSolve, mods repricing,
   // and Multi-Quote (which runs the SAME path under variant materials).
   const priceWithMaterials = useCallback((result, mods, mats) => {
-    const { cabinets, fabrication } = buildPricingPlacements(result.placements || [], mods);
+    // Catalog accessories (valances, mouldings, corbels, loose ROTs, panels)
+    // join the priced placements on a dedicated ACC wall group.
+    const accPl = accessoryLines.map(a => ({ sku: a.sku, qty: a.qty || 1, len: a.len, wall: 'ACC' }));
+    const { cabinets, fabrication } = buildPricingPlacements([...(result.placements || []), ...accPl], mods);
     setPricingBrand(mats.brand);
     const quoteResult = calculateLayoutPrice(cabinets, {
       species: mats.species, construction: mats.construction,
@@ -2363,13 +2460,13 @@ export default function App() {
     }, findSkuNormalized);
     quoteResult.fabrication = priceFabricationItems(fabrication);
     return quoteResult;
-  }, []);
+  }, [accessoryLines]);
   const priceDesign = useCallback((result, mods) => priceWithMaterials(result, mods, materials), [priceWithMaterials, materials]);
 
   useEffect(() => {
     if (solverResult) setQuote(priceDesign(solverResult, lineMods));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lineMods]);
+  }, [lineMods, accessoryLines]);
 
   const handleSolve = useCallback(() => {
     setSolving(true);

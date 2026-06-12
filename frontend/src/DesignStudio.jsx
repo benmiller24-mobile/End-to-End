@@ -4,6 +4,7 @@ import { SHILOH_CATALOG } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
 import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
 import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isCornerSku, contextSnap, insertWithShift, skuInfo, priceLookup, manualChecks, ISLAND_WALL, islandPseudoWall } from './manualDesign.js';
+import { getApplicableMods, modCharge, MODS_BY_CODE, ROT_OPTIONS } from '../../eclipse-pricing/src/modData.js';
 
 /**
  * Design Studio — drag-and-drop room + cabinet design (the "2020-style" mode),
@@ -54,6 +55,142 @@ export function familyKey(sku, w) {
     }
   }
   return null;
+}
+
+// ── Per-cabinet modifications strip (catalog C1–C2 mods + roll-out trays) ──
+// Selection lives on the item as item.mods = {CODE: value}; dimension mods
+// (MOD_SQ, FREE_W, FREE_D) write the new numbers straight onto the item so
+// every geometry consumer (canvas, checks, floor plan, elevation, 3D) sees
+// them, while the recorded mod prices the change and prints on the order.
+function ModStrip({ item, brand, onUpdate }) {
+  const sku = String(item.sku || '').replace(/^FC-/, '');
+  const entry = priceLookup(item.sku, brand) || findSku(item.sku);
+  const typeLetter = entry?.t || (item.zone === 'upper' ? 'W' : item.zone === 'tall' ? 'T' : 'B');
+  const avail = getApplicableMods({ t: typeLetter, s: sku }, brand);
+  const mods = item.mods || {};
+  const applied = avail.filter(m => mods[m.code]);
+  const addable = avail.filter(m => !mods[m.code]);
+  const basePrice = entry?.p || 0;
+  const catalogDims = skuInfo(item.sku, brand);
+
+  const setMods = (next, dims = null) => onUpdate({ mods: next, ...(dims || {}) });
+
+  const addMod = (code) => {
+    const m = MODS_BY_CODE[code];
+    if (!m) return;
+    const next = { ...mods };
+    // exclusive groups: a new toe-kick / box-mod choice replaces the old one
+    if (m.excGroup) for (const o of avail) { if (o.excGroup === m.excGroup && next[o.code]) delete next[o.code]; }
+    next[code] = m.input === 'qty' ? 1
+      : m.input === 'side' ? 'L'
+      : m.input === 'select' ? (m.options ? m.options[0] : true)
+      : m.input === 'dims' ? { h: item.height, d: item.depth, w: item.width }
+      : m.input === 'width' ? item.width
+      : true;
+    let dims = null;
+    if (m.input === 'select' && m.fit?.includes('d')) dims = { depth: parseFloat(next[code]) || item.depth };
+    setMods(next, dims);
+  };
+
+  const removeMod = (code) => {
+    const m = MODS_BY_CODE[code];
+    const next = { ...mods };
+    delete next[code];
+    // dimension mod removed → the cabinet reverts to its catalog size
+    const dims = m?.fit ? { width: catalogDims.w, depth: catalogDims.d, height: catalogDims.h } : null;
+    setMods(next, dims);
+  };
+
+  const setVal = (code, v, dims = null) => setMods({ ...mods, [code]: v }, dims);
+
+  const dimInput = (code, key, cur, onCommit) => (
+    <input key={`${code}${key}`} type="number" step="0.5" min="3" max="120" defaultValue={cur}
+      title={`${key.toUpperCase()}"`}
+      onBlur={e => { const v = parseFloat(e.target.value); if (v > 0) onCommit(v); }}
+      onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+      style={{ width: 44, fontSize: 10.5, padding: '1px 3px', border: '1px solid #d8cdb8', borderRadius: 3 }} />
+  );
+
+  const totalChg = applied.reduce((s, m) => s + modCharge(m, mods[m.code], item, basePrice), 0)
+    + (item.rot && item.rotQ > 0 ? (ROT_OPTIONS.find(r => r.v === item.rot)?.price || 0) * item.rotQ : 0);
+
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid #eee7dc', background: '#f5f9f3', overflowX: 'auto', flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 10.5, color: '#4a6741', whiteSpace: 'nowrap', fontWeight: 700 }}>
+        Mods · <span style={{ fontFamily: 'monospace' }}>{sku}</span>
+      </span>
+      {applied.map(m => {
+        const v = mods[m.code];
+        const chg = modCharge(m, v, item, basePrice);
+        return (
+          <span key={m.code} title={m.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, background: '#fff', border: '1px solid #9bb88f', borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+            <strong style={{ fontFamily: 'monospace' }}>{m.code.replace(/_/g, ' ')}</strong>
+            {m.input === 'qty' && (
+              <input type="number" min="1" max={m.max || 10} value={+v || 1}
+                onChange={e => setVal(m.code, Math.max(1, Math.min(m.max || 10, +e.target.value || 1)))}
+                style={{ width: 32, fontSize: 10.5, padding: '1px 3px', border: '1px solid #d8cdb8', borderRadius: 3 }} />
+            )}
+            {m.input === 'side' && (
+              <select value={v} onChange={e => setVal(m.code, e.target.value)}
+                style={{ fontSize: 10.5, padding: '1px 2px', border: '1px solid #d8cdb8', borderRadius: 3 }}>
+                <option value="L">L</option><option value="R">R</option><option value="B">both</option>
+              </select>
+            )}
+            {m.input === 'select' && m.options && (
+              <select value={v} onChange={e => {
+                const dims = m.fit?.includes('d') ? { depth: parseFloat(e.target.value) || item.depth } : null;
+                setVal(m.code, e.target.value, dims);
+              }} style={{ fontSize: 10.5, padding: '1px 2px', border: '1px solid #d8cdb8', borderRadius: 3 }}>
+                {m.options.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            )}
+            {m.input === 'dims' && (
+              <>
+                {m.fit?.includes('w') && dimInput(m.code, 'w', item.width, w => setVal(m.code, { ...v, w }, { width: w }))}
+                {m.fit?.includes('h') && dimInput(m.code, 'h', item.height, h => setVal(m.code, { ...v, h }, { height: h }))}
+                {m.fit?.includes('d') && dimInput(m.code, 'd', item.depth, d => setVal(m.code, { ...v, d }, { depth: d }))}
+              </>
+            )}
+            {m.input === 'width' && dimInput(m.code, 'w', item.width, w => setVal(m.code, w, { width: w }))}
+            <span style={{ color: '#888' }}>{m.pct ? `${m.pct > 0 ? '+' : ''}${m.pct}%` : chg ? `+$${Math.round(chg).toLocaleString()}` : 'N/C'}</span>
+            <button onClick={() => removeMod(m.code)}
+              style={{ background: 'transparent', border: 'none', color: C.danger, cursor: 'pointer', fontSize: 10.5, padding: 0 }}>✕</button>
+          </span>
+        );
+      })}
+      {addable.length > 0 && (
+        <select value="" onChange={e => { if (e.target.value) addMod(e.target.value); }}
+          style={{ fontSize: 10.5, padding: '2px 4px', border: '1px solid #c9d8bf', borderRadius: 4, background: '#fff', maxWidth: 270 }}>
+          <option value="">+ modification…</option>
+          {[...new Set(addable.map(m => m.group))].map(g => (
+            <optgroup key={g} label={g}>
+              {addable.filter(m => m.group === g).map(m => (
+                <option key={m.code} value={m.code}>
+                  {m.label}{m.pct ? ` (${m.pct > 0 ? '+' : ''}${m.pct}%)` : m.price ? ` (+$${m.price}${m.unit})` : ' (N/C)'}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      )}
+      {item.zone !== 'upper' && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, whiteSpace: 'nowrap' }}>
+          <span style={{ color: '#777' }}>ROT</span>
+          <select value={item.rot || ''} onChange={e => onUpdate({ rot: e.target.value || null, rotQ: e.target.value ? (item.rotQ || 1) : 0 })}
+            style={{ fontSize: 10.5, padding: '1px 2px', border: '1px solid #d8cdb8', borderRadius: 3, maxWidth: 150 }}>
+            <option value="">none</option>
+            {ROT_OPTIONS.map(r => <option key={r.v} value={r.v}>{r.l} (+${r.price})</option>)}
+          </select>
+          {item.rot && (
+            <input type="number" min="1" max="6" value={item.rotQ || 1}
+              onChange={e => onUpdate({ rotQ: Math.max(1, Math.min(6, +e.target.value || 1)) })}
+              style={{ width: 32, fontSize: 10.5, padding: '1px 3px', border: '1px solid #d8cdb8', borderRadius: 3 }} />
+          )}
+        </span>
+      )}
+      {totalChg > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#4a6741', marginLeft: 'auto', whiteSpace: 'nowrap' }}>mods +${Math.round(totalChg).toLocaleString()} list</span>}
+    </div>
+  );
 }
 
 // ── Catalog browser data ──
@@ -681,6 +818,11 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             )}
             <button onClick={() => setFillGap(null)} style={{ fontSize: 10.5, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, border: '1px solid #ccc', background: '#fff', color: '#888' }}>✕</button>
           </div>
+        )}
+        {/* per-cabinet modifications strip (selected cabinet, not appliances) */}
+        {selItem && selItem.sku && selItem.zone !== 'appliance' && !roomOnly && (
+          <ModStrip item={selItem} brand={brand}
+            onUpdate={(patch) => changeItems(items.map(i => i.id === selItem.id ? { ...i, ...patch } : i))} />
         )}
         <svg ref={svgRef} viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`} style={{ width: '100%', height: 'auto', maxHeight: 560, touchAction: 'none', cursor: armed ? 'crosshair' : 'default' }}
           onClick={onCanvasClick} onKeyDown={e => e.key === 'Escape' && setArmed(null)} tabIndex={0}
