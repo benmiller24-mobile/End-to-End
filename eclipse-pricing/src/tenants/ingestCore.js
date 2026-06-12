@@ -26,16 +26,23 @@ export function parseMatrix(pageText, p = {}, pageNo = 0) {
   const codeRe = new RegExp(p.codePattern || '\\b([A-Z]{1,8}\\d{1,2}(?: 1/2)?)--( ?-[A-Z0-9]{1,4})?', 'g');
   const codes = [...text.matchAll(codeRe)].map(m => ({ code: m[1], suffix: (m[2] || '').replace(/\s/g, '') }));
   if (codes.length < (p.minCodes ?? 2)) return [];
-  const headerLine = text.split('\n').find(l =>
-    new RegExp(`\\b${p.headerLabel || 'Width'}\\b`).test(l) && (l.match(/\d+(?: 1\/2)?"/g) || []).length >= 2);
+  // Header detection must survive both extractors: PDFKit keeps 'Width 24"…'
+  // intact, pdf.js letter-spaces the keyword ('w idth 12" 15"…') and may
+  // order the header line after the price rows.
+  const kw = new RegExp((p.headerLabel || 'Width').split('').join('\\s?'), 'i');
+  const lines = text.split('\n');
+  const quotedDims = (l) => (l.match(/\d+(?: 1\/2)?"/g) || []).length;
+  const headerLine = lines.find(l => kw.test(l) && quotedDims(l) >= 2)
+    || lines.find(l => quotedDims(l) >= 3);
   if (!headerLine) return [];
   const heights = (headerLine.match(/(\d+(?: 1\/2)?)"/g) || []).map(h => h.replace(/"$/, '').replace(' 1/2', '.5'));
   if (heights.length < 2) return [];
-  const afterHeader = text.slice(text.indexOf(headerLine));
-  const nums = [...afterHeader.matchAll(/(?<!["\d/])(\d{2,5})(?!["\d/])/g)]
+  const scanPrices = (chunk) => [...chunk.matchAll(/(?<!["\d/])(\d{2,5})(?!["\d/])/g)]
     .map(m => parseInt(m[1], 10))
     .filter(n => n >= (p.minPrice ?? 50) && n <= (p.maxPrice ?? 20000));
-  if (nums.length !== codes.length * heights.length) return [];   // shape mismatch → skip honestly
+  let nums = scanPrices(text.slice(text.indexOf(headerLine)));
+  if (nums.length !== codes.length * heights.length) nums = scanPrices(text);   // header below rows
+  if (nums.length !== codes.length * heights.length) return [];   // true shape mismatch → skip honestly
   const rows = [];
   codes.forEach(({ code, suffix }, ri) => heights.forEach((h, ci) => {
     const sku = (p.skuTemplate || '{code}{height}{suffix}')
