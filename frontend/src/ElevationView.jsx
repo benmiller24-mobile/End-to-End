@@ -1251,7 +1251,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
   const _upperTops = sortedUppers
     .filter(u => u._elev?.zone !== 'ABOVE_TALL' && (u._elev?.yMount ?? 54) <= 60)
     .map(u => (u._elev?.yMount ?? 54) + (u._elev?.height || u.height || UPPER_H_DEF));
-  const upperTopAFF = Math.min(ceilH, Math.max(54 + UPPER_H_DEF, ..._upperTops, ..._tallTops));
+  // The datum is the tallest REAL top present; the 54"+default floor applies
+  // only when nothing on the wall establishes a line (else the margin would
+  // print an AFF label no cabinet touches).
+  const _realTops = [..._upperTops, ..._tallTops];
+  const upperTopAFF = Math.min(ceilH, _realTops.length ? Math.max(..._realTops) : 54 + UPPER_H_DEF);
   const upperTopY = floorY - upperTopAFF * S;   // common top line (screen y)
   const upTopY = upperTopY;                       // alias used by crown fallback
 
