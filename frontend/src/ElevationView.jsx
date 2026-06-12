@@ -1547,11 +1547,16 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         // the toe space) — the door/drawer FRONT stops at the toe line, it
         // never runs to the floor. Appliances (no toe) keep the full height.
         const elev = cab._elev || {};
+        // Only TRUE full-height appliances stand on the floor (fridge,
+        // freestanding range, wine column). Cooktop bases are cabinets, and
+        // dishwashers / micro drawers sit behind the continuous toe line.
+        const _at = (cab.applianceType || '').toLowerCase();
+        const toFloor = isApp && /^(refrigerator|freezer|range$|wine)/.test(_at);
         let h, y;
         if (elev.yMount === 0 && elev.height) {
           const hFull = elev.height * S;
           y = floorY - hFull;
-          h = isApp && !isSinkBase ? hFull : Math.max(2, hFull - TOEKICK * S);
+          h = toFloor ? hFull : Math.max(2, hFull - TOEKICK * S);
         } else {
           h = BASE_BOX * S;
           y = tkTopY - h;
