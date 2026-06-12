@@ -1543,12 +1543,15 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const isFill = isFiller(cab);
         const isRepPanel = isREP(cab);
 
-        // Vertical position
+        // Vertical position. _elev.height is the CABINET height (34.5" incl.
+        // the toe space) — the door/drawer FRONT stops at the toe line, it
+        // never runs to the floor. Appliances (no toe) keep the full height.
         const elev = cab._elev || {};
         let h, y;
         if (elev.yMount === 0 && elev.height) {
-          h = elev.height * S;
-          y = floorY - h;
+          const hFull = elev.height * S;
+          y = floorY - hFull;
+          h = isApp && !isSinkBase ? hFull : Math.max(2, hFull - TOEKICK * S);
         } else {
           h = BASE_BOX * S;
           y = tkTopY - h;
