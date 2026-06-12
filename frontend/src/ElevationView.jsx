@@ -1999,7 +1999,19 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           const chaseW = w + 1.625 * S;                 // liner + 1-5/8" = nominal chase
           const cxL = x + w / 2;
           const xc = cxL - chaseW / 2;
-          const chaseTopY = ceilY;                      // chase runs to the crown line
+          // The chase runs to the crown line — UNLESS a cabinet sits above the
+          // hood (the CMK detail: deep box for the duct over the chase, front
+          // panel sent loose). Then the woodwork stops at that box's bottom so
+          // the top band runs continuously across the elevation.
+          const boxAboveY = validUppers
+            .filter(u => {
+              const m = u._elev?.yMount ?? 54;
+              return m >= bottomAFF - 0.5
+                && u.position < (hood.position + (hood.width || 36)) - 0.5
+                && u.position + u.width > hood.position + 0.5;
+            })
+            .map(u => floorY - (u._elev?.yMount ?? 54) * S);
+          const chaseTopY = boxAboveY.length ? Math.max(...boxAboveY) : ceilY;
           const taperL = Math.min(4 * S, chaseW * 0.12);
           const dWood = [
             `M ${xc} ${yBottom}`, `L ${xc + chaseW} ${yBottom}`,

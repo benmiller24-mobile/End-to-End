@@ -747,6 +747,55 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     changeItems(items.filter(i => i.wall !== gone));
   };
 
+  // ── "Top band" automation: one continuous tier of stacked boxes across the
+  // whole wall — over uppers, talls, the hood chase and the fridge — so the
+  // elevation reads as ONE aligned top line (the NKBA / CMK look) instead of
+  // a jagged skyline. Real SKUs only: W-series boxes, RW deep boxes over
+  // hood/fridge zones; spans the band can't fill stay as labeled gaps. ──
+  const addTopBand = () => {
+    const wallId = elevWall || selItem?.wall;
+    if (!wallId || wallId === ISLAND_WALL) return;
+    const wallItems = items.filter(i => i.wall === wallId && !isPanelItem(i));
+    if (!wallItems.length) return;
+    const wall = walls.find(w => w.id === wallId);
+    const ceilHW = wall?.ceilingHeight || 96;
+    // band sits on the highest existing top line (uppers + talls)
+    const tops = wallItems.filter(i => i.zone === 'upper' || i.zone === 'tall').map(i => yRangeOf(i)[1]);
+    const bandBot = Math.round((tops.length ? Math.max(...tops) : 84) * 4) / 4;
+    const bandH = [24, 21, 18, 15, 12].find(h => bandBot + h <= ceilHW);
+    if (!bandH) return;
+    // free spans in the band: footprints below, minus anything already mounted there
+    const occupied = wallItems.filter(i => i.zone === 'upper' && (i.yMount ?? 54) >= bandBot - 0.25);
+    const blocked = (s, e) => occupied.some(o => s < o.position + o.width - 0.25 && e > o.position + 0.25);
+    const foot = wallItems
+      .filter(i => i.zone !== 'upper' || (i.yMount ?? 54) < bandBot - 0.25)
+      .map(i => [i.position, i.position + i.width]).sort((a, b) => a[0] - b[0]);
+    const spans = [];
+    for (const [s, e] of foot) {
+      if (spans.length && s <= spans[spans.length - 1][1] + 0.51) spans[spans.length - 1][1] = Math.max(spans[spans.length - 1][1], e);
+      else spans.push([s, e]);
+    }
+    const deepBelow = (s, e) => wallItems.some(i =>
+      (i.applianceType === 'refrigerator' || i.applianceType === 'hood') &&
+      i.position < e - 0.25 && i.position + i.width > s + 0.25);
+    const added = [];
+    const WIDTHS = [48, 45, 42, 39, 36, 33, 30, 27, 24, 21, 18, 15, 12, 9];
+    for (let [s, e] of spans) {
+      let x = s;
+      while (e - x >= 9) {
+        const w = WIDTHS.find(wd => wd <= e - x + 0.01 && !blocked(x, x + wd) &&
+          priceLookup(`${deepBelow(x, x + wd) ? 'RW' : 'W'}${wd}${bandH}`, brand));
+        if (!w) { x += 0.5; continue; }
+        const rw = deepBelow(x, x + w);
+        added.push({ id: newIdLocal(), sku: `${rw ? 'RW' : 'W'}${w}${bandH}`, wall: wallId,
+          position: x, width: w, depth: rw ? 24 : 13, height: bandH, yMount: bandBot, zone: 'upper' });
+        x += w;
+      }
+    }
+    if (added.length) changeItems([...items, ...added]);
+  };
+  const newIdLocal = () => 'mi_tb_' + Math.random().toString(36).slice(2, 9);
+
   // ── render ──
   const itemFill = (it) => it.zone === 'upper' ? C.upper : it.zone === 'tall' ? C.tall : it.zone === 'appliance' ? C.appliance : C.base;
 
@@ -773,6 +822,11 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
           )}
           <button onClick={addWall} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>+ Wall</button>
           <button onClick={removeWall} style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>− Wall</button>
+          {!roomOnly && (elevWall || selItem) && (
+            <button onClick={addTopBand}
+              title="Run one continuous tier of stacked boxes across this wall — over uppers, talls, hood and fridge — so the elevation reads as a single aligned top line (real W/RW SKUs, priced)"
+              style={{ fontSize: 11, padding: '3px 9px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>⬒ Top band</button>
+          )}
           <button onClick={undo} title="Undo (Ctrl+Z)" style={{ fontSize: 12, padding: '2px 8px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>↶</button>
           <button onClick={redo} title="Redo (Ctrl+Shift+Z)" style={{ fontSize: 12, padding: '2px 8px', cursor: 'pointer', border: '1px solid #ddd', borderRadius: 4, background: '#fff' }}>↷</button>
           {onIslandChange && !roomOnly && (island && island.length

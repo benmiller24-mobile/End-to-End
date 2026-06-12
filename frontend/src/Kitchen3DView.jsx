@@ -424,7 +424,15 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
         const f = frameOf(u.wallId || u.id); if (!f) return;
         (u.cabinets || []).filter(c => /^RH|range_hood|rangeHood/i.test(c.sku || '') || appType(c) === 'hood').forEach(c => {
           const isPlaster = (trim && trim.hoodStyle === 'plaster');
-          placeOnWall(f, c.position, c.width || 36, isPlaster ? 22 : 18, 66, CEIL - 3, isPlaster ? plasterMat : steelMat);
+          // hood body stops where a cabinet above it begins (continuous top
+          // band over the hood — the duct box carries on from there)
+          const boxAbove = (u.cabinets || [])
+            .filter(o => o !== c && (o._elev?.yMount ?? 54) > 60
+              && o.position < c.position + (c.width || 36) - 0.5
+              && o.position + o.width > c.position + 0.5)
+            .map(o => o._elev?.yMount ?? 84);
+          const hoodTop = boxAbove.length ? Math.min(...boxAbove) : CEIL - 3;
+          placeOnWall(f, c.position, c.width || 36, isPlaster ? 22 : 18, 66, hoodTop, isPlaster ? plasterMat : steelMat);
         });
       });
 
