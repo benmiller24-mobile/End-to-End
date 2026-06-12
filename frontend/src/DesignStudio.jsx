@@ -120,6 +120,8 @@ const APPLIANCE_PALETTE = [
   { type: 'range', label: 'Range 48"', width: 48 }, { type: 'cooktop', label: 'Cooktop 36"', width: 36 },
   { type: 'dishwasher', label: 'Dishwasher 24"', width: 24 }, { type: 'refrigerator', label: 'Refrigerator 36"', width: 36 },
   { type: 'microwave', label: 'Micro Drawer 24"', width: 24 },
+  { type: 'hood', label: 'Hood Liner 34⅜" (36" chase)', width: 34.375, liner: true },
+  { type: 'hood', label: 'Pro Hood 36"', width: 36 }, { type: 'hood', label: 'Pro Hood 48"', width: 48 },
 ];
 
 export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', ghost = null, mode = 'full', layoutType = '', onApplyShape = null, island = null, onIslandChange = null }) {
@@ -369,7 +371,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     const frame = cSnap ? frAll[cSnap.idx] : hit.f;
     const wLen = frame.length;
     const proto = armed.applianceType
-      ? makeAppliance(armed.applianceType, frame.id, 0, armed.width)
+      ? makeAppliance(armed.applianceType, frame.id, 0, armed.width, { liner: armed.liner })
       : makeItem(armed.sku, frame.id, 0, brand);
     proto.position = cSnap ? wLen - proto.width : hit.along - proto.width / 2;
     let item = proto, hint = null, shiftPlan = null;
@@ -435,7 +437,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     if (!advance) return;
     const { anchor, wall: w } = advance;
     const proto = armed.applianceType
-      ? makeAppliance(armed.applianceType, anchor.wall, 0, armed.width)
+      ? makeAppliance(armed.applianceType, anchor.wall, 0, armed.width, { liner: armed.liner })
       : makeItem(armed.sku, anchor.wall, 0, brand);
     proto.position = side === 'right' ? anchor.position + anchor.width : anchor.position - proto.width;
     const settled = settleItem(items, w.length, proto);
@@ -1094,7 +1096,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
           <div style={{ padding: '6px 12px 2px', fontSize: 9.5, color: '#999', textTransform: 'uppercase', letterSpacing: 0.5 }}>Appliances (openings)</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '2px 12px 8px' }}>
             {APPLIANCE_PALETTE.map((a, i) => (
-              <button key={i} onClick={() => setArmed({ applianceType: a.type, width: a.width })}
+              <button key={i} onClick={() => setArmed({ applianceType: a.type, width: a.width, liner: a.liner })}
                 style={{ fontSize: 10.5, padding: '3px 8px', cursor: 'pointer', borderRadius: 4, background: armed?.applianceType === a.type && armed?.width === a.width ? '#c8a96e33' : '#fff', border: '1px solid #ddd' }}>
                 {a.label}
               </button>

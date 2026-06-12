@@ -36,7 +36,8 @@ const items = [
   it('B18L', 273, 'base', 18, 34.5, 24),
   // uppers — Aventos lifting-flap fronts in the CMK design, standard W proxies here
   it('W3324', 54, 'upper', 33, 24, 13, { yMount: 60 }),
-  // 87–123 left OPEN for the 34¾" Zephyr hood liner over the cooktop
+  // Zephyr AK9234BS Monsoon I liner (34⅜" for the 36" chase) centered over the cooktop
+  { id: `c${_n++}`, sku: null, wall: 'A', position: 87.81, zone: 'upper', width: 34.375, height: 12, depth: 19, yMount: 66, applianceType: 'hood', _liner: true },
   it('W3624', 123, 'upper', 36, 24, 13, { yMount: 60 }),
   it('W1824L', 159, 'upper', 18, 24, 13, { yMount: 60 }),
   it('RW3624-27', 177, 'upper', 36, 24, 27, { yMount: 84 }),  // above-fridge
@@ -132,7 +133,10 @@ zero validation errors, and every cabinet priced through the live quote resolver
 <li><b>Island cabinetry — FIXED.</b> The first run of this test found islands were dimensional slabs; the studio now
 places cabinets and appliances on the island's work face, and they flow to the floor plan, the island elevation sheet,
 3D, the priced quote and the order package. The island above carries the full CMK arrangement.</li>
-<li><b>No hood object in manual mode</b> — the 34¾" Zephyr liner zone over the cooktop is left as labeled open run.</li>
+<li><b>Hood object — FIXED.</b> The studio now places hood liners and pro canopies in the upper band (this sheet
+carries a Zephyr AK9234BS Monsoon I liner — 34⅜" for the 36" chase, 600 CFM, 66" AFF — centered over the cooktop),
+and 20 researched pro hoods (Zephyr/Best/Vent-A-Hood/Faber/Thermador/Wolf/KitchenAid/ZLINE/Bosch/Kobe) joined the
+appliance catalog with real widths and MSRPs.</li>
 <li><b>Specialty fronts are proxies</b> — CMK's Aventos lifting-flap uppers and pocket-door system map to standard
 W-series / U-tall pairs (Eclipse mods like lift-up hardware would be added as line mods at order time).</li>
 <li>Metric widths (550/300/1000mm…) round to the nearest Eclipse inch standard — chains stay honest via labeled fillers/gaps.</li>

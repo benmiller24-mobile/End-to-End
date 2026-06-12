@@ -1863,6 +1863,44 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         const taper = Math.min(6 * S, w * 0.18);
         const flueTopY = ceilY;                               // flue runs up to ceiling
         const flueW = Math.min(w * 0.4, 10 * S);
+        // ── CUSTOM WOOD HOOD CHASE with a liner insert (the dealer staple:
+        // a 34-3/8" Zephyr-class liner hides inside a nominal-36" wood hood
+        // matching the cabinetry; only wood shows, liner dashed inside). ──
+        if (hood._liner) {
+          const chaseW = w + 1.625 * S;                 // liner + 1-5/8" = nominal chase
+          const cxL = x + w / 2;
+          const xc = cxL - chaseW / 2;
+          const chaseTopY = ceilY;                      // chase runs to the crown line
+          const taperL = Math.min(4 * S, chaseW * 0.12);
+          const dWood = [
+            `M ${xc} ${yBottom}`, `L ${xc + chaseW} ${yBottom}`,
+            `L ${xc + chaseW - taperL} ${yBottom - 14 * S}`, `L ${xc + chaseW - taperL} ${chaseTopY}`,
+            `L ${xc + taperL} ${chaseTopY}`, `L ${xc + taperL} ${yBottom - 14 * S}`, `Z`,
+          ].join(' ');
+          return (
+            <g>
+              <path d={dWood} fill={frontFill} stroke={C.line} strokeWidth={0.7} strokeLinejoin="round" />
+              {/* face seams: apron band + vertical panel lines */}
+              <line x1={xc + 2 * S} y1={yBottom - 6 * S} x2={xc + chaseW - 2 * S} y2={yBottom - 6 * S}
+                stroke={C.thinLine} strokeWidth={0.35} opacity={0.6} />
+              <line x1={cxL} y1={yBottom - 14 * S} x2={cxL} y2={chaseTopY + 2}
+                stroke={C.thinLine} strokeWidth={0.3} opacity={0.4} />
+              {/* the liner, dashed inside the chase mouth */}
+              <rect x={x + 1 * S} y={yBottom - 2.2 * S} width={w - 2 * S} height={2.2 * S}
+                fill="none" stroke={C.dimLine} strokeWidth={0.4} strokeDasharray="2.5,1.5" />
+              <text x={cxL} y={yBottom - 8 * S} fill={C.dimText} fontSize={3.4}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontWeight="700">WOOD HOOD</text>
+              <text x={cxL} y={yBottom - 8 * S + 4.5} fill={C.annotColor} fontSize={2.6}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle">
+                {`${fmt(hood.width || 36)} LINER INSERT · 600 CFM CLASS`}
+              </text>
+              <text x={cxL} y={yBottom - 8 * S + 8} fill={C.annotColor} fontSize={2.4}
+                fontFamily="Helvetica,Arial,sans-serif" textAnchor="middle" fontStyle="italic">
+                {'8" rnd duct · makeup air req\u2019d >400 CFM'}
+              </text>
+            </g>
+          );
+        }
         // ── Sculptural plaster hood (warm-organic / Mediterranean) ──
         // A monolithic hand-troweled PLASTER mantel that FILLS the opening between
         // the flanking wall cabinets (they butt into its sides — NKBA Ch.6 / designer

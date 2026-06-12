@@ -70,8 +70,16 @@ export function makeItem(sku, wall, position, brand) {
   return { id: newId(), sku, wall, position: Math.max(0, position), width: info.w, depth: info.d, height: info.h, zone: info.zone };
 }
 
-export function makeAppliance(applianceType, wall, position, width) {
-  const dims = { range: 30, cooktop: 36, dishwasher: 24, refrigerator: 36, sink: 33, microwave: 24 }[applianceType] || 30;
+export function makeAppliance(applianceType, wall, position, width, opts = {}) {
+  const dims = { range: 30, cooktop: 36, dishwasher: 24, refrigerator: 36, sink: 33, microwave: 24, hood: 36 }[applianceType] || 30;
+  if (applianceType === 'hood') {
+    // Hoods live in the UPPER band: bottom at 66" AFF (pro mounting — 30"
+    // above a 36" counter). Liner inserts are 12" tall (hidden in a wood
+    // chase); stainless pro canopies are 18".
+    const h = opts.liner ? 12 : 18;
+    return { id: newId(), sku: null, wall, position: Math.max(0, position), width: width || dims,
+      depth: opts.liner ? 19 : 24, height: h, yMount: 66, zone: 'upper', applianceType, _liner: !!opts.liner };
+  }
   return { id: newId(), sku: null, wall, position: Math.max(0, position), width: width || dims, depth: 24, height: applianceType === 'refrigerator' ? 84 : 34.5, zone: 'appliance', applianceType };
 }
 
@@ -319,7 +327,9 @@ export function buildManualResult({ walls, items, island, roomType = 'kitchen', 
   const lt = layoutType || (walls.length >= 3 ? 'u-shape' : walls.length === 2 ? 'l-shape' : 'single-wall');
   const toCab = (it) => ({
     sku: it.sku, width: it.width, position: it.position,
-    type: it.zone === 'appliance' ? 'appliance' : it.zone === 'tall' ? 'tall' : 'base',
+    type: it.applianceType === 'hood' ? 'rangeHood'
+      : it.zone === 'appliance' ? 'appliance' : it.zone === 'tall' ? 'tall' : 'base',
+    ...(it.applianceType === 'hood' ? { role: 'range_hood', _hoodMountAFF: it.yMount ?? 66, _overhang: 0, _liner: !!it._liner } : {}),
     applianceType: it.applianceType,
     _manualId: it.id,
     _elev: it.zone === 'upper'

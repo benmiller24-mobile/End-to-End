@@ -9,11 +9,18 @@ export const APPLIANCE_BRANDS = [
   { id: 'subzero', name: 'Sub-Zero', tier: 'ultra', logo: '❄️', categories: ['refrigerator','freezer','wine'] },
   { id: 'wolf', name: 'Wolf', tier: 'ultra', logo: '🔥', categories: ['range','cooktop','wallOven','microwave','hood'] },
   { id: 'cove', name: 'Cove', tier: 'ultra', logo: '💎', categories: ['dishwasher'] },
-  { id: 'thermador', name: 'Thermador', tier: 'premium', logo: '⭐', categories: ['range','cooktop','wallOven','dishwasher','refrigerator','freezer'] },
+  { id: 'thermador', name: 'Thermador', tier: 'premium', logo: '⭐', categories: ['range','cooktop','wallOven','dishwasher','refrigerator','freezer','hood'] },
   { id: 'fisherPaykel', name: 'Fisher & Paykel', tier: 'premium', logo: '🌿', categories: ['range','cooktop','dishwasher','refrigerator'] },
   { id: 'miele', name: 'Miele', tier: 'premium', logo: '🏔️', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
-  { id: 'kitchenaid', name: 'KitchenAid', tier: 'mid-premium', logo: '🍳', categories: ['range','cooktop','wallOven','dishwasher','refrigerator'] },
+  { id: 'kitchenaid', name: 'KitchenAid', tier: 'mid-premium', logo: '🍳', categories: ['range','cooktop','wallOven','dishwasher','refrigerator','hood'] },
   { id: 'gaggenau', name: 'Gaggenau', tier: 'ultra', logo: '🖤', categories: ['cooktop','wallOven','steamOven','speedOven','warmingDrawer','refrigerator','freezer','wine','dishwasher','coffee','hood'] },
+  { id: 'zephyr', name: 'Zephyr', tier: 'premium', logo: '🌀', categories: ['hood'] },
+  { id: 'best', name: 'Best (Broan)', tier: 'mid-premium', logo: '💨', categories: ['hood'] },
+  { id: 'ventahood', name: 'Vent-A-Hood', tier: 'premium', logo: '🌪️', categories: ['hood'] },
+  { id: 'faber', name: 'Faber', tier: 'mid-premium', logo: '🇮🇹', categories: ['hood'] },
+  { id: 'zline', name: 'ZLINE', tier: 'mid', logo: '⚙️', categories: ['hood'] },
+  { id: 'bosch', name: 'Bosch', tier: 'mid-premium', logo: '🔵', categories: ['hood','dishwasher'] },
+  { id: 'kobe', name: 'Kobe', tier: 'mid', logo: '🔘', categories: ['hood'] },
 ];
 
 // ═══ APPLIANCE CATALOG ═══
@@ -62,6 +69,29 @@ export const APPLIANCES = [
   { id:'wolf-mdd30', brand:'wolf', type:'microwave', subtype:'drawer', model:'MDD30PM/S', width:30, height:18.75, depth:24, panelReady:false, ss:true, msrp:2100, features:['Drawer Microwave','1.6 cu ft'] },
   { id:'wolf-mdd24', brand:'wolf', type:'microwave', subtype:'drawer', model:'MDD24', width:24, height:18.75, depth:24, panelReady:false, ss:true, msrp:1800, features:['24" Drawer Microwave'] },
   // Wolf Hood
+  // ── PRO HOOD INSERTS / LINERS (for custom wood hoods & cabinet chases) ──
+  { id:'zep-ak9228', brand:'zephyr', type:'hood', subtype:'insert', model:'AK9228BS Monsoon I', width:28.375, height:12, depth:19.25, panelReady:false, ss:true, msrp:1150, features:['Liner for 30" chase','600 CFM','8" rnd duct','Baffle filters'] },
+  { id:'zep-ak9234', brand:'zephyr', type:'hood', subtype:'insert', model:'AK9234BS Monsoon I', width:34.375, height:12, depth:19.25, panelReady:false, ss:true, msrp:1299, features:['Liner for 36" chase','600 CFM','8" rnd duct','Baffle filters'] },
+  { id:'zep-ak9334', brand:'zephyr', type:'hood', subtype:'insert', model:'AK9334BS Monsoon II', width:34.375, height:12, depth:19.25, panelReady:false, ss:true, msrp:1699, features:['Liner for 36" chase','1200 CFM','8" rnd duct','Makeup air req’d (>400 CFM)'] },
+  { id:'zep-ak9340', brand:'zephyr', type:'hood', subtype:'insert', model:'AK9340BS Monsoon II', width:40.375, height:12, depth:19.25, panelReady:false, ss:true, msrp:1799, features:['Liner for 42" chase','1200 CFM','8" rnd duct','Makeup air req’d'] },
+  { id:'zep-ak9434', brand:'zephyr', type:'hood', subtype:'insert', model:'AK9434BS Monsoon Connect', width:34.375, height:12, depth:19.25, panelReady:false, ss:true, msrp:1499, features:['Liner for 36" chase','290–700 CFM','Wi-Fi (Zephyr Connect)'] },
+  { id:'best-cp57-34', brand:'best', type:'hood', subtype:'insert', model:'CP57 Potenza 34"', width:34, height:13, depth:21, panelReady:false, ss:true, msrp:1400, features:['Liner for 36" chase','280–1500 CFM (blower options)','Hi-Flow baffles','Blower separate on E versions'] },
+  { id:'vah-bh234', brand:'ventahood', type:'hood', subtype:'insert', model:'BH234SLD', width:34.375, height:10, depth:19.25, panelReady:false, ss:true, msrp:2200, features:['Liner for 36" chase','600 CFM Magic Lung','Filterless, very quiet'] },
+  { id:'faber-inpl35', brand:'faber', type:'hood', subtype:'insert', model:'Inca Pro Plus 35"', width:34.4375, height:13, depth:19, panelReady:false, ss:true, msrp:1049, features:['Liner for 36" chase','300–1200 CFM','Blower separate','Easy Snap install'] },
+  { id:'thm-vcin36', brand:'thermador', type:'hood', subtype:'insert', model:'VCIN36GWS', width:36, height:12, depth:21, panelReady:false, ss:true, msrp:1650, features:['Custom insert','up to 1300 CFM','Blower separate','Home Connect'] },
+  { id:'wolf-pl3419', brand:'wolf', type:'hood', subtype:'insert', model:'PL341912 Liner', width:34.375, height:12, depth:19, panelReady:false, ss:true, msrp:1595, features:['Liner for 36" chase','300–1200 CFM','Blower separate','Welded seams'] },
+  { id:'kobe-inx29-34', brand:'kobe', type:'hood', subtype:'insert', model:'INX2934SQBF-500-2', width:34.875, height:11.125, depth:19.5, panelReady:false, ss:true, msrp:839, features:['Liner for 36" chase','550 CFM','Baffle+mesh','Value pick'] },
+  // ── PRO CANOPY HOODS (under-cabinet / wall, stainless) ──
+  { id:'zep-ak7036', brand:'zephyr', type:'hood', subtype:'pro-wall', model:'AK7036CS Tempest I', width:36, height:18, depth:24, panelReady:false, ss:true, msrp:1249, features:['Pro canopy','650 CFM','DCBL motor'] },
+  { id:'thm-ph36hws', brand:'thermador', type:'hood', subtype:'pro-wall', model:'PH36HWS Professional', width:36, height:18, depth:24, panelReady:false, ss:true, msrp:2349, features:['Pro canopy','600–1300 CFM','Blower separate','10" rnd duct'] },
+  { id:'thm-ph48hws', brand:'thermador', type:'hood', subtype:'pro-wall', model:'PH48HWS Professional', width:48, height:18, depth:24, panelReady:false, ss:true, msrp:2599, features:['Pro canopy','600–1300 CFM','Blower separate'] },
+  { id:'wolf-pw302418', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW302418', width:30, height:18, depth:24, panelReady:false, ss:true, msrp:2425, features:['Pro Wall canopy','300–1200 CFM','Blower separate','Heat-sense auto'] },
+  { id:'wolf-pw362418', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW362418', width:36, height:18, depth:24, panelReady:false, ss:true, msrp:2460, features:['Pro Wall canopy','300–1200 CFM','Blower separate'] },
+  { id:'ka-kvwc906', brand:'kitchenaid', type:'hood', subtype:'pro-wall', model:'KVWC906KSS', width:36, height:18, depth:24, panelReady:false, ss:true, msrp:2029, features:['Commercial-style canopy','585/1170 CFM class','Blower separate','Rated for 105K BTU'] },
+  // ── WALL CHIMNEY (open-wall pro look) ──
+  { id:'zline-687-36', brand:'zline', type:'hood', subtype:'chimney', model:'687-36', width:36, height:12, depth:20, panelReady:false, ss:true, msrp:899, features:['Chimney hood','700 CFM','Telescoping duct cover','Entry pro look'] },
+  { id:'bosch-hcp86641', brand:'bosch', type:'hood', subtype:'chimney', model:'HCP86641UC 800 Series', width:36, height:10, depth:20, panelReady:false, ss:true, msrp:1699, features:['Pyramid chimney','600 CFM','4.6 sones low','Convertible 6" rnd'] },
+  { id:'thm-hmcb36', brand:'thermador', type:'hood', subtype:'chimney', model:'HMCB36WS Masterpiece', width:36, height:11, depth:20, panelReady:false, ss:true, msrp:1799, features:['Pyramid chimney','600 CFM','Home Connect'] },
   { id:'wolf-pw362210', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW362210', width:36, height:22, depth:10, panelReady:false, ss:true, msrp:2800, features:['Pro Wall Hood','600 CFM'] },
   { id:'wolf-pw482210', brand:'wolf', type:'hood', subtype:'pro-wall', model:'PW482210', width:48, height:22, depth:10, panelReady:false, ss:true, msrp:3200, features:['Pro Wall Hood','1200 CFM'] },
 
