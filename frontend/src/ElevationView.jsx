@@ -30,8 +30,8 @@ const DOOR_BY_CODE = Object.fromEntries(DOORS.map(d => [d.v, d]));
 
 // ─── SCALE & DIMENSIONS ──────────────────────────────────────────────
 const S = 2.2;                      // SVG px per inch
-const TOEKICK     = 4.5;            // toekick height
-const BASE_BOX    = 30;             // base cabinet box (34.5 - 4.5)
+const TOEKICK     = 4;              // Eclipse toekick height (4")
+const BASE_BOX    = 30.5;           // base cabinet box (34.5 - 4)
 const CTR_THICK   = 1.5;            // countertop slab
 const SPLASH_GAP  = 18;             // backsplash gap (counter-top to upper-bottom)
 const UPPER_H_DEF = 36;             // default upper cabinet height
@@ -41,7 +41,7 @@ const LR_H        = 1.75;           // light rail height (1 3/4")
 const SCRIBE_W    = 0.75;           // 3/4" scribe strip width
 const FILLER_MIN  = 3;              // minimum filler width to show hatching
 
-// Counter AFF: TOEKICK + BASE_BOX + CTR_THICK = 4.5 + 30 + 1.5 = 36"
+// Counter AFF: TOEKICK + BASE_BOX + CTR_THICK = 4 + 30.5 + 1.5 = 36"
 // Upper bottom AFF: 36 + 18 = 54"
 
 // ─── COLORS ──────────────────────────────────────────────────────────
@@ -1724,6 +1724,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 
         return (
           <g key={`t${i}`}>
+            {!isApp && !isRepPanel && (
+              /* Eclipse talls stand on a 4" toe — band drawn over the front */
+              <rect x={x} y={floorY - TOEKICK * S} width={w} height={TOEKICK * S}
+                fill={C.toekick} stroke={C.floor} strokeWidth={0.4} />
+            )}
             {isRepPanel ? (
               <REPPanel x={x} y={y} w={w} h={tH} frontFill={frontFill} />
             ) : isApp ? (
@@ -1781,6 +1786,11 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
                 </g>
               );
             })()}
+            {/* Eclipse talls stand on a 4" toe — drawn last so fronts can't cover it */}
+            {!isApp && !isRepPanel && (
+              <rect x={x} y={floorY - TOEKICK * S} width={w} height={TOEKICK * S}
+                fill={C.toekick} stroke={C.floor} strokeWidth={0.4} />
+            )}
             {/* Appliance label */}
             {isApp && (
               <text x={x + w / 2} y={y - 5} fill={C.dimText}
@@ -2571,7 +2581,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
 function SectionView({ ceilH = 96, upperH = 36, frontFill = C.fill, stoneFill = C.ctrFill }) {
   const Sx = 2.2;
   // Standard depths (inches, measured from the finished wall at depth 0, projecting out)
-  const BASE_D = 24, COUNTER_D = 25.5, UPPER_D = 13, TOE_RECESS = 3, TOE_H = 4.5;
+  const BASE_D = 24, COUNTER_D = 25.5, UPPER_D = 13, TOE_RECESS = 3, TOE_H = 4;
   const BASE_TOP = 34.5, CTR_TOP = 36, UP_BOT = 54, CTR_THK = 1.5, CROWN = 3.5, SPLASH = 4;
   const upTop = Math.min(UP_BOT + upperH, ceilH - 1);
   const maxD = COUNTER_D;
@@ -2648,7 +2658,7 @@ function SectionView({ ceilH = 96, upperH = 36, frontFill = C.fill, stoneFill = 
   els.push(note(X(COUNTER_D) + 6, Y(CTR_TOP) + 2, '1½" STONE C-TOP, 1½" O.H.', 'cto'));
   els.push(note(X(UPPER_D) + 6, Y((UP_BOT + upTop) / 2), 'WALL CAB — 13" DEEP', 'wc'));
   els.push(note(X(BASE_D) + 6, Y(20), 'BASE CAB — 24" DEEP', 'bc'));
-  els.push(note(X(BASE_D - TOE_RECESS) + 6, Y(2.2), '4½"×3" TOE', 'toen'));
+  els.push(note(X(BASE_D - TOE_RECESS) + 6, Y(2.2), '4"×3" TOE', 'toen'));
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} data-pdf="section" width={W} height={H}

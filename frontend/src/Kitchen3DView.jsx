@@ -11,7 +11,7 @@ import { wallFrames } from './wallGeometry.js';
 //    per-wall world frames so placement matches the 2D views exactly.
 
 const WALL_T = 6, BASE_D = 24.875, UPPER_D = 13.875, AISLE = 42;
-const TOE = 4.5, BASE_TOP = 34.5, CTR = 1.5, COUNTER_AFF = 36;
+const TOE = 4, BASE_TOP = 34.5, CTR = 1.5, COUNTER_AFF = 36;
 const UPPER_BOT = 54;
 
 // Finish/species → approximate wood color
