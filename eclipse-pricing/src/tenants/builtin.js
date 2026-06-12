@@ -38,6 +38,19 @@ registerTenant({
   defaultConstruction: 'eclipse_frameless',
   validation: { styleCompat: true },
   pricing: { fallbackTenant: null },
+  coverSheet: {
+    // ECL-SO-CS — option lists verified against the Eclipse v8.8.1 catalog
+    // (edge profiles p239/B26; boxes & guides section C3). Keys with null
+    // options use the app's dynamic datasets (glazes, highlights, character,
+    // interiors, door styles) which ARE the Eclipse v8.8 lists.
+    fields: ['glaze', 'highlight', 'charTechniques', 'interiorFinish', 'upperDoor', 'edgeProfile', 'drawerBox', 'drawerGuide', 'tipOn'],
+    options: {
+      edgeProfile: ['Match door style', '100 Edge', '150 Edge', '350 Edge', '400 Edge', '750 Edge'],
+      edgeNote: 'Not available on Glenbrook, Savannah, Asherville, Essex, Shelby, Manchester, Landes, Metro, Bradford, Kendal, Portland, or Dalton doors; 100/350/400 also exclude Napa & Malibu.',
+      drawerBox: ['5/8" Hdwd Dovetail', '5/8" Simulated Metal', '3/4" Premium Dovetail (+$57/drw)', 'Legrabox Stainless (+$372/drw)'],
+      drawerGuide: ['Blum Tandem Edge w/ Blumotion', 'Blum Tandem Full Extension w/ Blumotion (+$72/drw)'],
+    },
+  },
 });
 
 registerTenant({
@@ -78,5 +91,27 @@ registerTenant({
   defaultConstruction: 'shiloh_overlay_half',
   validation: { styleCompat: false },            // style matrix is Eclipse v8.8 data
   pricing: { fallbackTenant: 'eclipse' },
-  coverFields: { field10Label: '10. Hinge / Cabinet Style', field10Key: 'constructionNote' },
+  coverFields: { field10Label: '10. Hinge / Cabinet Style', field10Key: 'hingeStyle' },
+  coverSheet: {
+    // SHI-SO-CS — option lists read directly from the interactive order
+    // form's own widgets (standard-order-form-shiloh.pdf rev 11/25).
+    fields: ['glaze', 'highlight', 'charTechniques', 'interiorFinish', 'upperDoor', 'edgeProfile', 'hingeStyle', 'drawerBox', 'drawerGuide', 'metroGfdTrim', 'jobType'],
+    options: {
+      glaze: ['No Glazes', 'Black Glaze', 'Mocha Glaze', 'Van Dyke Glaze', 'Nickel Glaze'],
+      highlight: ['No Highlight', 'Café Highlight', 'Slate Highlight', 'Graphite Highlight'],
+      charTechniques: ['No Character Technique', 'Aged (includes Wearing)', 'Wearing', 'Sand-Through (requires Wearing)'],
+      edgeProfile: ['100', '150', '200 (CN ½" overlay only)', '350', '400', '500 (⅜" inset only)', '700 (flush & beaded inset only)', '750'],
+      hingeStyle: [
+        'CN — Concealed ½" Overlay (soft-close)', 'EN — Concealed 1¼" Overlay (soft-close)',
+        'Flush Inset (soft-close)', 'Beaded Inset (soft-close)', 'Square Bead Inset (soft-close)',
+        'Modern Flush Inset (soft-close)', 'Modern Beaded Inset (soft-close)', 'Modern Square Bead Inset (soft-close)',
+        'AKN — Antique Knife ½" Overlay', 'ASD — Antique Single Demountable ½" OL',
+        'BKN — ⅜" Inset Oil Rubbed Bronze', 'NKN — ⅜" Inset Bright Nickel', 'WKN — ⅜" Inset White',
+      ],
+      drawerBox: ['⅝" Hardwood Dovetail', '¾" Hardwood Dovetail (+$57/drw)'],
+      drawerGuide: ['Blum Tandem Edge (soft-close)', 'Blum Tandem Full Extension (soft-close) (+$72/drw)'],
+      metroGfdTrim: ['N/A', 'Natural Aluminum', 'Black Aluminum', 'Matte Brass'],
+      jobType: ['New', 'Remodel'],
+    },
+  },
 });

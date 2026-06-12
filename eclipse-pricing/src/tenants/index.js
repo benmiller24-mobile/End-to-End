@@ -13,5 +13,5 @@ for (const pkg of TENANT_PACKAGES) registerTenantPackage(pkg);
 export {
   registerTenant, registerTenantPackage, buildTenantFromPackage,
   getTenant, listTenants, hasTenant,
-  setActiveTenant, getActiveTenant, activeTenantId,
+  setActiveTenant, getActiveTenant, activeTenantId, removeTenant,
 } from './registry.js';

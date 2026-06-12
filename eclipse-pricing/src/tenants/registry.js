@@ -45,6 +45,7 @@ export function registerTenant(t) {
     validation: { styleCompat: false },
     pricing: { fallbackTenant: null },
     coverFields: { field10Label: '10. Drawer Box Type', field10Key: 'drawerBox' },
+    coverSheet: { fields: ['glaze', 'highlight', 'charTechniques', 'interiorFinish', 'upperDoor', 'edgeProfile', 'drawerBox', 'drawerGuide'], options: {} },
     ...t,
     branding: {
       displayName: 'Kitchen Designer', manufacturerName: t.id, lineLabel: t.id,
@@ -101,3 +102,10 @@ export function buildTenantFromPackage(pkg) {
 }
 
 export function registerTenantPackage(pkg) { registerTenant(buildTenantFromPackage(pkg)); }
+
+/** Remove a tenant (used by the in-app product-line manager for locally
+ *  added lines). Falls back to the first remaining tenant if it was active. */
+export function removeTenant(id) {
+  _tenants.delete(id);
+  if (_activeId === id) _activeId = _tenants.keys().next().value || 'eclipse';
+}

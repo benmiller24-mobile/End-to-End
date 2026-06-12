@@ -50,6 +50,12 @@ import {
 // ── Output view imports ──
 import { CONSTRUCTIONS, getConstruction } from './constructionProfiles.js';
 import { getTenant, listTenants } from '../../eclipse-pricing/src/tenants/index.js';
+import ProductLinesManager from './ProductLinesManager.jsx';
+import { loadLocalTenantPackages } from './tenantLocal.js';
+
+// Register product lines added on this device (in-app PDF onboarding) before
+// the first render reads the tenant registry.
+loadLocalTenantPackages();
 import { listProjects, loadProject, saveProject, deleteProject, newProjectId, addRevision, getRevisions } from './lib/projectStore.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
@@ -2061,6 +2067,8 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             edgeProfile: orderSpec.edgeProfile, drawerBox: orderSpec.drawerBox,
             drawerFrontStyle: 'DF-' + materials.door, drawerGuide: orderSpec.drawerGuide,
             tipOn: orderSpec.tipOn, materialType: materials.construction,
+            hingeStyle: orderSpec.hingeStyle || getConstruction(materials.frameStyle).label,
+            metroGfdTrim: orderSpec.metroGfdTrim, jobType: orderSpec.jobType,
             interiorFinish: (INTERIORS.find(g => g.v === orderSpec.interiorFinish) || {}).l,
             constructionNote: construction.note || construction.label,
             charTechniques: orderSpec.charTechniques !== 'NONE' ? (CHAR_TECHNIQUES.find(g => g.v === orderSpec.charTechniques) || {}).l : 'None',
@@ -2234,8 +2242,9 @@ export default function App() {
   const ORDER_SPEC_DEFAULTS = {
     businessName: '', customerNumber: '', contactPhone: '', contactEmail: '',
     glaze: 'NONE', highlight: 'NONE', charTechniques: 'NONE', interiorFinish: 'STD-MAPL',
-    edgeProfile: 'MATCH', tipOn: false, upperDoor: '', drawerBox: '5/8" Hdwd Dovetail',
-    drawerGuide: 'Blum FEG Full Extension (soft-close)', specialInstructions: '',
+    edgeProfile: 'Match door style', tipOn: false, upperDoor: '', drawerBox: '5/8" Hdwd Dovetail',
+    drawerGuide: 'Blum Tandem Edge w/ Blumotion', specialInstructions: '',
+    hingeStyle: '', metroGfdTrim: 'N/A', jobType: 'New',
   };
   const [orderSpec, setOrderSpec] = useState(() => {
     try { return { ...ORDER_SPEC_DEFAULTS, ...(JSON.parse(localStorage.getItem('ekd.orderSpec')) || {}) }; }
@@ -2815,6 +2824,8 @@ export default function App() {
                         : 'Frameless (full overlay) — European, no face frame, maximized openings.'}
                       {getTenant(materials.brand).branding.catalogNote && <span style={{ color: C.accent }}>{'  · ' + getTenant(materials.brand).branding.catalogNote}</span>}
                     </div>
+                    <ProductLinesManager activeBrand={materials.brand || 'eclipse'}
+                      onBrandChange={(id) => setMaterials(m => ({ ...m, brand: id, frameStyle: getTenant(id).defaultConstruction }))} />
                   </div>
 
                   <div style={{ marginBottom: 10 }}>
@@ -2934,43 +2945,66 @@ export default function App() {
                 <div style={panelStyle}>
                   <div style={sectionTitle}>Order Spec — Cover Sheet Fields</div>
                   <p style={{ fontSize: 11, color: C.dim, margin: '0 0 10px' }}>
-                    These complete the W.W. Wood standard order cover sheet ({getTenant(materials.brand).branding.formCodePrefix}-SO-CS). Defaults match the most common spec.
+                    These complete the W.W. Wood standard order cover sheet ({getTenant(materials.brand).branding.formCodePrefix}-SO-CS).
+                    Options below are the {getTenant(materials.brand).branding.lineLabel} line's own lists, read from its catalog and order form.
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                    <div><label style={labelStyle}>Glaze</label>
-                      <select value={orderSpec.glaze} onChange={e => setOrderSpec(o => ({ ...o, glaze: e.target.value }))} style={inputStyle}>
-                        {GLAZES.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
-                      </select></div>
-                    <div><label style={labelStyle}>Highlight</label>
-                      <select value={orderSpec.highlight} onChange={e => setOrderSpec(o => ({ ...o, highlight: e.target.value }))} style={inputStyle}>
-                        {HIGHLIGHTS.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
-                      </select></div>
-                    <div><label style={labelStyle}>Character Technique</label>
-                      <select value={orderSpec.charTechniques} onChange={e => setOrderSpec(o => ({ ...o, charTechniques: e.target.value }))} style={inputStyle}>
-                        {CHAR_TECHNIQUES.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
-                      </select></div>
-                    <div><label style={labelStyle}>Interior Finish</label>
-                      <select value={orderSpec.interiorFinish} onChange={e => setOrderSpec(o => ({ ...o, interiorFinish: e.target.value }))} style={inputStyle}>
-                        {INTERIORS.map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
-                      </select></div>
-                    <div><label style={labelStyle}>Upper Door (if different)</label>
-                      <select value={orderSpec.upperDoor} onChange={e => setOrderSpec(o => ({ ...o, upperDoor: e.target.value }))} style={inputStyle}>
-                        <option value="">Same as lower ({materials.door})</option>
-                        {doorOptions.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                      </select></div>
-                    <div><label style={labelStyle}>Edge Profile / Banding</label>
-                      <input value={orderSpec.edgeProfile} onChange={e => setOrderSpec(o => ({ ...o, edgeProfile: e.target.value }))} style={inputStyle} /></div>
-                    <div><label style={labelStyle}>Drawer Box</label>
-                      <input value={orderSpec.drawerBox} onChange={e => setOrderSpec(o => ({ ...o, drawerBox: e.target.value }))} style={inputStyle} /></div>
-                    <div><label style={labelStyle}>Drawer Guide</label>
-                      <input value={orderSpec.drawerGuide} onChange={e => setOrderSpec(o => ({ ...o, drawerGuide: e.target.value }))} style={inputStyle} /></div>
-                    <div style={{ display: 'flex', alignItems: 'end', paddingBottom: 8 }}>
-                      <label style={{ fontSize: 12, color: C.text, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={!!orderSpec.tipOn} onChange={e => setOrderSpec(o => ({ ...o, tipOn: e.target.checked }))} />
-                        Tip-On (all doors &amp; drawers)
-                      </label>
-                    </div>
-                  </div>
+                  {(() => {
+                    // ── Per-tenant cover-sheet dropdowns ──
+                    // Field order + option lists come from tenant.coverSheet
+                    // (Eclipse: v8.8.1 catalog; Shiloh: SHI-SO-CS form widgets;
+                    // data-package tenants get the generic set, free-text where
+                    // their package supplies no list).
+                    const cs = getTenant(materials.brand).coverSheet || { fields: [], options: {} };
+                    const dataset = { glaze: GLAZES, highlight: HIGHLIGHTS, charTechniques: CHAR_TECHNIQUES, interiorFinish: INTERIORS };
+                    const LABELS = {
+                      glaze: 'Glaze', highlight: 'Highlight', charTechniques: 'Character Technique',
+                      interiorFinish: 'Interior Finish', upperDoor: 'Upper Door (if different)',
+                      edgeProfile: 'Edge Profile / Banding', hingeStyle: 'Hinge / Cabinet Style',
+                      drawerBox: 'Drawer Box', drawerGuide: 'Drawer Guide',
+                      metroGfdTrim: 'METRO GFD Trim Color', jobType: 'Construction Type (Job)',
+                    };
+                    const field = (key) => {
+                      if (key === 'tipOn') return (
+                        <div key={key} style={{ display: 'flex', alignItems: 'end', paddingBottom: 8 }}>
+                          <label style={{ fontSize: 12, color: C.text, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={!!orderSpec.tipOn} onChange={e => setOrderSpec(o => ({ ...o, tipOn: e.target.checked }))} />
+                            Tip-On (all doors &amp; drawers)
+                          </label>
+                        </div>
+                      );
+                      if (key === 'upperDoor') return (
+                        <div key={key}><label style={labelStyle}>{LABELS[key]}</label>
+                          <select value={orderSpec.upperDoor} onChange={e => setOrderSpec(o => ({ ...o, upperDoor: e.target.value }))} style={inputStyle}>
+                            <option value="">Same as lower ({materials.door})</option>
+                            {doorOptions.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                          </select></div>
+                      );
+                      // tenant-supplied list → labeled dropdown; app dataset → value/label dropdown; neither → free text
+                      const tenantOpts = (cs.options || {})[key];
+                      if (tenantOpts && tenantOpts.length) return (
+                        <div key={key}><label style={labelStyle}>{LABELS[key] || key}</label>
+                          <select value={orderSpec[key] ?? ''} onChange={e => setOrderSpec(o => ({ ...o, [key]: e.target.value }))} style={inputStyle}>
+                            {!tenantOpts.includes(orderSpec[key]) && <option value={orderSpec[key] ?? ''}>{orderSpec[key] || '— select —'}</option>}
+                            {tenantOpts.map(v => <option key={v} value={v}>{v}</option>)}
+                          </select></div>
+                      );
+                      if (dataset[key]) return (
+                        <div key={key}><label style={labelStyle}>{LABELS[key]}</label>
+                          <select value={orderSpec[key]} onChange={e => setOrderSpec(o => ({ ...o, [key]: e.target.value }))} style={inputStyle}>
+                            {dataset[key].map(g => <option key={g.v} value={g.v}>{g.l}</option>)}
+                          </select></div>
+                      );
+                      return (
+                        <div key={key}><label style={labelStyle}>{LABELS[key] || key}</label>
+                          <input value={orderSpec[key] ?? ''} onChange={e => setOrderSpec(o => ({ ...o, [key]: e.target.value }))} style={inputStyle} /></div>
+                      );
+                    };
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        {(cs.fields || []).map(field)}
+                      </div>
+                    );
+                  })()}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
                     <div><label style={labelStyle}>Dealership (Business Name)</label>
                       <input value={orderSpec.businessName} placeholder="Your dealership" onChange={e => setOrderSpec(o => ({ ...o, businessName: e.target.value }))} style={inputStyle} /></div>
