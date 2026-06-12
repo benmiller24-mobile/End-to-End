@@ -3,7 +3,7 @@ import { OFFICIAL_V88 } from '../../eclipse-pricing/src/officialV88.js';
 import { SHILOH_CATALOG } from '../../eclipse-pricing/src/shilohSkuCatalog.js';
 import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
-import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isCornerSku, contextSnap, insertWithShift, skuInfo, priceLookup, manualChecks, ISLAND_WALL, islandPseudoWall } from './manualDesign.js';
+import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isPanelItem, isCornerSku, contextSnap, insertWithShift, skuInfo, priceLookup, manualChecks, ISLAND_WALL, islandPseudoWall } from './manualDesign.js';
 import { getApplicableMods, modCharge, MODS_BY_CODE, ROT_OPTIONS } from '../../eclipse-pricing/src/modData.js';
 
 /**
@@ -512,12 +512,32 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
       : makeItem(armed.sku, frame.id, 0, brand);
     proto.position = cSnap ? wLen - proto.width : hit.along - proto.width / 2;
     let item = proto, hint = null, shiftPlan = null;
+    // AUTO-STACK: dropping a wall cabinet onto an existing one mounts it on
+    // top of that tier (the CMK "two boxes stacked + Aventos hardware"
+    // pattern) instead of bouncing sideways — if it fits under the ceiling.
+    if (!cSnap && proto.zone === 'upper' && !proto.applianceType) {
+      const under = items.filter(i =>
+        i.wall === proto.wall && i.zone === 'upper' && !isPanelItem(i) &&
+        proto.position < i.position + i.width - 0.01 &&
+        proto.position + proto.width > i.position + 0.01 &&
+        (() => { const [a0, a1] = yRangeOf(proto), [b0, b1] = yRangeOf(i); return a0 < b1 - 0.01 && a1 > b0 + 0.01; })());
+      if (under.length) {
+        const topOfStack = Math.max(...under.map(i => yRangeOf(i)[1]));
+        const ceilHW = (wallsAll.find(x => x.id === proto.wall)?.ceilingHeight) || 96;
+        if (topOfStack + (proto.height || 30) <= ceilHW + 0.01) {
+          proto.yMount = topOfStack;
+          hint = `stacked on ${under[0].sku || 'upper'} @ ${topOfStack}" AFF`;
+        }
+      }
+    }
     if (cSnap) {
       item = { ...proto, _corner: true };
-    } else {
+    } else if (!hint) {
       const snapped = contextSnap(wallsAll, items, proto);
       if (snapped.hint) { item = snapped.item; hint = snapped.hint; }
       else item = settleItem(items, wLen, proto);
+    } else {
+      item = settleItem(items, wLen, proto);
     }
     let issues = placementIssues(wallsAll, items, item);
     if (!cSnap && issues.some(s => /overlaps/.test(s))) {

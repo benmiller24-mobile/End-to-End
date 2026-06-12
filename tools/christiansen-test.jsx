@@ -36,8 +36,11 @@ const items = [
   it('B30', 243, 'base', 30, 34.5, 24, { rot: 'DROT5/8', rotQ: 2 }),  // two hardwood roll-outs
   it('B18L', 273, 'base', 18, 34.5, 24, { mods: { ESFR: true } }),  // finished side to floor at run end
   // uppers — Aventos lifting-flap fronts in the CMK design, standard W proxies here
-  it('W3330', 54, 'upper', 33, 30, 13, { yMount: 54, mods: { AVENTOS_HK: 1 } }),  // CMK folding-lifting flap (768mm tall)
-  it('W3630', 123, 'upper', 36, 30, 13, { yMount: 54, mods: { AVENTOS_HK: 1 } }),  // CMK folding-lifting flap (768mm tall)
+  // CMK folding-lifting positions: TWO stacked boxes each, Aventos hardware per tier
+  it('W3330', 54, 'upper', 33, 30, 13, { yMount: 54, mods: { AVENTOS_HK: 1 } }),   // lifting cabinet (768mm)
+  it('W3324', 54, 'upper', 33, 24, 13, { yMount: 84, mods: { AVENTOS_HK: 1 } }),   // stacked flap box (612mm)
+  it('W3630', 123, 'upper', 36, 30, 13, { yMount: 54, mods: { AVENTOS_HK: 1 } }),  // lifting cabinet (768mm)
+  it('W3624', 123, 'upper', 36, 24, 13, { yMount: 84, mods: { AVENTOS_HK: 1 } }),  // stacked flap box (612mm)
   // Zephyr AK9234BS Monsoon I liner (34⅜" for the 36" chase) centered over the cooktop
   { id: `c${_n++}`, sku: null, wall: 'A', position: 87.81, zone: 'upper', width: 34.375, height: 12, depth: 19, yMount: 66, applianceType: 'hood', _liner: true },
   it('W1824L', 159, 'upper', 18, 24, 13, { yMount: 60 }),

@@ -1285,7 +1285,13 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
       }
       const cs = cab.position;
       const ce = cab.position + (cab.width || 0);
-      const topY = upperTopY;   // all run uppers share the common top datum
+      // TRUE top: crown / OPEN-ABOVE notes must sit above the tallest tier in
+      // the segment (a stacked second tier tops out higher than the datum)
+      const e = cab._elev || {};
+      const topAFF = (e.height || cab.height)
+        ? Math.min(ceilH, (e.yMount ?? 54) + (e.height || cab.height))
+        : upperTopAFF;
+      const topY = floorY - topAFF * S;
       if (segS === null) { segS = cs; segE = ce; segTopY = topY; }
       else if (cs <= segE + 0.5) { segE = Math.max(segE, ce); segTopY = Math.min(segTopY, topY); }
       else { segs.push({ s: segS, e: segE, topY: segTopY }); segS = cs; segE = ce; segTopY = topY; }
@@ -2284,7 +2290,15 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
           const cx = (item.position || 0) * S + (item.width || 0) * S / 2;
           let cy, row;
           if (item._zone === 'tall') { cy = floorY - (item._elev?.height || item.height || TALL_H_DEF) * S - 14; row = 'tall'; }
-          else if (item._zone === 'upper') { cy = upperTopY - 14; row = 'upper'; }
+          else if (item._zone === 'upper') {
+            // tag rides each cabinet's OWN top — stacked tiers separate
+            // vertically instead of colliding on the common datum
+            const e = item._elev || {};
+            const topAFF = (e.height || item.height)
+              ? Math.min(ceilH, (e.yMount ?? 54) + (e.height || item.height))
+              : upperTopAFF;
+            cy = floorY - topAFF * S - 14; row = `upper@${Math.round(topAFF)}`;
+          }
           else { cy = floorY + 46; row = 'base'; }
           return { i, num: item._tag, cx0: cx, cx, cy, row };
         });
@@ -2416,7 +2430,15 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
         {sortedUppers.length > 0 && (() => {
           const els = [];
           const dimY = ceilY - 14;
-          sortedUppers.forEach((cab, i) => {
+          // stacked tiers share an x-range — one width segment per footprint,
+          // not one per cabinet (else the chain prints the width twice)
+          const seenSeg = new Set();
+          const chainUppers = sortedUppers.filter(cab => {
+            const k = `${Math.round(cab.position * 2)}|${Math.round((cab.position + cab.width) * 2)}`;
+            if (seenSeg.has(k)) return false;
+            seenSeg.add(k); return true;
+          });
+          chainUppers.forEach((cab, i) => {
             const lx = cab.position * S;
             const rx = (cab.position + cab.width) * S;
             const uTop = upperTopY;
@@ -2437,7 +2459,7 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               <line key={`ud${i}`} x1={lx} y1={dimY} x2={rx} y2={dimY}
                 stroke={C.dimLine} strokeWidth={0.35} />
             );
-            if (i === sortedUppers.length - 1) {
+            if (i === chainUppers.length - 1) {
               els.push(
                 <line key={`utR${i}`} x1={rx - 1} y1={dimY + 1} x2={rx + 1} y2={dimY - 1}
                   stroke={C.dimLine} strokeWidth={0.4} />
@@ -2504,6 +2526,29 @@ function WallElev({ wallId, wallLen, ceilH = 96, bases, uppers, talls, hood, ope
               fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif" fontWeight="600">{fmt(upperTopAFF)} AFF</text>
           </>
         )}
+
+        {/* Stacked-tier mount + top callouts: every distinct upper line the
+            installer needs (a 2nd tier mounting at 84" and topping at 108"
+            must be dimensioned, not implied) */}
+        {(() => {
+          const lines = new Set();
+          for (const u of validUppers) {
+            const e = u._elev || {};
+            const m = e.yMount ?? 54;
+            const h = e.height || u.height;
+            if (m > 60) lines.add(Math.round(m * 4) / 4);
+            if (h) { const t = Math.min(ceilH, m + h); if (Math.abs(t - upperTopAFF) > 0.6) lines.add(Math.round(t * 4) / 4); }
+          }
+          lines.delete(Math.round(upperTopAFF * 4) / 4);
+          return [...lines].map(aff => (
+            <g key={`stk${aff}`}>
+              <line x1={wW + 10} y1={floorY - aff * S} x2={wW + 38} y2={floorY - aff * S}
+                stroke={C.dimLine} strokeWidth={0.3} strokeDasharray="2,1.5" />
+              <text x={wW + 40} y={floorY - aff * S + 1.5} fill={C.dimText}
+                fontSize={3.8} fontFamily="Helvetica,Arial,sans-serif" fontWeight="600">{fmt(aff)} AFF</text>
+            </g>
+          ));
+        })()}
 
         {/* Backsplash gap dim */}
         {validUppers.length > 0 && (

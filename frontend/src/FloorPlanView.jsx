@@ -616,7 +616,10 @@ function WallSegment({ wx, wy, angle, length, baseCabs, upperCabs, openings, wal
       )}
 
       {/* ── UPPER CABINETS ── overhead, long-dash ── */}
-      {uppers.map((cab, i) => {
+      {/* stacked tiers share a footprint — draw the dashed box once */}
+      {uppers.filter((cab, i, arr) => arr.findIndex(o =>
+        Math.abs(o.position - cab.position) < 0.25 && Math.abs(o.width - cab.width) < 0.25) === i
+      ).map((cab, i) => {
         const x = cab.position;
         const w = cab.width;
         const uy = WALL_T / 2;   // NKBA: uppers dash OVER the base run, inside the wall
