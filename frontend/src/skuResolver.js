@@ -68,6 +68,51 @@ function resolveSku(sku, _depth = 0) {
   // BEP3/4L-FTK → BEP3/4-FTK-L/R
   if (/^BEP3\/4[LR]-FTK/.test(sku)) { r = _baseFind('BEP3/4-FTK-L/R'); if (r) return r; }
   if (/^BEP3\/4[LR]$/.test(sku)) { r = _baseFind('BEP3/4-L/R'); if (r) return r; }
+  // FREP fridge end panels (order style 'FREP3/4 93FTK24L'):
+  // thickness + height + FTK? + depth + hand → FREP3/4-FTK-24-L/R-93"
+  if (/^FREP/.test(sku)) {
+    const m = sku.match(/^FREP([\d/. ]+?)[\s-]+(\d{2,3})\s*(FTK)?\s*(\d{2})?\s*[LR]?T?$/i);
+    if (m) {
+      const t = m[1].trim().replace('.5', ' 1/2'), h = m[2], d = m[4] || '24';
+      r = _baseFind(`FREP${t}-FTK-${d}-L/R-${h}"`) || _baseFind(`FREP${t}-${d}-L/R-${h}"`);
+      if (r) return r;
+    }
+  }
+  // Decorative door end panels. Base/vanity are height-independent
+  // (BDEP-F LT → BDEP-F); utility/wall variants carry height (+depth):
+  // 'UDEP-F 93-24 LT' → UDEP-24-F-93", 'WDEP-F 39' → WDEP-F-39"
+  if (/^(B|V|VT)DEP/.test(sku)) {
+    const f = /-F/i.test(sku.slice(4)) || /DEP-F/i.test(sku) ? '-F' : '';
+    r = _baseFind(sku.match(/^(B|V|VT)DEP/)[1] + 'DEP' + f); if (r) return r;
+  }
+  if (/^UT?DEP/.test(sku)) {
+    const fam = sku.match(/^(UT?DEP)/)[1];
+    const f = /DEP-F|[\s-]F\b/i.test(sku);
+    const nums = (sku.match(/\d{2,3}(?:\.\d+)?/g) || []).map(Number);
+    const h = nums.find(n => [84, 87, 90, 93, 96, 102, 108, 114].includes(n)) || 84;
+    const d = nums.find(n => [21, 24, 27, 30].includes(n) && n !== h) || 24;
+    r = _baseFind(`${fam}-${d}${f ? '-F' : ''}-${h}"`) || _baseFind(`${fam}-${d}-${h}"`);
+    if (r) return r;
+  }
+  if (/^(SW-)?WDEP/.test(sku)) {
+    const sw = /^SW-/.test(sku) ? 'SW-' : '';
+    const f = /DEP-F/i.test(sku);
+    const h = sku.match(/(\d{2})/)?.[1];
+    if (h) { r = _baseFind(`${sw}WDEP${f ? '-F' : ''}-${h}"`); if (r) return r; }
+  }
+  // Utility tall with encoded height (order style 'U22 1/293R', 'U2493L',
+  // 'UT24-2D93') → patched height entries U{w}-{h}"
+  {
+    const um = sku.replace(/(\d+)\.5/g, '$1 1/2')
+      .match(/^UT?((?:\d+(?: 1\/2)?)(?:-2D)?)[ -]?(84|87|90|93|96|102|108|114)[LR]?$/);
+    if (um) { r = _baseFind(`U${um[1]}-${um[2]}"`) || _baseFind(`U${um[1]}`); if (r) return r; }
+  }
+  // Wall square corner w/ expandable leg: WSE2430-39R → height table WSE-39"
+  if (/^WSE/.test(sku)) {
+    const h = sku.match(/-(\d{2})[LR]?$/)?.[1];
+    if (h) { r = _baseFind(`WSE-${h}"`); if (r) return r; }
+    r = _baseFind('WSE(--)(--)-'); if (r) return r;
+  }
   // FWEP3/4L or FWEP3/4R → FWEP3/4-L/R-27" (try common heights)
   if (/^FWEP3\/4[LR]$/.test(sku)) { for (const h of [27,30,33,36,39,42]) { r = _baseFind(`FWEP3/4-L/R-${h}"`); if (r) return r; } }
   // SCRIBE-8' → search for scribe
@@ -84,7 +129,17 @@ function resolveSku(sku, _depth = 0) {
       const res = searchSkus(b); if (res.length) return res[0];
     }
   }
-  if (/^W\d/.test(sku)) { const m = sku.match(/^W(\d+(?:\.\d+)?)(\d{2,3})$/); if (m) { const w = m[1].replace('.5', ''); r = _baseFind('W' + w + m[2]); if (r) return r; r = _baseFind('W' + w + '36'); if (r) return r; } }
+  if (/^W\d/.test(sku)) {
+    const m = sku.match(/^W(\d+(?:\.\d+)?)(\d{2,3})[LR]?$/);
+    if (m) {
+      const wNum = parseFloat(m[1]);
+      // fractional width = a width modification: W.W. prices it at the next
+      // size UP (MOD WIDTH N/C, "use next size up cabinet and size down")
+      const wUp = wNum % 3 === 0 ? wNum : Math.ceil(wNum / 3) * 3;
+      r = _baseFind('W' + wUp + m[2]) || _baseFind('W' + Math.round(wNum) + m[2]); if (r) return r;
+      r = _baseFind('W' + wUp + '36'); if (r) return r;
+    }
+  }
   if (/^(OVF3|F3)\d{2}/.test(sku)) { const results = searchSkus(sku.startsWith('OVF3') ? 'OVF3' : 'F3'); if (results.length) return results[0]; }
   if (/^REP/.test(sku)) { const m = sku.match(/^REP([\d./]+)\s*(\d{2,3})FTK-(\d+)/); if (m) { let t = m[1].replace('.5', ' 1/2'); r = _baseFind(`REP${t}-${m[3]}-L/R-${m[2]}"`); if (r) return r; const results = searchSkus('REP' + t.substring(0, 3)); const hm = results.find(x => x.s.includes(m[2] + '"')); if (hm) return hm; if (results.length) return results[0]; } }
   if (/^F[BWS]?EP/.test(sku)) { const base = sku.replace(/\s+/g, '').replace(/-(L|R)$/, '-L/R'); r = _baseFind(base); if (r) return r; const results = searchSkus(sku.split(/[\s-]/)[0]); if (results.length) return results[0]; }

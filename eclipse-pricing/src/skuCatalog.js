@@ -1,3 +1,4 @@
+import { CATALOG_PATCH_88 } from './catalogPatch88.js';
 export const RAW_SKU_DATA = `
 LBRK-SS|35|S|A
 LBRK-BK|28|S|A
@@ -7530,6 +7531,10 @@ export const CATALOG = RAW_SKU_DATA.split("\n").filter(Boolean).map(l => {
 });
 
 /** Lookup a SKU in the catalog — returns the first match or undefined */
+// Verified v8.8.1 additions the original scrape missed (utility heights,
+// WSE corner heights, flush decorative door panels) — see catalogPatch88.js.
+CATALOG.push(...CATALOG_PATCH_88);
+
 export function findSku(sku) {
   return CATALOG.find(c => c.s === sku);
 }
