@@ -1202,6 +1202,74 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
             );
           })()}
         </svg>
+        {/* ── CABINET INSPECTOR: click any cabinet on the plan → edit it here.
+            Size, family swaps, full SKU replace, remove — and a one-click
+            ↩ Revert that restores the layout to before the last change. ── */}
+        {selItem && !roomOnly && (() => {
+          const it = selItem;
+          const entry = it.sku ? (priceLookup(it.sku, brand) || findSku(it.sku)) : null;
+          const commit = (patch) => {
+            let next = { ...it, ...patch };
+            if (patch.width != null || patch.sku) {
+              const w = wallsAll.find(x => x.id === it.wall);
+              if (w) next = slideItem(items.filter(i => i.id !== it.id).concat(next), w.length, next);
+            }
+            changeItems(items.map(i => i.id === it.id ? next : i));
+          };
+          const replaceSku = (raw) => {
+            const sku = String(raw || '').trim().toUpperCase();
+            if (!sku) return;
+            const info = skuInfo(sku, brand);
+            commit({ sku, width: info.w, depth: info.d, height: info.h,
+              zone: it.zone === 'appliance' ? it.zone : info.zone });
+          };
+          const num = (label, key, val) => (
+            <label key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, color: '#777' }}>
+              {label}
+              <input type="number" step="0.5" min="1" max="144" defaultValue={val} key={`${it.id}-${key}-${val}`}
+                onBlur={e => { const v = parseFloat(e.target.value); if (v > 0 && v !== val) commit({ [key]: v }); }}
+                onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                style={{ width: 50, fontSize: 11, padding: '2px 4px', border: '1px solid #d8cdb8', borderRadius: 3 }} />
+            </label>
+          );
+          const canRevert = histRef.current.past.length > 0;
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '8px 12px', borderTop: '1px solid #e3d9c8', background: '#fbf9f4' }}>
+              <span style={{ fontSize: 11.5, whiteSpace: 'nowrap' }}>
+                <b style={{ fontFamily: 'monospace' }}>{it.sku || (it.applianceType || '').toUpperCase()}</b>
+                {entry?.p != null && <span style={{ color: '#8a6d1a', marginLeft: 6 }}>${Number(entry.p).toLocaleString()}</span>}
+              </span>
+              {num('W', 'width', it.width)}
+              {num('H', 'height', it.height)}
+              {num('D', 'depth', it.depth)}
+              {swapOptions && swapOptions.options.slice(0, 4).map(o => (
+                <button key={o.sku} onClick={() => applySwap(o)}
+                  title={`Swap to ${o.sku}${o.price != null ? ` — $${Number(o.price).toLocaleString()}` : ''}`}
+                  style={{ fontSize: 10.5, padding: '3px 7px', cursor: 'pointer', borderRadius: 4, border: '1px solid #d8cdb8', background: '#fff', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{o.sku}</span>
+                  {o.delta != null && <span style={{ marginLeft: 4, color: o.delta > 0 ? '#a05533' : '#3a7d44' }}>{o.delta > 0 ? '+' : '−'}${Math.abs(Math.round(o.delta)).toLocaleString()}</span>}
+                </button>
+              ))}
+              {!it.applianceType && (
+                <input placeholder="replace with SKU… ⏎" defaultValue="" key={`${it.id}-rep`}
+                  onKeyDown={e => { if (e.key === 'Enter') { replaceSku(e.target.value); e.target.value = ''; } }}
+                  style={{ width: 140, fontSize: 11, padding: '3px 6px', border: '1px solid #d8cdb8', borderRadius: 4 }} />
+              )}
+              <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6 }}>
+                <button onClick={undo} disabled={!canRevert}
+                  title="Restore the layout to before the last change (Ctrl+Z)"
+                  style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', cursor: canRevert ? 'pointer' : 'default', borderRadius: 4,
+                    border: `1px solid ${canRevert ? C.accent : '#ddd'}`, background: canRevert ? '#c8a96e22' : '#f5f5f5', color: canRevert ? '#7a5c1e' : '#aaa' }}>
+                  ↩ Revert
+                </button>
+                <button onClick={() => { changeItems(items.filter(i => i.id !== it.id)); setSel(null); }}
+                  style={{ fontSize: 11, padding: '4px 10px', cursor: 'pointer', borderRadius: 4, border: `1px solid ${C.danger}`, color: C.danger, background: '#fff' }}>✕ Remove</button>
+                <button onClick={() => setSel(null)}
+                  style={{ fontSize: 11, padding: '4px 10px', cursor: 'pointer', borderRadius: 4, border: '1px solid #ccc', background: '#fff', color: '#666' }}>Done</button>
+              </span>
+            </div>
+          );
+        })()}
         {/* issues strip */}
         {checks.filter(c => c.severity === 'error').slice(0, 3).map((c, i) => (
           <div key={i} style={{ padding: '4px 12px', fontSize: 11, color: C.danger, borderTop: '1px solid #f3e0dc', background: '#fdf5f3' }}>⚠ {c.message}</div>
