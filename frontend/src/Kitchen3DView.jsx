@@ -274,6 +274,30 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
         const f = frameOf(wd.id); if (!f) return;
         (wd.cabinets || []).filter(c => typeof c.position === 'number' && c.width > 0).forEach(c => {
           const at = appType(c);
+          const e = c._elev || {};
+          const sk3 = String(c.sku || '').replace(/^FC-/, '');
+          // PANELS & SURROUNDS (REP/FREP fridge panels, end panels, fillers
+          // under 2"): thin wood slabs at their TRUE vertical extent — no toe,
+          // no fronts, and critically NO counter slab (a counter strip over a
+          // 93" fridge panel pokes through the fridge).
+          if (/^(F?REP|F?[BWV]T?EP|PNL|EDG)/i.test(sk3) || (c.width || 0) < 2) {
+            placeOnWall(f, c.position, Math.max(0.75, c.width), e.depth || BASE_D,
+              e.yMount ?? 0, e.yTop || (e.yMount ?? 0) + (e.height || BASE_TOP), woodMat);
+            return;
+          }
+          // FULL-HEIGHT TOWERS routed through the base array (wall-oven
+          // cabinets, panel columns): draw to their true top — never a 34½"
+          // box with a countertop through the tower.
+          if ((e.height || c.height || 0) > 48 && !/refrigerator|fridge/.test(at)) {
+            const top3 = e.yTop || (e.yMount ?? 0) + (e.height || 84);
+            if (/oven|microwave|warming/.test(at)) placeOnWall(f, c.position, c.width, BASE_D, 0, top3, steelMat);
+            else {
+              placeOnWall(f, c.position + 0.4, c.width - 0.8, BASE_D - 3, 0, TOE, toeMat);
+              placeOnWall(f, c.position, c.width, BASE_D, TOE, top3, woodMat);
+              addDoors(f, c.position, c.width, TOE, top3, BASE_D, woodMat, recessMat, 'top');
+            }
+            return;
+          }
           if (/refrigerator|fridge/.test(at)) {
             placeOnWall(f, c.position, c.width, BASE_D, 0, 84, fridgePaneled ? woodMat : steelMat);
             if (fridgePaneled) {
@@ -294,8 +318,10 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
             const top = /dishwasher|microwave/.test(at) ? BASE_TOP : (/range/.test(at) ? 36 : BASE_TOP);
             placeOnWall(f, c.position, c.width, BASE_D, TOE, top, steelMat);
             if (/dishwasher|microwave/.test(at)) addPull(f, c.position + c.width / 2, BASE_TOP - 2.5, BASE_D, true, Math.min(14, c.width * 0.6));
+            // counter spans under-counter appliances only (towers exited
+            // above) — never a range/cooktop opening
             if (!/range|cooktop/.test(at)) {
-              placeOnWall(f, c.position, c.width, BASE_D, BASE_TOP, COUNTER_AFF, stoneMat); // counter over DW
+              placeOnWall(f, c.position, c.width, BASE_D, BASE_TOP, COUNTER_AFF, stoneMat);
               addCounterEdge(f, c.position, c.width, BASE_D + 1, BASE_TOP + CTR / 2);
             }
             return;
