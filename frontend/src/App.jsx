@@ -2062,16 +2062,16 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             businessName: orderSpec.businessName, customerNumber: orderSpec.customerNumber,
             po: projectMeta.jobNumber || '', jobName: projectMeta.name || projectMeta.customer || '',
             species: materials.species, color: materials.finishColor || 'Natural',
-            glaze: (GLAZES.find(g => g.v === orderSpec.glaze) || {}).l, highlight: (HIGHLIGHTS.find(g => g.v === orderSpec.highlight) || {}).l,
+            glaze: (GLAZES.find(g => g.v === orderSpec.glaze) || {}).l || orderSpec.glaze, highlight: (HIGHLIGHTS.find(g => g.v === orderSpec.highlight) || {}).l || orderSpec.highlight,
             upperDoor: orderSpec.upperDoor || materials.door, lowerDoor: materials.door,
             edgeProfile: orderSpec.edgeProfile, drawerBox: orderSpec.drawerBox,
             drawerFrontStyle: 'DF-' + materials.door, drawerGuide: orderSpec.drawerGuide,
             tipOn: orderSpec.tipOn, materialType: materials.construction,
             hingeStyle: orderSpec.hingeStyle || getConstruction(materials.frameStyle).label,
             metroGfdTrim: orderSpec.metroGfdTrim, jobType: orderSpec.jobType,
-            interiorFinish: (INTERIORS.find(g => g.v === orderSpec.interiorFinish) || {}).l,
+            interiorFinish: (INTERIORS.find(g => g.v === orderSpec.interiorFinish) || {}).l || orderSpec.interiorFinish,
             constructionNote: construction.note || construction.label,
-            charTechniques: orderSpec.charTechniques !== 'NONE' ? (CHAR_TECHNIQUES.find(g => g.v === orderSpec.charTechniques) || {}).l : 'None',
+            charTechniques: orderSpec.charTechniques !== 'NONE' ? ((CHAR_TECHNIQUES.find(g => g.v === orderSpec.charTechniques) || {}).l || orderSpec.charTechniques) : 'None',
             orderDate: new Date().toLocaleDateString('en-US'),
             salesperson: projectMeta.designer || '', contactPhone: orderSpec.contactPhone, contactEmail: orderSpec.contactEmail,
             pageCount: `${Math.max(1, Math.ceil(rows.length / 30)) + cutouts.length + (customQuoteItems.length ? 1 : 0)}`,
@@ -2254,6 +2254,37 @@ export default function App() {
     const { businessName, customerNumber, contactPhone, contactEmail } = orderSpec;
     try { localStorage.setItem('ekd.orderSpec', JSON.stringify({ businessName, customerNumber, contactPhone, contactEmail })); } catch { /* private mode */ }
   }, [orderSpec]);
+
+  // When the cabinet line changes, snap each cover-sheet selection to the
+  // NEW line's own option list (token-overlap match, else the first option) —
+  // otherwise a stale value from the previous line renders as a phantom
+  // duplicate ("Blum Tandem Edge w/ Blumotion" above Shiloh's
+  // "Blum Tandem Edge (soft-close)").
+  useEffect(() => {
+    const cs = getTenant(materials.brand).coverSheet;
+    if (!cs) return;
+    const tokens = (s) => new Set(String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean));
+    setOrderSpec(o => {
+      const next = { ...o };
+      let changed = false;
+      for (const key of cs.fields || []) {
+        const opts = (cs.options || {})[key];
+        if (!opts || !opts.length || key === 'upperDoor' || key === 'tipOn') continue;
+        if (opts.includes(next[key])) continue;
+        const cur = tokens(next[key]);
+        let best = opts[0], bestScore = 0;
+        for (const v of opts) {
+          let score = 0;
+          for (const t of tokens(v)) if (cur.has(t)) score++;
+          if (score > bestScore) { bestScore = score; best = v; }
+        }
+        next[key] = best;
+        changed = true;
+      }
+      return changed ? next : o;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [materials.brand]);
 
   // Countertop selections
   const [countertopSelection, setCountertopSelection] = useState({ sqft: 40, edge: 'straight', cutouts: 1, colorId: null, brand: null, thickness: null });
@@ -2983,8 +3014,8 @@ export default function App() {
                       const tenantOpts = (cs.options || {})[key];
                       if (tenantOpts && tenantOpts.length) return (
                         <div key={key}><label style={labelStyle}>{LABELS[key] || key}</label>
-                          <select value={orderSpec[key] ?? ''} onChange={e => setOrderSpec(o => ({ ...o, [key]: e.target.value }))} style={inputStyle}>
-                            {!tenantOpts.includes(orderSpec[key]) && <option value={orderSpec[key] ?? ''}>{orderSpec[key] || '— select —'}</option>}
+                          <select value={tenantOpts.includes(orderSpec[key]) ? orderSpec[key] : tenantOpts[0]}
+                            onChange={e => setOrderSpec(o => ({ ...o, [key]: e.target.value }))} style={inputStyle}>
                             {tenantOpts.map(v => <option key={v} value={v}>{v}</option>)}
                           </select></div>
                       );
