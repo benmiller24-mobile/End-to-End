@@ -1,8 +1,9 @@
 /**
  * pronorm catalog ↔ REAL ORDER reconciliation (ground truth).
  * ===========================================================
- * Verified against SEVEN real pronorm order confirmations supplied by the dealer
- * (Miller 356572 g6, Display 354778 g3, and five Blanchard OC orders g0/g1/g4).
+ * Verified against EIGHT real pronorm order confirmations supplied by the dealer
+ * (Miller 356572 g6, Display 354778 g3, and six Blanchard orders g0/g1/g4
+ * incl. the 77-line 314440 — every standard cabinet 100% to the cent).
  * Order line prices are EUR at a 50% dealer discount off the spec-book LIST.
  * Every STANDARD catalog cabinet across all seven orders reconciled to the cent:
  *   order_price === round(catalog.pg[group] × 0.5)
@@ -44,6 +45,12 @@ const LINES = [
   { sku: 'UY120-76-01', g: '1', list: 856, order: 428 },
   { sku: 'UY90-38-30', g: '1', list: 585, order: 292.5 },
   { sku: 'UY90-76-01', g: '1', list: 725, order: 362.5 },
+  // 314440 Blanchard (77-line order) — group 1
+  { sku: 'U90-76-31', g: '1', list: 999, order: 499.5 },
+  { sku: 'U100-76-31', g: '1', list: 1029, order: 514.5 },
+  { sku: 'UG100-76-31', g: '1', list: 994, order: 497 },
+  { sku: 'PO20-38', g: '1', list: 95, order: 47.5 },
+  { sku: 'O90-51-01', g: '1', list: 434, order: 217 },
 ];
 
 export default async function run() {
