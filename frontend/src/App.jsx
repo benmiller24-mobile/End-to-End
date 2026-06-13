@@ -2062,13 +2062,19 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           const customQuoteItems = (quote?.fabrication?.items || []).filter(i => i.needsQuote);
           // Tenants with a labelled coverSheet (e.g. pronorm) print their own
           // spec rows on the cover instead of the W.W. door/glaze grid.
-          const csCfg = getTenant(materials.brand).coverSheet;
+          const csTenant = getTenant(materials.brand);
+          const csCfg = csTenant.coverSheet;
           const specRows = csCfg?.labels
             ? (csCfg.fields || []).map(f => [csCfg.labels[f] || f, orderSpec[f]]).filter(([, v]) => v && String(v).trim())
             : null;
+          // Price group derived locally (ResultsView has no App-scope priceGroup):
+          // the chosen front range carries "· group N".
+          const pgMatch = String(orderSpec.frontRange || '').match(/group\s+(\d+)/);
+          const coverPriceGroup = csTenant.pricing?.priceGroups
+            ? (pgMatch ? pgMatch[1] : (csTenant.pricing.defaultGroup || null)) : null;
           const cover = {
-            specRows, currency: getTenant(materials.brand).locale?.currency || 'USD',
-            priceGroup: priceGroup != null ? `${priceGroup}` : null,
+            specRows, currency: csTenant.locale?.currency || 'USD',
+            priceGroup: coverPriceGroup,
             businessName: orderSpec.businessName, customerNumber: orderSpec.customerNumber,
             po: projectMeta.jobNumber || '', jobName: projectMeta.name || projectMeta.customer || '',
             species: materials.species, color: materials.finishColor || 'Natural',
@@ -2559,7 +2565,7 @@ export default function App() {
     }, findSkuNormalized);
     quoteResult.fabrication = priceFabricationItems(fabrication);
     return quoteResult;
-  }, [accessoryLines]);
+  }, [accessoryLines, priceGroup]);
   const priceDesign = useCallback((result, mods) => priceWithMaterials(result, mods, materials), [priceWithMaterials, materials]);
 
   useEffect(() => {
