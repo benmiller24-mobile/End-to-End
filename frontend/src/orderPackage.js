@@ -183,28 +183,46 @@ export function generateOrderPackage({ brand, cover, items, cutouts, customQuote
   const tenant = getTenant(brand);
   const brandName = tenant.branding.manufacturerName;
   const codePrefix = tenant.branding.formCodePrefix;
+  // Currency-aware money (pronorm prices in EUR); falls back to the caller's $.
+  const money = (cover.currency && cover.currency !== 'USD')
+    ? (v) => `${cover.currency === 'EUR' ? '€' : cover.currency + ' '}${(v ?? 0).toLocaleString()}`
+    : fmtMoney;
   const wm = () => { if (!orderReady) watermark(doc, pageW, pageH, 'BUDGET — NOT FOR ORDER'); };
 
   // ════ 1. COVER SHEET ════
   let y = pageHeader(doc, pageW, margin, brandName, `${codePrefix}-SO-CS`, 'Standard Order — Cover Sheet',
     'Global style rules for this order. Submit with the item list to Orders@wwinc.com.');
   const colW = (pageW - margin * 2) / 3;
-  y = fieldGrid(doc, [
-    ['1. Business Name', cover.businessName], ['2. Customer #', cover.customerNumber], ['3. PO #', cover.po],
-    ['4. Job Name', cover.jobName], ['5. Wood Species', cover.species], ['6. Color', cover.color],
-    ['7. Glaze / Highlight', [cover.glaze, cover.highlight].filter(v => v && !/^no /i.test(v)).join(' / ') || 'None'],
-    ['8a. Upper Door Style', cover.upperDoor], ['8b. Lower Door Style', cover.lowerDoor],
-    ['9. Edge Profile / Banding', cover.edgeProfile],
-    [tenant.coverFields.field10Label, cover[tenant.coverFields.field10Key]],
-    ['11. Drawer Front Style', cover.drawerFrontStyle],
-    ['12. Drawer Guide', cover.drawerGuide], ['13. Tip-On', cover.tipOn ? 'YES — all doors & drawers' : 'No'],
-    ['14. Material Type', cover.materialType],
-    ['15. Interior Finish', cover.interiorFinish], ['16. Construction Type', cover.constructionNote],
-    ['17. Character Technique(s)', cover.charTechniques || 'None'],
-    ['18. Order Date', cover.orderDate], ['19. Salesperson / Contact', cover.salesperson], ['20. Contact Phone', cover.contactPhone],
-    ['21. Contact Email', cover.contactEmail],
-    ['22. Pages In Order (excl. cover)', cover.pageCount], ['23. Drawer Box Type', cover.drawerBox],
-  ], margin, y + 8, colW, 34, 3);
+  // Tenant-driven cover (pronorm and other coverSheet-labelled lines): the
+  // line's own spec rows (front range/colour/handle/etc.) replace the W.W.
+  // door/glaze grid; universal identity + price-group fields bracket them.
+  const grid = cover.specRows
+    ? [
+        ['1. Business Name', cover.businessName], ['2. Customer #', cover.customerNumber], ['3. PO #', cover.po],
+        ['4. Job Name', cover.jobName],
+        ...(cover.priceGroup ? [['Price Group', cover.priceGroup]] : []),
+        ...cover.specRows.map(([l, v], i) => [`${i + 5}. ${l}`, v]),
+        ['Order Date', cover.orderDate], ['Salesperson / Contact', cover.salesperson],
+        ['Contact Phone', cover.contactPhone], ['Contact Email', cover.contactEmail],
+        ['Pages In Order (excl. cover)', cover.pageCount],
+      ]
+    : [
+        ['1. Business Name', cover.businessName], ['2. Customer #', cover.customerNumber], ['3. PO #', cover.po],
+        ['4. Job Name', cover.jobName], ['5. Wood Species', cover.species], ['6. Color', cover.color],
+        ['7. Glaze / Highlight', [cover.glaze, cover.highlight].filter(v => v && !/^no /i.test(v)).join(' / ') || 'None'],
+        ['8a. Upper Door Style', cover.upperDoor], ['8b. Lower Door Style', cover.lowerDoor],
+        ['9. Edge Profile / Banding', cover.edgeProfile],
+        [tenant.coverFields.field10Label, cover[tenant.coverFields.field10Key]],
+        ['11. Drawer Front Style', cover.drawerFrontStyle],
+        ['12. Drawer Guide', cover.drawerGuide], ['13. Tip-On', cover.tipOn ? 'YES — all doors & drawers' : 'No'],
+        ['14. Material Type', cover.materialType],
+        ['15. Interior Finish', cover.interiorFinish], ['16. Construction Type', cover.constructionNote],
+        ['17. Character Technique(s)', cover.charTechniques || 'None'],
+        ['18. Order Date', cover.orderDate], ['19. Salesperson / Contact', cover.salesperson], ['20. Contact Phone', cover.contactPhone],
+        ['21. Contact Email', cover.contactEmail],
+        ['22. Pages In Order (excl. cover)', cover.pageCount], ['23. Drawer Box Type', cover.drawerBox],
+      ];
+  y = fieldGrid(doc, grid, margin, y + 8, colW, 34, 3);
 
   doc.setFontSize(7); doc.setTextColor(...MUT);
   doc.text('SPECIAL INSTRUCTIONS', margin, y + 10);
@@ -252,7 +270,7 @@ export function generateOrderPackage({ brand, cover, items, cutouts, customQuote
     doc.setFontSize(8.5); doc.setTextColor(...INK);
     cols.forEach(c => {
       let v = row[c.k];
-      if (c.k === 'price') v = row.needsQuote ? 'CUSTOM QUOTE' : (v != null ? fmtMoney(Math.round(v * 100) / 100) : '');
+      if (c.k === 'price') v = row.needsQuote ? 'CUSTOM QUOTE' : (v != null ? money(Math.round(v * 100) / 100) : '');
       if (c.k === 'sku' && row.fallback) v = `${v}  *`;
       doc.text(String(v ?? ''), margin + c.x + (c.r ? c.w : 0), y + 11, { align: c.r ? 'right' : 'left', maxWidth: c.w });
     });
@@ -264,7 +282,7 @@ export function generateOrderPackage({ brand, cover, items, cutouts, customQuote
       if (y + rowH > pageH - 60) { wm(); y = newItemPage(); }
       doc.setFontSize(7.5); doc.setTextColor(...MUT);
       doc.text(`↳ MOD ${mod.code} — ${mod.desc}`, margin + 92, y + 10, { maxWidth: 300 });
-      doc.text(mod.pct ? `+${Math.round(mod.pct * 100)}% of list` : (mod.charge ? fmtMoney(mod.charge) : 'N/C'),
+      doc.text(mod.pct ? `+${Math.round(mod.pct * 100)}% of list` : (mod.charge ? money(mod.charge) : 'N/C'),
         margin + 460 + 64, y + 10, { align: 'right' });
       doc.setDrawColor(...LINE); doc.setLineWidth(0.3);
       doc.line(margin + 88, y + rowH, pageW - margin, y + rowH);
@@ -273,7 +291,7 @@ export function generateOrderPackage({ brand, cover, items, cutouts, customQuote
   }
   const subtotal = items.reduce((s, r) => s + (r.needsQuote ? 0 : (r.price || 0) * (r.qty || 1)), 0);
   doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.setTextColor(...INK);
-  doc.text(`LIST SUBTOTAL (${items.length} lines): ${fmtMoney(Math.round(subtotal * 100) / 100)}`, pageW - margin, y + 16, { align: 'right' });
+  doc.text(`LIST SUBTOTAL (${items.length} lines): ${money(Math.round(subtotal * 100) / 100)}`, pageW - margin, y + 16, { align: 'right' });
   doc.setFont(undefined, 'normal');
   if (items.some(r => r.fallback)) {
     doc.setFontSize(7); doc.setTextColor(192, 57, 43);

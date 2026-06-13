@@ -2060,7 +2060,15 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           const appliancesByType = {};
           for (const a of selectedAppliances) if (a.type && !appliancesByType[a.type]) appliancesByType[a.type] = { ...a, brandName: getBrandName(a.brand) || a.brand };
           const customQuoteItems = (quote?.fabrication?.items || []).filter(i => i.needsQuote);
+          // Tenants with a labelled coverSheet (e.g. pronorm) print their own
+          // spec rows on the cover instead of the W.W. door/glaze grid.
+          const csCfg = getTenant(materials.brand).coverSheet;
+          const specRows = csCfg?.labels
+            ? (csCfg.fields || []).map(f => [csCfg.labels[f] || f, orderSpec[f]]).filter(([, v]) => v && String(v).trim())
+            : null;
           const cover = {
+            specRows, currency: getTenant(materials.brand).locale?.currency || 'USD',
+            priceGroup: priceGroup != null ? `${priceGroup}` : null,
             businessName: orderSpec.businessName, customerNumber: orderSpec.customerNumber,
             po: projectMeta.jobNumber || '', jobName: projectMeta.name || projectMeta.customer || '',
             species: materials.species, color: materials.finishColor || 'Natural',
