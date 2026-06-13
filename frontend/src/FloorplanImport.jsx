@@ -176,7 +176,7 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
       // synchronous endpoint when background functions aren't available.
       let out = null;
       const id = (crypto.randomUUID && crypto.randomUUID()) || `fp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const job = await fetch('/api/floorplan-job-background', {
+      const job = await fetch('/api/floorplan-job', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...payload }),
       }).catch(() => null);
