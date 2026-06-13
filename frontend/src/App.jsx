@@ -50,7 +50,7 @@ import {
 
 // ── Output view imports ──
 import { CONSTRUCTIONS, getConstruction } from './constructionProfiles.js';
-import { getTenant, listTenants } from '../../eclipse-pricing/src/tenants/index.js';
+import { getTenant, listTenants, setTenantPriceGroup } from '../../eclipse-pricing/src/tenants/index.js';
 import ProductLinesManager from './ProductLinesManager.jsx';
 import { loadLocalTenantPackages } from './tenantLocal.js';
 
@@ -2268,11 +2268,27 @@ export default function App() {
     edgeProfile: 'Match door style', tipOn: false, upperDoor: '', drawerBox: '5/8" Hdwd Dovetail',
     drawerGuide: 'Blum Tandem Edge w/ Blumotion', specialInstructions: '',
     hingeStyle: '', metroGfdTrim: 'N/A', jobType: 'New',
+    // pronorm (price-group tenant) order-spec fields
+    frontRange: '', frontColour: '', carcaseColour: '', interiorColour: '',
+    handleType: '', handleColour: '', softClose: '', edgeDesign: '', plinthHeight: '', plinthDesign: '',
   };
   const [orderSpec, setOrderSpec] = useState(() => {
     try { return { ...ORDER_SPEC_DEFAULTS, ...(JSON.parse(localStorage.getItem('ekd.orderSpec')) || {}) }; }
     catch { return { ...ORDER_SPEC_DEFAULTS }; }
   });
+
+  // Price-group tenants (pronorm): the chosen front range sets the price group.
+  // The range option reads "<CODE> · group N" — derive N (fallback to the
+  // tenant's default group). Applied to the tenant before every price path.
+  const priceGroup = useMemo(() => {
+    const t = getTenant(materials.brand);
+    if (!t.pricing?.priceGroups) return null;
+    const m = String(orderSpec.frontRange || '').match(/group\s+(\d+)/);
+    return m ? m[1] : (t.pricing.defaultGroup || null);
+  }, [materials.brand, orderSpec.frontRange]);
+  useEffect(() => {
+    if (priceGroup != null) setTenantPriceGroup(materials.brand, priceGroup);
+  }, [priceGroup, materials.brand]);
   useEffect(() => {
     const { businessName, customerNumber, contactPhone, contactEmail } = orderSpec;
     try { localStorage.setItem('ekd.orderSpec', JSON.stringify({ businessName, customerNumber, contactPhone, contactEmail })); } catch { /* private mode */ }
@@ -2527,6 +2543,7 @@ export default function App() {
     const accPl = accessoryLines.map(a => ({ sku: a.sku, qty: a.qty || 1, len: a.len, wall: 'ACC' }));
     const { cabinets, fabrication } = buildPricingPlacements([...(result.placements || []), ...accPl], mods);
     setPricingBrand(mats.brand);
+    if (priceGroup != null) setTenantPriceGroup(mats.brand, priceGroup);
     const quoteResult = calculateLayoutPrice(cabinets, {
       species: mats.species, construction: mats.construction,
       door: mats.door, drawerFront: 'DF-' + mats.door, drawerBox: '5/8-STD',
@@ -2736,7 +2753,7 @@ export default function App() {
                       )}
                       <DesignStudio walls={walls} onWallsChange={setWalls}
                         items={manualItems} onItemsChange={setManualItems}
-                        brand={materials.brand} mode="full"
+                        brand={materials.brand} priceGroup={priceGroup} mode="full"
                         layoutType={layoutType} onApplyShape={applyShape}
                         island={island} onIslandChange={setIsland} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2807,7 +2824,7 @@ export default function App() {
                       <div style={{ marginTop: 14 }}>
                         <DesignStudio walls={walls} onWallsChange={setWalls}
                           items={[]} onItemsChange={() => {}}
-                          brand={materials.brand} mode="room" ghost={ghostResult} />
+                          brand={materials.brand} priceGroup={priceGroup} mode="room" ghost={ghostResult} />
                         <p style={{ fontSize: 10.5, color: C.dim, margin: '6px 0 0' }}>
                           Room canvas: drag wall ends, click a dimension to type the laser number, drag windows/doors. The dashed boxes are the solver's live layout preview.
                         </p>
@@ -3039,6 +3056,10 @@ export default function App() {
                       edgeProfile: 'Edge Profile / Banding', hingeStyle: 'Hinge / Cabinet Style',
                       drawerBox: 'Drawer Box', drawerGuide: 'Drawer Guide',
                       metroGfdTrim: 'METRO GFD Trim Color', jobType: 'Construction Type (Job)',
+                      frontRange: 'Front Range (sets price group)', frontColour: 'Front Colour',
+                      carcaseColour: 'Carcase Colour', interiorColour: 'Interior / Deep-Drawer Colour',
+                      handleType: 'Handle Type', handleColour: 'Handle Colour', softClose: 'Door Opening / Soft-Close',
+                      edgeDesign: 'Carcase Edge Design', plinthHeight: 'Plinth Height', plinthDesign: 'Plinth Design',
                     };
                     const field = (key) => {
                       if (key === 'tipOn') return (

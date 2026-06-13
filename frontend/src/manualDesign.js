@@ -26,6 +26,26 @@ const CAT_ZONE = { B: 'base', BC: 'base', GB: 'base', GBC: 'base', V: 'base', T:
 
 export function skuInfo(sku, brand = 'eclipse') {
   const s = String(sku || '').toUpperCase().replace(/^FC-/, '');
+
+  // Metric tenants (pronorm): the order number encodes width (cm) and a height
+  // code; convert to inches so the inch-based studio/elevations/3D render the
+  // cabinet at faithful proportions. Width is the dimension layout depends on.
+  const t = getTenant(brand);
+  if (t?.locale?.units === 'mm') {
+    const cm2in = (cm) => Math.round(cm * 0.393701 * 10) / 10;
+    const prefix = (s.match(/^[A-Z]+/) || [''])[0];
+    const zone = prefix.includes('H') ? 'tall' : prefix.includes('O') ? 'upper' : prefix.includes('U') ? 'base' : 'base';
+    const m = s.match(/^[A-Z]+ ?(\d{2,3})-(\d{2,4})/);
+    const wCm = m ? parseInt(m[1], 10) : 60;
+    const hNum = m ? parseInt(m[2], 10) : 0;
+    let h;
+    if (zone === 'base') h = 34.5;                                  // carcase+plinth ≈ standard
+    else if (hNum >= 150) h = Math.round((hNum * 10) / 25.4 * 10) / 10;   // mm code (2016 stored as 201)
+    else if (hNum >= 28) h = cm2in(hNum);                           // height in cm
+    else h = zone === 'tall' ? 84 : 30;
+    return { w: cm2in(wCm), d: zone === 'upper' ? 13.8 : 22.2, h, zone, official: false, metric: true };
+  }
+
   const off = findOfficial(sku);
   if (off && off.w) {
     const zone = CAT_ZONE[off.cat] || (s.startsWith('W') ? 'upper' : 'base');

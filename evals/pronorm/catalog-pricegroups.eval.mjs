@@ -47,6 +47,16 @@ export default async function run() {
   s.ok('HY 30-156-09 found', !!hy);
   s.ok('Y-line HY omits group 5 (legitimately dashed)', hy && hy.pg && hy.pg['5'] === undefined && hy.pg['4'] > 0 && hy.pg['6'] > 0);
 
+  // ── options panel parity (coverSheet config) ──
+  const cs = t.coverSheet;
+  s.ok('coverSheet present', !!cs && Array.isArray(cs.fields));
+  s.ok('frontRange field with 40+ ranges', (cs.options.frontRange || []).length >= 40);
+  s.ok('frontColour field with 100+ colours', (cs.options.frontColour || []).length >= 100);
+  for (const f of ['carcaseColour', 'handleType', 'softClose', 'plinthHeight', 'edgeDesign']) {
+    s.ok(`option list: ${f}`, (cs.options[f] || []).length > 0);
+  }
+  s.ok('range options encode price group', (cs.options.frontRange || []).every(o => /group \d/.test(o)));
+
   setTenantPriceGroup('pronorm', undefined);   // reset
   return s.done();
 }

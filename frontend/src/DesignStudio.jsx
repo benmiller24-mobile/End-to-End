@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { getTenant } from '../../eclipse-pricing/src/tenants/index.js';
 import { findSku } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
+import { setTenantPriceGroup } from '../../eclipse-pricing/src/tenants/index.js';
 import { makeItem, makeAppliance, settleItem, slideItem, placementIssues, bandOf, yRangeOf, isPanelItem, isCornerSku, contextSnap, insertWithShift, skuInfo, priceLookup, manualChecks, ISLAND_WALL, islandPseudoWall } from './manualDesign.js';
 import { getApplicableMods, modCharge, MODS_BY_CODE, ROT_OPTIONS } from '../../eclipse-pricing/src/modData.js';
 
@@ -275,7 +276,10 @@ const APPLIANCE_PALETTE = [
   { type: 'hood', label: 'Pro Hood 36"', width: 36 }, { type: 'hood', label: 'Pro Hood 48"', width: 48 },
 ];
 
-export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', ghost = null, mode = 'full', layoutType = '', onApplyShape = null, island = null, onIslandChange = null }) {
+export default function DesignStudio({ walls, onWallsChange, items, onItemsChange, brand = 'eclipse', priceGroup = null, ghost = null, mode = 'full', layoutType = '', onApplyShape = null, island = null, onIslandChange = null }) {
+  // Price-group tenants (pronorm): apply the active group before any pricing so
+  // the catalog browser, inspector and swaps all reflect the chosen front range.
+  const applyPricing = useCallback(() => { setPricingBrand(brand); if (priceGroup != null) setTenantPriceGroup(brand, priceGroup); }, [brand, priceGroup]);
   const roomOnly = mode === 'room';
   const svgRef = useRef(null);
   const elevRef = useRef(null);
@@ -335,7 +339,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
   const [facet, setFacet] = useState(null);          // function facet ('Sink', 'Drawer', …)
 
   const fr = useMemo(() => frames(walls, layoutType), [walls, layoutType]);
-  const all = useMemo(() => catalogList(brand), [brand]);
+  const all = useMemo(() => { applyPricing(); return catalogList(brand); }, [brand, priceGroup, applyPricing]);
   const cats = useMemo(() => [...new Set(all.map(r => r.cat))].sort(), [all]);
   const list = useMemo(() => {
     let rows = all.filter(r => r.cat === cat);
@@ -629,7 +633,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     if (!cur || !cur.sku || armed) return null;
     const fam = familyKey(cur.sku, cur.width);
     if (!fam) return null;
-    setPricingBrand(brand);
+    applyPricing();
     const curHit = findSkuNormalized(cur.sku);
     const curPrice = curHit?.p ?? null;
     const rows = all.filter(r => r.sku !== cur.sku && familyKey(r.sku, r.w) === fam);
@@ -640,7 +644,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     opts.sort((a, b) => Math.abs(a.w - cur.width) - Math.abs(b.w - cur.width));
     const top = opts.slice(0, 8).sort((a, b) => a.w - b.w);
     return top.length ? { cur, curPrice, options: top } : null;
-  }, [items, sel, armed, all, brand]);
+  }, [items, sel, armed, all, brand, priceGroup, applyPricing]);
 
   const applySwap = useCallback((opt) => {
     const cur = swapOptions?.cur; if (!cur) return;
@@ -656,7 +660,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
     if (!fillGap) return null;
     const w = wallsAll.find(x => x.id === fillGap.wallId); if (!w) return null;
     const len = fillGap.end - fillGap.start;
-    setPricingBrand(brand);
+    applyPricing();
     const priced = (r) => {
       const hit = r.price != null ? { p: r.price, _resolution: 'exact' } : findSkuNormalized(r.sku);
       return { sku: r.sku, w: r.w, price: hit?.p ?? null, approx: hit ? hit._resolution !== 'exact' : false };
