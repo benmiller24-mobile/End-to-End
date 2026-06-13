@@ -15,6 +15,7 @@
  * drawing sets — see evals/floorplan/.
  */
 import { skuInfo } from './manualDesign.js';
+import { decode2020 } from './decode2020.js';
 
 // ── Label recognition ────────────────────────────────────────────────────────
 // Cyncly prints W.W.-style codes verbatim ("U22 1/293R", "W28.539",
@@ -27,13 +28,28 @@ const NOT_LABELS = /^(PLAN|FRIDGE|SINK|RANGE|ISLAND|ELEVATION|Drawing|Note|Desig
 // they ride on prose notes, not cabinet boxes.
 const FAMILY_RE = /^(F?C?-?)(B{1,2}C?|SB|DSB|SBA|VSB|BL|BWDM[WAB]|BWS|BWC|BO|BD|B\dD|BEP|BPOS|BTD|BKI|W|SW{1,2}C?|RW|WSE|WBC|MWS?|AW|AEW|U[VT]?|OC|PW|BK|T[SPC]?|V[BD]?|F\d|FREP|REP|WEP|VEP|TEP|IWS|NTK|DB|PB|LD|FIO|EDG|PNL)\s?[\d/]/;
 
+// Fallback for the 2020-Design / Cyncly export dialect the legacy rules above
+// don't cover (explicit "D-DB34x34.5x24-3", "UC339324", wide bases >60", etc.).
+// Returns the labelDims shape ({width,height,zone}); appliances + width-less
+// fixtures are not cabinet boxes → null. Wall zone maps to 'upper'.
+function from2020(s) {
+  const d = decode2020(s);
+  // Only HIGH-CONFIDENCE 2020 decodes — never the generic "any 2 digits" fallback
+  // (_weak), which would mis-read notes / appliance model numbers as cabinets and
+  // break the legacy Cyncly sets. Appliances + width-less fixtures aren't boxes.
+  if (!d || d._weak || d.isAppliance || !(d.widthIn > 0)) return null;
+  const zone = d.zone === 'wall' ? 'upper' : d.zone;
+  const height = d.heightIn || (zone === 'upper' ? 36 : zone === 'tall' ? 93 : 34.5);
+  return { width: d.widthIn, height, zone, ...(d.panel ? { panel: true } : {}) };
+}
+
 /** Width/zone straight from the label text (Cyncly conventions), falling back
  *  to the studio's catalog-aware skuInfo. Returns null when not a cabinet. */
 export function labelDims(label, brand = 'eclipse') {
   // Strip trailing bare-integer runs — dimension glyphs pdf.js sometimes
   // joins onto the label's text run ("RW3624 125 1 8" → "RW3624").
   const s = String(label).trim().replace(/\s+/g, ' ').replace(/(\s+\d+(?: \d+\/\d+)?"?)+$/, '');
-  if (!LABEL_RE.test(s) || NOT_LABELS.test(s) || !FAMILY_RE.test(s)) return null;
+  if (!LABEL_RE.test(s) || NOT_LABELS.test(s) || !FAMILY_RE.test(s)) return from2020(s);
 
   // Panels & skins: FREP3/4 93FTK24L, BEP3/4L-FTK, REP…  → thin verticals.
   if (/^F?(REP|BEP|WEP|VEP|TEP)/i.test(s)) {
@@ -71,9 +87,9 @@ export function labelDims(label, brand = 'eclipse') {
       const info = skuInfo(s, brand);
       if (info && info.w > 0) return { width: info.w, height: info.h || 34.5, zone: info.zone || 'base' };
     } catch { /* not a cabinet */ }
-    return null;
+    return from2020(s);
   }
-  if (!(width > 0) || width > 60) return null;
+  if (!(width > 0) || width > 60) return from2020(s);
 
   const zone = /^(W|RW|WSE|SW|MWS|AW)/.test(prefix) ? 'upper'
     : /^(U|UT|UV|T|OC|PW|BK)/.test(prefix) ? 'tall'

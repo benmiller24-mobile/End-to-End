@@ -1219,23 +1219,25 @@ function MultiQuotePanel({ baseMaterials, priceWith }) {
   const [open, setOpen] = useState(false);
   const speciesOpts = Object.keys(SPECIES_PCT);
   const doorOpts = DOORS.map(d => d.v);
+  const brandOpts = listTenants().map(t => t.id);
+  // Default the comparison to the LINES — Eclipse vs Shiloh vs pronorm — pricing
+  // the exact same cabinets in each (the dealer's "what does this cost in each
+  // line" question). Each column can still switch species/door.
   const [cols, setCols] = useState(() => {
-    const alt = speciesOpts.filter(s => s !== baseMaterials.species);
-    return [
-      { species: baseMaterials.species, door: baseMaterials.door },
-      { species: alt[0] || baseMaterials.species, door: baseMaterials.door },
-      { species: alt[alt.length - 1] || baseMaterials.species, door: baseMaterials.door },
-    ];
+    const order = ['eclipse', 'shiloh', 'pronorm'].filter(b => brandOpts.includes(b));
+    const pick = (order.length ? order : brandOpts).slice(0, 3);
+    return pick.map(b => ({ brand: b, species: baseMaterials.species, door: baseMaterials.door }));
   });
   const quotes = useMemo(() => open ? cols.map(c => {
-    try { return priceWith({ ...baseMaterials, species: c.species, door: c.door }); }
+    try { return priceWith({ ...baseMaterials, brand: c.brand, species: c.species, door: c.door }); }
     catch { return null; }
   }) : [], [open, cols, baseMaterials, priceWith]);
+  const cur = (id) => { try { return getTenant(id).locale?.currency === 'EUR' ? '€' : '$'; } catch { return '$'; } };
   if (!open) {
     return (
       <div style={{ ...panelStyle, cursor: 'pointer' }} onClick={() => setOpen(true)}>
-        <div style={{ ...sectionTitle, marginBottom: 0 }}>▸ Multi-Quote — compare species &amp; door styles side-by-side</div>
-        <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>Price this exact design in up to 4 finishes at once — the showroom "Maple vs Walnut vs Paint" conversation, with real list numbers.</div>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>▸ Multi-Quote — price this design in Eclipse vs Shiloh vs pronorm</div>
+        <div style={{ fontSize: 11, color: C.dim, marginTop: 4 }}>The same cabinets, priced in each line side-by-side (and any species/door) — the "what does this kitchen cost in each line" conversation, with real list numbers.</div>
       </div>
     );
   }
@@ -1259,6 +1261,10 @@ function MultiQuotePanel({ baseMaterials, priceWith }) {
               <th style={{ padding: '6px 8px', textAlign: 'left', color: C.dim, fontSize: 10, textTransform: 'uppercase' }}>SKU</th>
               {cols.map((c, j) => (
                 <th key={j} style={{ padding: '6px 8px', textAlign: 'right', minWidth: 150 }}>
+                  <select value={c.brand} onChange={e => setCols(cs => cs.map((x, k) => k === j ? { ...x, brand: e.target.value } : x))}
+                    style={{ width: '100%', fontSize: 11, padding: 2, fontWeight: 700, marginBottom: 3 }}>
+                    {brandOpts.map(b => <option key={b} value={b}>{getTenant(b).branding.lineLabel}</option>)}
+                  </select>
                   <select value={c.species} onChange={e => setCols(cs => cs.map((x, k) => k === j ? { ...x, species: e.target.value } : x))}
                     style={{ width: '100%', fontSize: 11, padding: 2 }}>
                     {speciesOpts.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1300,16 +1306,17 @@ function MultiQuotePanel({ baseMaterials, priceWith }) {
             <tr style={{ borderTop: `2px solid ${C.border}`, fontWeight: 700 }}>
               <td style={{ padding: '6px 8px' }}>List total</td>
               {quotes.map((q, j) => (
-                <td key={j} style={{ padding: '6px 8px', textAlign: 'right', color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(totalOf(q))}</td>
+                <td key={j} style={{ padding: '6px 8px', textAlign: 'right', color: C.accent, fontVariantNumeric: 'tabular-nums' }}>{cur(cols[j]?.brand)}{Math.round(totalOf(q)).toLocaleString()}</td>
               ))}
             </tr>
             <tr style={{ fontSize: 11, color: C.dim }}>
               <td style={{ padding: '2px 8px' }}>vs column 1</td>
               {quotes.map((q, j) => {
+                const sameCur = cur(cols[j]?.brand) === cur(cols[0]?.brand);
                 const d = totalOf(q) - totalOf(base);
                 return (
                   <td key={j} style={{ padding: '2px 8px', textAlign: 'right', color: d > 0 ? C.warn : d < 0 ? '#3a7d44' : C.dim, fontVariantNumeric: 'tabular-nums' }}>
-                    {j === 0 ? '—' : `${d > 0 ? '+' : ''}${formatCurrency(d)}`}
+                    {j === 0 ? '—' : !sameCur ? '(diff. currency)' : `${d > 0 ? '+' : ''}${formatCurrency(d)}`}
                   </td>
                 );
               })}

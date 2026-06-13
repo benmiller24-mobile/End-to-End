@@ -5,6 +5,38 @@
  * normalized / substituted) plus the Shiloh→Eclipse _fallback flag.
  */
 import { getActiveTenant, getTenant, setActiveTenant, activeTenantId } from '../../eclipse-pricing/src/tenants/index.js';
+import { decode2020, canonicalWW } from './decode2020.js';
+import { skuInfo } from './manualDesign.js';
+
+const IN_PER_CM = 0.393701;
+// Realize a W.W./2020 cabinet SKU into the active METRIC tenant (e.g. pronorm),
+// which has no W.W. SKUs: map by function + size to the nearest catalog body at
+// the active price group and standard carcase height. Returns a catalog-shaped
+// entry (so calculateLayoutPrice prices it) or null. This makes a price-group
+// line quote ANY design — auto, manual, or imported — not just realized solves.
+function realizeMetric(sku, t) {
+  let d = decode2020(sku);
+  if (!d || !(d.widthIn > 0) || d._weak) {
+    try { const i = skuInfo(sku, 'eclipse'); if (i && i.w > 0) d = { widthIn: i.w, zone: i.zone === 'upper' ? 'wall' : (i.zone || 'base'), sink: /sink|^SB/i.test(sku) }; } catch { /* */ }
+  }
+  if (!d || !(d.widthIn > 0) || d.isAppliance) return null;
+  const group = t.pricing.activeGroup ?? t.pricing.defaultGroup ?? '0';
+  const letter = d.zone === 'wall' ? 'O' : d.zone === 'tall' ? 'H' : (d.sink ? 'US' : 'U');
+  const hBand = d.zone === 'base' ? 76 : d.zone === 'tall' ? 208 : 0;
+  const wcm = Math.round(d.widthIn / IN_PER_CM);
+  const norm = (s) => String(s).toUpperCase().replace(/\s+/g, '');
+  let pool = t.catalog.list().filter(e => {
+    if (!e.pg || !(e.w > 0) || e.pg[group] == null) return false;
+    const n = norm(e.s), c = n[letter.length];
+    return n.startsWith(letter) && c >= '0' && c <= '9';
+  });
+  if (!pool.length) return null;
+  const hOf = (e) => { const m = norm(e.s).slice(letter.length).match(/^\d+-(\d+)/); return m ? +m[1] : 0; };
+  if (hBand) { let bh = hOf(pool[0]), bd = Infinity; for (const e of pool) { const dd = Math.abs(hOf(e) - hBand); if (dd < bd) { bd = dd; bh = hOf(e); } } pool = pool.filter(e => hOf(e) === bh); }
+  let best = pool[0], bd = Infinity;
+  for (const e of pool) { const dd = Math.abs(e.w - wcm); if (dd < bd) { bd = dd; best = e; } }
+  return { ...best, p: best.pg[group], _resolution: 'normalized', _realizedFrom: sku };
+}
 
 // ── SKU normalization ──
 // Pick the catalog SKU of a family whose embedded width is closest to `w`.
@@ -49,6 +81,23 @@ function searchSkus(q, limit) {
 export function findSkuNormalized(sku, _depth = 0) {
   const exact = _baseFind(sku);
   if (exact) return { ...exact, _resolution: 'exact' };
+  const t = getActiveTenant();
+  // Metric / price-group tenant (pronorm): its catalogue has no W.W. SKUs, so a
+  // W.W./2020 design SKU realizes to the nearest metric body by function+size.
+  if (t.realize && t.pricing?.priceGroups) { const m = realizeMetric(sku, t); if (m) return m; }
+  // 2020-Design / competitor dialect (DB303, D-DB34x34.5x24-3, UC…, B48): map by
+  // function+size to the canonical W.W. SKU so it prices right in Eclipse/Shiloh
+  // (the fuzzy resolver below otherwise mis-maps these). High-confidence only.
+  if (_depth === 0) {
+    const d = decode2020(sku);
+    // Only UNAMBIGUOUS 2020 dialect (D-…, 6-digit packed walls, DB###, OC/UC…) —
+    // never the generic B##/SB## branches, which collide with native W.W. SKUs
+    // the W.W. resolver already prices right (e.g. BL36-PHR corner susan).
+    if (d && d._strict2020 && !d.isAppliance && d.widthIn > 0) {
+      const canon = canonicalWW(d);
+      if (canon && canon !== sku) { const c = findSkuNormalized(canon, _depth + 1); if (c && !c.error) return { ...c, _resolution: c._resolution === 'exact' ? 'normalized' : c._resolution }; }
+    }
+  }
   const r = resolveSku(sku, _depth);
   if (!r) return r;
   const fillerSub = /FILL/i.test(r.s || '') && !/F\d|FILL|OVF|SCRIBE|3SRM/i.test(sku);
