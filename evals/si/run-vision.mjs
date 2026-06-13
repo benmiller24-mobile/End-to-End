@@ -88,12 +88,29 @@ function runBrands(room) {
   return out;
 }
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Resilient extraction: retry transient API/stream errors (429/500/529/network)
+// so one blip doesn't abort a long batch. Terminal errors (credit, 400) re-throw.
+async function extractWithRetry(args, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try { return await runExtraction(args); }
+    catch (e) {
+      const msg = String(e?.message || e);
+      if (/credit balance|invalid_request|too large|400/.test(msg) && !/429|529|500|502|503|overloaded/i.test(msg)) throw e;
+      lastErr = e; await sleep(2000 * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
 export async function runVisionImage(file) {
   const ext = path.extname(file).toLowerCase();
   const mediaType = MEDIA[ext];
   if (!mediaType) return { file, skipped: 'unsupported type' };
   const image = fs.readFileSync(file).toString('base64');
-  const extraction = await runExtraction({ image, mediaType });
+  const extraction = await extractWithRetry({ image, mediaType });
   const room = extractionToRoom(extraction);
   if (!room.walls.length) return { file: path.basename(file), extraction, room, brands: {}, noRoom: true };
   if (room.outOfDomain) return { file: path.basename(file), extraction, room, brands: {}, outOfDomain: room.outOfDomain };
@@ -126,30 +143,40 @@ function replay(jsonPath) {
 }
 
 async function main() {
+  // A stray transient rejection from the streaming SDK must not abort the batch
+  // (Node 24 exits on unhandledRejection by default).
+  process.on('unhandledRejection', (e) => console.error('  [unhandledRejection ignored]', e?.message || e));
   const replayArg = process.argv.indexOf('--replay');
   if (replayArg > -1 && process.argv[replayArg + 1]) { replay(process.argv[replayArg + 1]); return; }
   const dir = process.argv[2];
   if (!dir || !fs.existsSync(dir)) { console.error('usage: node evals/si/run-vision.mjs <dir> [--json out] | --replay <json>'); process.exit(1); }
   if (!process.env.ANTHROPIC_API_KEY) { console.error('ANTHROPIC_API_KEY not set'); process.exit(1); }
   const files = fs.readdirSync(dir).filter(f => MEDIA[path.extname(f).toLowerCase()]).map(f => path.join(dir, f)).sort();
-  const results = [];
+  const jsonArg = process.argv.indexOf('--json');
+  const jsonPath = jsonArg > -1 ? process.argv[jsonArg + 1] : null;
+  // Resume: load any prior cache and skip files already extracted (crash-safe —
+  // the cache is rewritten after every image, so re-running never re-pays).
+  const results = jsonPath && fs.existsSync(jsonPath) ? JSON.parse(fs.readFileSync(jsonPath, 'utf8')) : [];
+  const done = new Set(results.map(r => r.file));
+  const save = () => { if (jsonPath) fs.writeFileSync(jsonPath, JSON.stringify(results, null, 1)); };
   let pass = 0, total = 0;
-  console.log(`\n══ Live-vision corpus: ${files.length} images × ${BRANDS.length} brands ══\n`);
+  console.log(`\n══ Live-vision corpus: ${files.length} images × ${BRANDS.length} brands (${done.size} cached) ══\n`);
   for (const f of files) {
+    if (done.has(path.basename(f))) continue;
     process.stdout.write(`• ${path.basename(f)} … `);
     let r;
-    try { r = await runVisionImage(f); } catch (e) { console.log(`EXTRACTION FAILED: ${e.message}`); results.push({ file: path.basename(f), error: e.message }); continue; }
-    if (r.noRoom) { console.log('no kitchen walls extracted'); results.push(r); continue; }
+    try { r = await runVisionImage(f); } catch (e) { console.log(`EXTRACTION FAILED: ${e.message}`); results.push({ file: path.basename(f), error: e.message }); save(); continue; }
+    if (r.noRoom) { console.log('no kitchen walls extracted'); results.push(r); save(); continue; }
+    if (r.outOfDomain) { console.log(`out-of-domain — ${r.outOfDomain}`); results.push(r); save(); continue; }
     const ws = r.room.walls.map(w => `${w.id}${w.length}`).join('/');
     const line = BRANDS.map(b => `${b[0].toUpperCase()}:${r.brands[b].pass ? '✓' : '✗(' + (r.brands[b].failed || []).join(',') + ')'}`).join(' ');
     const allPass = BRANDS.every(b => r.brands[b].pass);
     pass += allPass ? 1 : 0; total++;
     console.log(`[${r.extraction.layoutType} ${ws} scale=${r.extraction.scaleStatus}] ${line}`);
-    results.push(r);
+    results.push(r); save();
   }
-  console.log(`\n══ ${pass}/${total} images pass in ALL 3 brands ══`);
-  const jsonArg = process.argv.indexOf('--json');
-  if (jsonArg > -1 && process.argv[jsonArg + 1]) { fs.writeFileSync(process.argv[jsonArg + 1], JSON.stringify(results, null, 2)); console.log(`wrote ${process.argv[jsonArg + 1]}`); }
+  console.log(`\n══ this run: ${pass}/${total} newly-scored kitchens pass; cache now ${results.length} entries ══`);
+  save();
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();
