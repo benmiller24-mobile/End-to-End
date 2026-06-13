@@ -1,0 +1,991 @@
+[
+ {
+  "file": "fp001.jpg",
+  "extraction": {
+   "layoutType": "u-shape",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 600,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": [
+      {
+       "type": "door",
+       "positionIn": 180,
+       "widthIn": 36,
+       "sillHeightIn": null,
+       "headHeightIn": null,
+       "confidence": "guessed"
+      }
+     ]
+    },
+    {
+     "id": "B",
+     "lengthIn": 480,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": []
+    },
+    {
+     "id": "C",
+     "lengthIn": 600,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 120
+    },
+    {
+     "type": "dishwasher",
+     "widthIn": 36,
+     "wall": "A",
+     "positionIn": 300
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "C",
+     "positionIn": 120
+    },
+    {
+     "type": "dishwasher",
+     "widthIn": 36,
+     "wall": "C",
+     "positionIn": 420
+    },
+    {
+     "type": "wall_oven",
+     "widthIn": 36,
+     "wall": "B",
+     "positionIn": 240
+    }
+   ],
+   "island": null,
+   "notes": "This is a large early-20th-century institutional restaurant kitchen plan, not a residential kitchen, and it carries NO printed dimensions or scale bar — every measurement here is a rough guess and must be field-verified. The plan shows three dining rooms (Men's, Girls', Terrace Restaurant) served by a central cooking plant with free-standing cooking islands (gas boiling tables, electric roasting ovens, steamers, boilers, fish friers, grillers) plus perimeter service/cold/hot counters, multiple 'Staines' sinks, two dishwashers, slicing/buttering machines, and a Hobart mincer. The wall chain and appliance placements above are interpretive approximations; the cooking equipment is largely on central tables/islands rather than walls, so the layoutType is nominal. Verify all wall lengths, opening locations, counter runs, and equipment types on site before any cabinetry design."
+  }
+ },
+ {
+  "file": "fp002.png",
+  "extraction": {
+   "layoutType": "l-shape",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": 96,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 150,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 108,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "cooktop",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 36
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 108
+    },
+    {
+     "type": "dishwasher",
+     "widthIn": 24,
+     "wall": "B",
+     "positionIn": 48
+    }
+   ],
+   "island": {
+    "lengthIn": 108,
+    "depthIn": 33
+   },
+   "notes": "No printed dimensions appear on this plan, so all wall lengths, appliance widths, and positions are visual estimates that must be field-verified. The top wall (A) carries a 4-burner cooktop and a sink; the right wall (B) carries cabinetry with a dishwasher (indicated by the X symbol). A freestanding island is drawn at lower left. Confirm exact wall lengths, ceiling height, and appliance fuel/plumbing locations on site, and verify there are no windows or doors not shown in this schematic."
+  }
+ },
+ {
+  "file": "fp003.png",
+  "extraction": {
+   "layoutType": "l-shape",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 150,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 108,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "cooktop",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 30
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 90
+    },
+    {
+     "type": "dishwasher",
+     "widthIn": 24,
+     "wall": "B",
+     "positionIn": 60
+    }
+   ],
+   "island": {
+    "lengthIn": 54,
+    "depthIn": 36
+   },
+   "notes": "No printed dimensions appear on this plan, so all wall lengths, appliance widths/positions, and the island footprint are estimated by proportion and should be field-verified. Layout is an L-shape: top run carries a 4-burner cooktop and a sink, the right run carries what reads as a dishwasher (asterisk symbol) plus base cabinets. Confirm the dishwasher placement and whether the cooktop is a drop-in cooktop versus a slide-in range. Verify ceiling height and any windows/doors on site."
+  }
+ },
+ {
+  "file": "fp004.png",
+  "extraction": {
+   "layoutType": "galley",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 150,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 150,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "cooktop",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 30
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 90
+    }
+   ],
+   "island": null,
+   "notes": "No printed dimensions or scale bar were provided, so all wall lengths and appliance placements are guessed from proportion and must be field-verified. This reads as a galley with two parallel cabinet runs; the upper run carries a 4-burner cooktop and a sink, the lower run is shown with a star/asterisk symbol of uncertain meaning (possibly a range, vent, or design marker) — confirm on site what that symbol represents and add the correct appliance. Cabinet segment widths and exact opening/appliance positions need verification."
+  }
+ },
+ {
+  "file": "fp005.png",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 150,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "cooktop",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 15
+    },
+    {
+     "type": "sink",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 78
+    },
+    {
+     "type": "refrigerator",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 117
+    }
+   ],
+   "island": null,
+   "notes": "No printed dimensions; all sizes and positions are estimated by proportion and must be field-verified. The cabinetry runs as a single wall along the top of the room. Four-burner symbol read as a cooktop, the basin with faucet as a sink, and the X symbol as a refrigerator/appliance — confirm appliance types and actual widths on site, along with wall length and ceiling height."
+  }
+ },
+ {
+  "file": "fp006.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "scaled",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 108,
+     "role": "sink",
+     "confidence": "scaled",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 63
+    }
+   ],
+   "island": null,
+   "notes": "This is an antique illustration (Fig. 12) of a 9'x9' kitchen with a single counter run labeled FLOUR (a round flour bin), COOK, DRAIN, SINK, and PUMPS, with shelves wrapping the corners. Only the room size (9x9) is given, so all wall and fixture measurements are scaled/estimated from that 108-inch dimension; verify on site. The adjacent 'STOVE ROOM' (9x7) with stove, dressers (D.W.), pot boxes, and Franklin stoves is a separate room and was not treated as kitchen cabinetry. Exact sink/cook positions and whether the pumps occupy usable counter need field confirmation."
+  }
+ },
+ {
+  "file": "fp007.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "scaled",
+   "ceilingHeightIn": 126,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 148,
+     "role": "general",
+     "confidence": "printed",
+     "openings": [
+      {
+       "type": "window",
+       "positionIn": 56,
+       "widthIn": 36,
+       "sillHeightIn": 42,
+       "headHeightIn": 80,
+       "confidence": "printed"
+      }
+     ]
+    },
+    {
+     "id": "B",
+     "lengthIn": 60,
+     "role": "range",
+     "confidence": "printed",
+     "openings": []
+    },
+    {
+     "id": "C",
+     "lengthIn": 148,
+     "role": "general",
+     "confidence": "printed",
+     "openings": [
+      {
+       "type": "door",
+       "positionIn": 30,
+       "widthIn": 30,
+       "sillHeightIn": null,
+       "headHeightIn": 102,
+       "confidence": "scaled"
+      }
+     ]
+    },
+    {
+     "id": "D",
+     "lengthIn": 60,
+     "role": "general",
+     "confidence": "printed",
+     "openings": [
+      {
+       "type": "door",
+       "positionIn": 12,
+       "widthIn": 30,
+       "sillHeightIn": null,
+       "headHeightIn": 102,
+       "confidence": "scaled"
+      }
+     ]
+    }
+   ],
+   "appliances": [
+    {
+     "type": "range",
+     "widthIn": 20,
+     "wall": "B",
+     "positionIn": 4
+    }
+   ],
+   "island": null,
+   "notes": "This is a 1910 historical drawing for the Cabras Island Lt. Sta. kitchen and dining room (scale 3/8\"=1ft). Only the upper 'Kitchen' space (~12'4\" x 5') was reported as the cabinetry chain; the lower space is the dining room. The 1'8\" object in the top-right corner appears to be a cookstove/range and is reported as a 20\" range on wall B — verify type and exact location on site. The 2'6\" and 3' notations near the partition and bottom are door/passage openings; door swing and head heights are inferred. Ceiling height is estimated from the cross-section (10'6\" wall, 8'6\" door). Given the age of the drawing, confirm all dimensions and the presence/condition of any existing built-ins before designing modern cabinetry."
+  }
+ },
+ {
+  "file": "fp008.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 120,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [],
+   "island": null,
+   "notes": "This is a historical 19th-century architectural drawing titled 'Plan of Company Kitchen at Fort Buford, D.T.' showing multiple elevations, sections, and foundation/joist plans — not a modern kitchen cabinetry layout. The floor plan labels rooms such as 'Kitchen,' 'Ordinary,' 'Mess room,' 'Cellar,' 'Store room,' and 'Cistern,' but printed dimension strings are faint/illegible and the scale ('8 feet to one inch') cannot be reliably applied at this resolution. No appliances, cabinetry runs, or measurable wall openings can be confidently extracted. All values reported are placeholders; a designer must obtain a legible, scaled plan and verify every dimension, opening, and ceiling height on site before any cabinetry design."
+  }
+ },
+ {
+  "file": "fp009.png",
+  "extraction": {
+   "layoutType": "u-shape",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 252,
+     "role": "range",
+     "confidence": "guessed",
+     "openings": [
+      {
+       "type": "door",
+       "positionIn": 12,
+       "widthIn": 36,
+       "sillHeightIn": null,
+       "headHeightIn": 80,
+       "confidence": "guessed"
+      }
+     ]
+    },
+    {
+     "id": "B",
+     "lengthIn": 168,
+     "role": "fridge",
+     "confidence": "guessed",
+     "openings": [
+      {
+       "type": "door",
+       "positionIn": 120,
+       "widthIn": 48,
+       "sillHeightIn": null,
+       "headHeightIn": 84,
+       "confidence": "guessed"
+      }
+     ]
+    },
+    {
+     "id": "C",
+     "lengthIn": 216,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "range",
+     "widthIn": 48,
+     "wall": "A",
+     "positionIn": 48
+    },
+    {
+     "type": "range",
+     "widthIn": 36,
+     "wall": "A",
+     "positionIn": 96
+    },
+    {
+     "type": "microwave",
+     "widthIn": 24,
+     "wall": "A",
+     "positionIn": 150
+    },
+    {
+     "type": "sink",
+     "widthIn": 24,
+     "wall": "B",
+     "positionIn": 24
+    },
+    {
+     "type": "refrigerator",
+     "widthIn": 48,
+     "wall": "B",
+     "positionIn": 60
+    },
+    {
+     "type": "refrigerator",
+     "widthIn": 36,
+     "wall": "C",
+     "positionIn": 24
+    },
+    {
+     "type": "sink",
+     "widthIn": 48,
+     "wall": "C",
+     "positionIn": 96
+    },
+    {
+     "type": "sink",
+     "widthIn": 48,
+     "wall": "C",
+     "positionIn": 156
+    }
+   ],
+   "island": {
+    "lengthIn": 72,
+    "depthIn": 36
+   },
+   "notes": "This is a hand-drawn commercial kitchen ('Lothlorien') with NO printed dimensions and no scale bar, so every measurement is a rough guess and must be verified on site. The room is an irregular polygon with angled walls (kitchen, dishroom, recycling area, pantry, toilet); I reduced the cabinetry-bearing perimeter to three primary runs. Item 8 'moveable counter' is shown free-standing and is reported as an island footprint though it is mobile, not fixed. The legend distinguishes potwash sinks, handwashing sink, dishwash sinks, and mop sink—confirm exact sink counts/sizes and which runs are stainless commercial fixtures vs. cabinetry. A separate freezer (12) and multiple refrigerators (11) are drawn; structural columns (9) interrupt the floor and must be field-located. Loading space, courtyard, foyer, dining room, and porch are circulation/adjacent rooms and were excluded."
+  }
+ },
+ {
+  "file": "fp010.jpg",
+  "extraction": {
+   "layoutType": "l-shape",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": 120,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 120,
+     "role": "fridge",
+     "confidence": "guessed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 180,
+     "role": "range",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "wall_oven",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 12
+    },
+    {
+     "type": "refrigerator",
+     "widthIn": 36,
+     "wall": "A",
+     "positionIn": 48
+    },
+    {
+     "type": "range",
+     "widthIn": 48,
+     "wall": "B",
+     "positionIn": 96
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "B",
+     "positionIn": 36
+    },
+    {
+     "type": "dishwasher",
+     "widthIn": 24,
+     "wall": "B",
+     "positionIn": 12
+    }
+   ],
+   "island": {
+    "lengthIn": 120,
+    "depthIn": 48
+   },
+   "notes": "This is a marketing photograph, not a dimensioned floorplan, so every measurement is a visual estimate and must be field-verified. The left wall (A) carries tall pantry/built-in cabinetry with at least one wall oven; the back wall (B) carries a pro-style range under a hood plus a sink run with dishwasher. A refrigerator location is inferred from the tall cabinet bank and not clearly visible. The large dark island seats stools on the room side; confirm overall length, depth, and any integrated sink/appliances. Window wall to the right is part of the great room, not kitchen cabinetry, so it was excluded. Confirm ceiling height (coffered, appears ~10 ft) and exact wall lengths on site."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp011.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This image is an 18th-century French manuscript page titled 'Plan de la Cuisine de l'autre Part' depicting geometric circle/ellipse constructions for ship's galleys (cuisine du Capitaine and cuisine de l'équipage), not an architectural kitchen cabinetry floorplan. There are no walls, dimensions, appliances, or cabinetry runs to extract. No measurable cabinetry geometry is present; nothing can be reported with any confidence."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp012.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a usable kitchen floorplan. It is an antique (18th-century) handwritten French manuscript page showing geometric drawings of ellipses/ovals (labeled No. 5, 6, 7, 8, 102, 103) with the text referencing 'Cuisine du Capitaine' and 'Cuisine de l'Equipage' (ship's galleys) and a kettle/cauldron. There are no walls, dimensions, appliances, or measurable cabinetry geometry present. No design data could be extracted; obtain an actual scaled kitchen plan."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp013.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a usable kitchen cabinetry floorplan. It is an 18th-century French manuscript page (numbered 269) titled 'Plan de la Cuisine de l'autre Part,' describing two ship's galleys — A: the captain's kitchen (Cuisine du Capitaine) and B: the crew's kitchen (Cuisine de l'Equipage) with a cauldron. The drawing consists of six geometric circle/ellipse diagrams labeled No. 9, 10, 11, 12, 104, and 105, which appear to be hull or fitting layouts, not architectural plans with wall lengths, dimensions, openings, or appliances. No measurable cabinetry geometry, scale, or dimension strings are present, so nothing can be reliably extracted."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp014.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not an extractable kitchen cabinetry floorplan. It is an 18th-century French naval manuscript titled 'Plan de la Cuisine de Haute Part' describing two shipboard galleys (A: captain's kitchen, B: crew's kitchen for a cauldron/chaudiere). The drawings are a series of geometric ellipse/oval constructions (numbered 13, 14, 15, 16, 106, 107) with no room outline, wall lengths, appliances, or dimensions for residential cabinetry. No measurements, scale, or NKBA-relevant geometry can be derived. A real kitchen floorplan with walls and dimensions is needed to proceed."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp015.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a usable kitchen cabinetry floorplan. It is an 18th-century French manuscript page whose handwritten caption references a ship's galleys ('Cuisine du Capitaine' and 'Cuisine de l'Equipage pour une chaudiere de...'), but the six labeled figures (Nos. 17, 18, 19, 20, 108, 109) are geometric ellipse/circle construction drawings, not architectural plans. There are no walls, dimensions, openings, appliances, or scale that can be extracted. No cabinetry geometry can be derived from this image; the actual galley plan referenced is on another sheet ('de l'autre part')."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp016.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a usable kitchen cabinetry floorplan. The image is an 18th-century French manuscript page (numbered 281) with handwritten notes referencing ship galleys ('Cuisine du Capitaine' and 'Cuisine de l'Equipage pour une chaudiere'). The drawings below are abstract geometric figures (ellipses and circles inscribed in ovals/rounded rectangles labeled n°21, n°22, n°23, n°24, n°110, n°111), not architectural plans with walls, dimensions, openings, or appliances. No cabinetry geometry can be extracted; a proper scaled kitchen floorplan is required."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp017.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This image is not a usable kitchen floorplan. It is an antique (18th-century French) manuscript page containing geometric oval/circle construction diagrams labeled n°25–28, 112, 113. The handwritten text references ship's galleys ('Cuisine du Capitaine' and 'Cuisine de l'Equipage pour une chaudiere de...') but no actual room outline, wall dimensions, openings, appliances, or scale are drawn. No cabinetry geometry can be extracted; a real dimensioned floorplan is required."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp018.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a usable kitchen cabinetry floorplan. It is an 18th-century French manuscript page (numbered 289) showing six geometric construction diagrams — ellipses/ovals inscribed within circles, labeled No. 29, 30, 31, 32, 114, and 115. The handwritten heading references a ship's galley layout ('Plan de la cuisine de l'autre part' showing 'les deux cuisines du capitaine et de l'equipage'): A = captain's kitchen, B = crew's kitchen with a cauldron ('chaudiere'). However, no walls, dimensions, scale, appliances, or cabinet runs are drawn — the figures are pure geometric/hull-form constructions, not architectural plans. No geometry can be extracted; a real measured plan is required."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp019.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a usable kitchen cabinetry floorplan. The image is a historical French manuscript page (numbered 293) with handwritten text referencing two ship's galleys ('cuisine du capitaine' and 'cuisine de l'equipage pour une chaudiere de hommes') and six geometric diagrams of overlapping ellipses/circles labeled n.33-36 and n.116-117. There are no walls, dimensions, scale, appliances, or layout information that can be extracted for a cabinetry design. No measurements are present, so nothing reliable can be reported."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp020.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This image is not a usable kitchen floorplan. It is an 18th-century French manuscript page (numbered 297) containing handwritten text and six geometric ellipse/circle construction diagrams labeled n°37, n°38, n°39, n°40, n°118, and n°119. The text references ship galleys ('cuisine du capitaine' and 'cuisine d'equipage pour une chaudiere'), but no actual plan, walls, dimensions, appliances, or cabinetry layout are drawn. No measurements, scale, or kitchen geometry can be extracted; a proper architectural floorplan is required."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp021.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a usable kitchen cabinetry floorplan. The sheet is an 18th-century French manuscript page (titled 'Plan de la Cuisine de l'autre Part') describing the layout of air pipes (tuyaux aeriens) and the case enclosing them for a ship's galley — A is the captain's kitchen, B the crew's kitchen. The drawn figures are purely geometric ellipse/circle constructions labeled n.41–44, 120, 121, with no walls, dimensions, openings, appliances, or scale. No cabinetry geometry can be extracted; obtain an actual measured kitchen plan."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp022.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This document is not a usable kitchen cabinetry floorplan. It is a historical (likely 18th–19th century French) manuscript page with handwritten text referencing a ship's galley/kitchen ('Plan de la Cuisine,' with labels for barres A, fourneau B, tuyaux C, cuisine du Capitaine D, cuisine de l'Équipage E, caisse F), accompanied by six geometric construction diagrams (ellipses and circles labeled n°45–48, 122, 123). No room outlines, wall dimensions, openings, appliances, or scale are present. No cabinetry geometry can be extracted; please supply an actual dimensioned kitchen plan."
+  }
+ },
+ {
+  "file": "fp023.jpg",
+  "extraction": {
+   "layoutType": "galley",
+   "scaleStatus": "printed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 150,
+     "role": "range",
+     "confidence": "printed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 108,
+     "role": "general",
+     "confidence": "printed",
+     "openings": []
+    },
+    {
+     "id": "C",
+     "lengthIn": 150,
+     "role": "sink",
+     "confidence": "printed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "range",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": null
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "C",
+     "positionIn": null
+    }
+   ],
+   "island": null,
+   "notes": "Vintage plan; kitchen labeled 9'x12.5'. Range shown on upper wall, sink/worktable/cupboard along lower wall, suggesting a galley arrangement. An ice box is drawn near the entry/pantry rather than inside the kitchen proper, so it was not placed as a kitchen appliance—verify desired refrigerator location. Pantry, ironing board and worktable are millwork features to confirm on site. No printed appliance widths, ceiling height, or window/door openings for the kitchen are given; verify all wall lengths and opening locations in the field."
+  }
+ },
+ {
+  "file": "fp024.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "printed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 185,
+     "role": "range",
+     "confidence": "printed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 108,
+     "role": "general",
+     "confidence": "printed",
+     "openings": [
+      {
+       "type": "door",
+       "positionIn": 0,
+       "widthIn": 30,
+       "sillHeightIn": null,
+       "headHeightIn": 80,
+       "confidence": "guessed"
+      }
+     ]
+    },
+    {
+     "id": "C",
+     "lengthIn": 185,
+     "role": "sink",
+     "confidence": "printed",
+     "openings": [
+      {
+       "type": "window",
+       "positionIn": 60,
+       "widthIn": 30,
+       "sillHeightIn": 42,
+       "headHeightIn": 80,
+       "confidence": "guessed"
+      }
+     ]
+    },
+    {
+     "id": "D",
+     "lengthIn": 108,
+     "role": "general",
+     "confidence": "printed",
+     "openings": []
+    }
+   ],
+   "appliances": [
+    {
+     "type": "range",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": null
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "C",
+     "positionIn": null
+    }
+   ],
+   "island": null,
+   "notes": "Vintage bungalow plan. Kitchen is printed at 9'-0\" x 15'-5\" (108 x 185 in). A flue/chimney is drawn near the kitchen indicating likely range/cookstove location, and an adjacent pantry plus a 'flue' mark help locate the cooking wall. Exact appliance and sink positions, opening locations, and ceiling height are not dimensioned and must be verified on site. Door/passage to hall and pantry connection need field confirmation."
+  }
+ },
+ {
+  "file": "fp025.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 120,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 120,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": [
+      {
+       "type": "door",
+       "positionIn": 0,
+       "widthIn": 32,
+       "confidence": "guessed"
+      }
+     ]
+    }
+   ],
+   "appliances": [
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 24
+    }
+   ],
+   "island": null,
+   "notes": "This is an antique/historical floorplan with no printed dimensions, no scale bar, and no ceiling height. The kitchen ('K') is identified by label only; all wall lengths, the room shape, and appliance placement are pure guesses. The two small circles at the top of the kitchen area may represent a sink basin or stove burners and should be verified. Adjacent labels (S, V, scullery/pantry) suggest service spaces but their relation to cabinetry is unclear. A site survey is required to establish any actual measurements, opening locations, and appliance positions before designing."
+  }
+ },
+ {
+  "file": "fp026.jpg",
+  "extraction": {
+   "layoutType": "l-shape",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 150,
+     "role": "range",
+     "confidence": "guessed",
+     "openings": []
+    },
+    {
+     "id": "B",
+     "lengthIn": 180,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": [
+      {
+       "type": "window",
+       "positionIn": 72,
+       "widthIn": 36,
+       "sillHeightIn": 42,
+       "headHeightIn": 80,
+       "confidence": "guessed"
+      }
+     ]
+    }
+   ],
+   "appliances": [
+    {
+     "type": "range",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 60
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "B",
+     "positionIn": 72
+    },
+    {
+     "type": "refrigerator",
+     "widthIn": 36,
+     "wall": "B",
+     "positionIn": 150
+    }
+   ],
+   "island": null,
+   "notes": "This is the cover of a USDA Home and Garden Bulletin (No. 18), not a true scaled floorplan. The main image is a perspective sketch of cabinet units (utility/chore-clothes cabinet 7041/7042, woodbox 7038, food-prep and clearing cabinets 7035), and the small inset 'PLAN' shows only one printed dimension (2'-6\"=30in). Wall lengths, appliance positions, window dimensions, and ceiling height are all guessed from the illustration and must be field-verified; no reliable scale is present."
+  }
+ },
+ {
+  "file": "fp027.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": 96,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 156,
+     "role": "sink",
+     "confidence": "guessed",
+     "openings": [
+      {
+       "type": "window",
+       "positionIn": 60,
+       "widthIn": 42,
+       "sillHeightIn": 42,
+       "headHeightIn": 80,
+       "confidence": "guessed"
+      }
+     ]
+    }
+   ],
+   "appliances": [
+    {
+     "type": "range",
+     "widthIn": 30,
+     "wall": "A",
+     "positionIn": 0
+    },
+    {
+     "type": "sink",
+     "widthIn": 33,
+     "wall": "A",
+     "positionIn": 62
+    },
+    {
+     "type": "microwave",
+     "widthIn": 20,
+     "wall": "A",
+     "positionIn": 136
+    }
+   ],
+   "island": null,
+   "notes": "This is a photograph of an existing single-wall kitchen, not a scaled floorplan, so all dimensions are visual estimates and must be field-measured. The gas range sits at the far left, base cabinets run continuously to a center double-bowl sink set beneath a double-hung window (with a scalloped wood valance), and a countertop microwave sits at the right end. Wall cabinets exist above (including an open-shelf unit right of the window). Verify actual wall length, window size/sill height, ceiling height, and exact appliance widths/positions on site."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp028.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is not a residential kitchen cabinetry plan. It is an 18th-century French naval/institutional drawing titled 'Plan de la Cuisine de Lautre Part' showing the masonry layout of two large cooking cauldrons (chaudieres) for 2000 and 1800 men, with brick hearth construction shown in plan and dimensioned circle/oval diagrams below. Printed dimensions are given in 'pouces' (French inches): cauldron No.1 grand diametre 60, petit diametre 43, hauteur 36; cauldron No.2 grand diametre 58, petit diametre 41, hauteur 34. There are no walls carrying domestic cabinetry, no standard appliances, and no island in the modern sense, so no cabinetry geometry can be extracted. A designer should disregard this for cabinetry purposes."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp029.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [
+    {
+     "id": "A",
+     "lengthIn": 0,
+     "role": "general",
+     "confidence": "guessed",
+     "openings": []
+    }
+   ],
+   "appliances": [],
+   "island": null,
+   "notes": "This is an antique 18th-century French naval drawing titled 'Plan de la Cuisine de Lautre Part' depicting a ship's galley with two large built-in cooking cauldrons (chaudieres) sized for 1600 and 1400 men. It is not a residential kitchen and contains no modern cabinetry, walls, or standard appliances. The only printed dimensions describe the two cauldrons in pouces (French inches): No.3 grand diametre 56, petit diametre 40, hauteur 34, volume 36 pieds cubes, ~1296 pintes capacity; No.4 grand diametre 54, petit diametre 38, hauteur 32, volume 30 pieds cubes, ~1080 pintes. No wall lengths, openings, or layout suitable for cabinetry design can be reliably extracted. Verify the intended scope with the client; standard NKBA cabinetry extraction does not apply to this document."
+  }
+ },
+ {
+  "file": "/tmp/fpc/fp030.jpg",
+  "extraction": {
+   "layoutType": "single-wall",
+   "scaleStatus": "guessed",
+   "ceilingHeightIn": null,
+   "walls": [],
+   "appliances": [],
+   "island": null,
+   "notes": "This is an 18th-century French institutional/military kitchen plan ('Plan de la Cuisine'), not a residential cabinetry layout. The drawing shows two large masonry cauldron furnaces (chaudieres) sized to feed 1200 and 1000 men, with a brick-vaulted firebox structure and a central red masonry pier. The only printed dimensions are the cauldron geometries in pouces (French inches): No.5 grand diametre 52, petit diametre 37, hauteur 30, volume 27 pieds cubes (~972 pintes); No.6 grand diametre 50, petit diametre 35, hauteur 30, 24 pieds cubes (~864 pintes). No modern walls, cabinetry runs, openings, or standard appliances can be extracted. None of the schema fields meaningfully apply; a designer should treat this as a historical/reference document, not a buildable cabinetry plan."
+  }
+ }
+]

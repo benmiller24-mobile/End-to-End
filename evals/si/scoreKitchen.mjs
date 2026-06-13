@@ -37,9 +37,14 @@ function scoreDesign(result, room) {
   const nan = cabs.filter(p => NAN_RE.test(String(p.sku)) || Number.isNaN(Number(p.width)));
   if (nan.length) issues.push(`${nan.length} cabinet(s) with NaN sku/width (e.g. ${nan[0].sku})`);
 
-  // Wall-fill ratio, computed in the BASE zone only (uppers share the base span).
+  // Wall-fill ratio in the BASE zone (uppers share the base span). Only count
+  // cabinetry on the PERIMETER walls — island / peninsula / accessory runs
+  // (wall tags 'island-*', 'peninsula', 'ACC') are separate and would otherwise
+  // inflate the ratio past 100% against the wall length.
+  const wallIds = new Set((room.walls || []).map(w => w.id));
   const wallLen = (room.walls || []).reduce((a, w) => a + (w.length || 0), 0);
-  const baseLen = placements.filter(isBaseZone).reduce((a, p) => a + (Number(p.width) || 0), 0);
+  const baseLen = placements.filter(p => isBaseZone(p) && wallIds.has(p.wall))
+    .reduce((a, p) => a + (Number(p.width) || 0), 0);
   const fill = wallLen > 0 ? baseLen / wallLen : 0;
   if (wallLen > 0 && fill < 0.75) issues.push(`base-run fill only ${(fill * 100).toFixed(0)}% (gaps/short run)`);
   if (fill > 1.05) issues.push(`base run overfills walls ${(fill * 100).toFixed(0)}%`);
