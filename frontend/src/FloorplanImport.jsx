@@ -165,16 +165,16 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
   const runVision = async () => {
     try {
       setBusy('Sending to the design assistant… (10–30s)');
-      const dataUrl = canvas.toDataURL('image/png');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);   // JPEG: ~10x smaller upload than PNG for scans
       const calibration = (calib.pts.length === 2 && Number(calib.inches) > 0)
         ? { pixels: Math.hypot(calib.pts[1].x - calib.pts[0].x, calib.pts[1].y - calib.pts[0].y), inches: Number(calib.inches) }
         : null;
       const res = await fetch('/api/floorplan', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: dataUrl.split(',')[1], mediaType: 'image/png', calibration, hints: hints || undefined }),
+        body: JSON.stringify({ image: dataUrl.split(',')[1], mediaType: 'image/jpeg', calibration, hints: hints || undefined }),
       });
-      const out = await res.json();
-      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
+      const out = await res.json();   // tolerant of the function's keep-alive whitespace prefix
+      if (!res.ok || out.error) throw new Error(out.error || `HTTP ${res.status}`);
       const x = out.extraction;
       setReview({
         source: 'vision',
@@ -204,10 +204,12 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
 
   const apply = (withCabinets) => {
     if (!review) return;
+    const KNOWN = ['range', 'cooktop', 'wall_oven', 'refrigerator', 'dishwasher', 'sink', 'microwave'];
     const payload = {
       layoutType: review.layoutType,
       walls: review.walls.map(w => ({ id: w.id, length: w.length, role: w.role || 'general', openings: w.openings || [] })),
-      appliances: review.appliances, island: review.island, ceilingHeight: review.ceilingHeight || null,
+      appliances: review.appliances.filter(a => KNOWN.includes(a.type)),
+      island: review.island, ceilingHeight: review.ceilingHeight || null,
     };
     if (withCabinets && review.items?.length) onApplyDesign({ ...payload, items: review.items });
     else onApplyRoom(payload);
@@ -301,10 +303,14 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
               Imported dimensions are customer-supplied until field-verified — quotes stay budget-grade and the order gate stays closed, exactly like hand-typed measurements.
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              {review.items?.length
-                ? <button onClick={() => apply(true)} style={{ ...btn(true), background: C.ok }}>✓ Rebuild room + cabinets</button>
-                : null}
-              <button onClick={() => apply(false)} style={btn(true)}>✓ Apply room{review.items?.length ? ' only' : ''}</button>
+              {review.walls.length ? (<>
+                {review.items?.length
+                  ? <button onClick={() => apply(true)} style={{ ...btn(true), background: C.ok }}>✓ Rebuild room + cabinets</button>
+                  : null}
+                <button onClick={() => apply(false)} style={btn(true)}>✓ Apply room{review.items?.length ? ' only' : ''}</button>
+              </>) : (
+                <span style={{ fontSize: 11, color: C.danger, fontWeight: 700 }}>No walls recognized — this doesn’t look like a floorplan. See the note above.</span>
+              )}
               <button onClick={reset} style={btn(false)}>Start over</button>
             </div>
           </div>

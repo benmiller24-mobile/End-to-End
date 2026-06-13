@@ -32,7 +32,7 @@ const FAMILY_RE = /^(F?C?-?)(B{1,2}C?|SB|DSB|SBA|VSB|BL|BWDM[WAB]|BWS|BWC|BO|BD|
 export function labelDims(label, brand = 'eclipse') {
   // Strip trailing bare-integer runs — dimension glyphs pdf.js sometimes
   // joins onto the label's text run ("RW3624 125 1 8" → "RW3624").
-  const s = String(label).trim().replace(/\s+/g, ' ').replace(/(\s+\d+)+$/, '');
+  const s = String(label).trim().replace(/\s+/g, ' ').replace(/(\s+\d+(?: \d+\/\d+)?"?)+$/, '');
   if (!LABEL_RE.test(s) || NOT_LABELS.test(s) || !FAMILY_RE.test(s)) return null;
 
   // Panels & skins: FREP3/4 93FTK24L, BEP3/4L-FTK, REP…  → thin verticals.
@@ -141,7 +141,14 @@ export function parseDims(items) {
 export function looksLikeDesignPdf(pagesPos, brand = 'eclipse') {
   let hits = 0;
   for (const p of pagesPos) for (const it of p.items) if (labelDims(it.s, brand)) hits++;
-  return hits >= 5;
+  if (hits < 5) return false;
+  // Label count alone is not enough — order documents are full of model codes.
+  // A real plan anchors at least two edges with printed wall dimensions.
+  try {
+    const r = parseDesignPdf(pagesPos, brand);
+    const printed = Object.values(r.report?.edges || {}).filter(e => e.printedDim).length;
+    return r.walls.length >= 1 && printed >= 2;
+  } catch { return false; }
 }
 
 /**
@@ -240,7 +247,7 @@ export function parseDesignPdf(pagesPos, brand = 'eclipse') {
     for (const l of onEdge) {
       const z = l.dims.zone;
       wallItems.push({
-        sku: l.s.replace(/\s+/g, ' ').replace(/(\s+\d+)+$/, '').trim(), wall: id, zone: z,
+        sku: l.s.replace(/\s+/g, ' ').replace(/(\s+\d+(?: \d+\/\d+)?"?)+$/, '').trim(), wall: id, zone: z,
         width: l.dims.width, height: l.dims.height,
         position: cursors[z],
         ...(z === 'upper' ? { yMount: 54 } : {}),
@@ -258,14 +265,32 @@ export function parseDesignPdf(pagesPos, brand = 'eclipse') {
     };
   }
 
-  const islandLabels = labels.filter(l => l.edge === 'island');
+  let islandLabels = labels.filter(l => l.edge === 'island');
+  // A lone interior panel/filler is a surround detail, not an island — fold it
+  // back to the nearest wall edge instead of inventing a 1-inch island.
+  if (!islandLabels.some(l => l.dims.width >= 12 && !l.dims.panel && !l.dims.filler)) {
+    for (const l of islandLabels) {
+      let best = null, bd = Infinity;
+      for (const o of labels.filter(o => o.edge !== 'island')) {
+        const d = Math.hypot(o.x - l.x, o.y - l.y);
+        if (d < bd) { bd = d; best = o; }
+      }
+      if (best) {
+        l.edge = best.edge;
+        const z = l.dims.zone;
+        const id = walls.find(w => report.edges[w.id]?.edge === best.edge)?.id;
+        if (id) wallItems.push({ sku: l.s.replace(/\s+/g, ' ').replace(/(\s+\d+(?: \d+\/\d+)?"?)+$/, '').trim(), wall: id, zone: z, width: l.dims.width, height: l.dims.height, position: 0, ...(z === 'upper' ? { yMount: 54 } : {}) });
+      }
+    }
+    islandLabels = [];
+  }
   let island = null;
   const islandItems = [];
   if (islandLabels.length) {
     islandLabels.sort((a, b) => a.x - b.x);
     let cur = 0, sum = 0;
     for (const l of islandLabels) {
-      islandItems.push({ sku: l.s.replace(/\s+/g, ' ').replace(/(\s+\d+)+$/, '').trim(), zone: l.dims.zone === 'upper' ? 'base' : l.dims.zone, width: l.dims.width, height: l.dims.height, position: cur });
+      islandItems.push({ sku: l.s.replace(/\s+/g, ' ').replace(/(\s+\d+(?: \d+\/\d+)?"?)+$/, '').trim(), zone: l.dims.zone === 'upper' ? 'base' : l.dims.zone, width: l.dims.width, height: l.dims.height, position: cur });
       cur += l.dims.width; sum += l.dims.width;
     }
     // Island footprint: interior dims when printed, else the cabinet run + 1" overhangs.
