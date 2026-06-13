@@ -164,17 +164,42 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
 
   const runVision = async () => {
     try {
-      setBusy('Sending to the design assistant… (10–30s)');
+      setBusy('Sending to the design assistant…');
       const dataUrl = canvas.toDataURL('image/jpeg', 0.85);   // JPEG: ~10x smaller upload than PNG for scans
       const calibration = (calib.pts.length === 2 && Number(calib.inches) > 0)
         ? { pixels: Math.hypot(calib.pts[1].x - calib.pts[0].x, calib.pts[1].y - calib.pts[0].y), inches: Number(calib.inches) }
         : null;
-      const res = await fetch('/api/floorplan', {
+      const payload = { image: dataUrl.split(',')[1], mediaType: 'image/jpeg', calibration, hints: hints || undefined };
+
+      // Background job first (dense sheets can take 30-90s — past the sync
+      // function limit); poll for the result. Falls back to the streaming
+      // synchronous endpoint when background functions aren't available.
+      let out = null;
+      const id = (crypto.randomUUID && crypto.randomUUID()) || `fp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const job = await fetch('/api/floorplan-job-background', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: dataUrl.split(',')[1], mediaType: 'image/jpeg', calibration, hints: hints || undefined }),
-      });
-      const out = await res.json();   // tolerant of the function's keep-alive whitespace prefix
-      if (!res.ok || out.error) throw new Error(out.error || `HTTP ${res.status}`);
+        body: JSON.stringify({ id, ...payload }),
+      }).catch(() => null);
+      if (job && (job.status === 202 || job.ok)) {
+        const t0 = Date.now();
+        while (Date.now() - t0 < 180000) {
+          await new Promise(r => setTimeout(r, 2500));
+          setBusy(`Reading the plan… ${Math.round((Date.now() - t0) / 1000)}s`);
+          const res = await fetch(`/api/floorplan-result?id=${id}`).catch(() => null);
+          if (!res) continue;
+          const o = await res.json().catch(() => null);
+          if (o && o.status !== 'pending') { out = o; break; }
+        }
+        if (!out) throw new Error('Extraction timed out after 3 minutes — try cropping to just the kitchen area.');
+      } else {
+        const res = await fetch('/api/floorplan', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        out = await res.json();   // tolerant of the function's keep-alive whitespace prefix
+        if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`);
+      }
+      if (out.error) throw new Error(out.error);
       const x = out.extraction;
       setReview({
         source: 'vision',
