@@ -6406,9 +6406,16 @@ function generateAccessories(wallLayouts, upperLayouts, islandLayout, peninsulaL
   const ceilingH = prefs.ceilingHeight || 96;
 
   if (ceilingTreatment === "crown" && upperLayouts.length > 0) {
-    // Calculate total linear feet of upper cabinet runs
+    // Crown runs over the upper CABINETS only — it must terminate at hood /
+    // microwave zones (a chimney hood rises to the ceiling, interrupting the
+    // crown). Excluding range hoods / appliance gaps here makes the crown's
+    // linear footage path-aware (matches the run, not the full wall span), which
+    // is both correct and what the spatial validator's crown_spans_hood expects.
+    const isCrownSkip = (c) => c.type === 'rangeHood' || c.role === 'range_hood' ||
+      c.type === 'appliance' || c.type === 'microwave' || Number.isNaN(Number(c.width));
     const totalUpperLF = upperLayouts.reduce((sum, ul) => {
-      const totalWidth = (ul.cabinets || []).reduce((s, c) => s + (c.width || 0), 0);
+      const totalWidth = (ul.cabinets || []).filter(c => !isCrownSkip(c))
+        .reduce((s, c) => s + (c.width || 0), 0);
       return sum + totalWidth;
     }, 0);
 
@@ -8305,7 +8312,12 @@ export function scoreAesthetics(wallLayouts, upperLayouts, corners, prefs) {
 
   for (const wl of wallLayouts) {
     const baseCabs = (wl.cabinets || []).filter(c => c.type === "base" && typeof c.position === "number");
-    const applianceCabs = (wl.cabinets || []).filter(c => c.type === "appliance");
+    // Balance is judged around the WORK CORE focal points (sink, range, cooktop).
+    // The refrigerator and tall oven towers are terminal anchors — correctly
+    // placed at a run's end — so balancing cabinet mass around them is wrong
+    // (it penalised every single-wall kitchen for having the fridge at the end).
+    const applianceCabs = (wl.cabinets || []).filter(c => c.type === "appliance" &&
+      c._elev?.zone !== "TALL" && !/refriger|fridge/i.test(c.applianceType || ""));
 
     for (const app of applianceCabs) {
       const appPos = app.position || 0;
@@ -8317,7 +8329,13 @@ export function scoreAesthetics(wallLayouts, upperLayouts, corners, prefs) {
         .filter(c => c.position >= appEnd)
         .reduce((s, c) => s + c.width, 0);
 
-      if (leftTotal > 0 || rightTotal > 0) {
+      // Balance is only meaningful around an INTERIOR focal point — one with
+      // cabinetry on BOTH sides. An appliance at a run terminus (e.g. a sink
+      // right after the corner/fridge at the wall start) has nothing to balance
+      // against; judging it as one-sided wrongly penalised linear single-wall
+      // kitchens. If a wall has no interior focal point, balance simply doesn't
+      // apply (symmetry stays at its neutral default).
+      if (leftTotal > 0 && rightTotal > 0) {
         balanceChecks++;
         const larger = Math.max(leftTotal, rightTotal);
         const smaller = Math.min(leftTotal, rightTotal);
@@ -8363,21 +8381,32 @@ export function scoreAesthetics(wallLayouts, upperLayouts, corners, prefs) {
 
   for (let i = 0; i < wallLayouts.length && i < upperLayouts.length; i++) {
     const baseCabs = (wallLayouts[i].cabinets || []).filter(c => c.type === "base");
+    // Base-zone appliances (range/cooktop/sink/dishwasher) sit UNDER the counter
+    // and uppers run above them too — so the counter run is base cabinets PLUS
+    // those appliances. The fridge is a TALL appliance (no counter/upper above)
+    // and is excluded. Measuring uppers against base cabinets ALONE made the
+    // ratio blow past 1.0 whenever appliances took wall space (i.e. always),
+    // mis-scoring every kitchen ~20; the base-zone denominator is the real run.
+    const baseApps = (wallLayouts[i].cabinets || []).filter(c =>
+      c.type === "appliance" && (c._elev?.zone === "BASE" ||
+        /sink|range|cooktop|dishwasher|oven/i.test(c.applianceType || "")) &&
+      !/refriger|fridge/i.test(c.applianceType || ""));
     const upperCabs = (upperLayouts[i].cabinets || []).filter(c => c.sku);
 
-    if (baseCabs.length === 0 || upperCabs.length === 0) continue;
+    if ((baseCabs.length + baseApps.length) === 0 || upperCabs.length === 0) continue;
     propChecks++;
 
-    const totalBaseW = baseCabs.reduce((s, c) => s + (c.width || 0), 0);
+    const totalBaseW = baseCabs.reduce((s, c) => s + (c.width || 0), 0) +
+      baseApps.reduce((s, c) => s + (c.width || 0), 0);
     const totalUpperW = upperCabs.reduce((s, c) => s + (c.width || 0), 0);
-    const ratio = totalUpperW / totalBaseW;
+    const ratio = totalBaseW > 0 ? totalUpperW / totalBaseW : 0;
 
-    // Ideal range from training: 0.45 - 1.0
-    // Best: 0.55 - 0.75 (near training average)
-    if (ratio >= 0.55 && ratio <= 0.75) propPoints += 100;
-    else if (ratio >= 0.45 && ratio <= 1.0) propPoints += 75;
-    else if (ratio >= 0.30 && ratio <= 1.2) propPoints += 50;
-    else propPoints += 20;
+    // Uppers normally cover most of the counter run (some skipped over the sink
+    // window / range hood). Ideal coverage ~0.6-1.0 of the base-zone run.
+    if (ratio >= 0.6 && ratio <= 1.0) propPoints += 100;
+    else if (ratio >= 0.45 && ratio <= 1.1) propPoints += 80;
+    else if (ratio >= 0.30 && ratio <= 1.25) propPoints += 55;
+    else propPoints += 25;
   }
   scores.proportionality = propChecks > 0 ? Math.round(propPoints / propChecks) : 70;
 

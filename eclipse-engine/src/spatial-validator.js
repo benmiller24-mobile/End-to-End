@@ -241,10 +241,21 @@ export function validateCornerAnchoring(wallLayouts, corners) {
 export function validateCabinetChains(wallLayouts) {
   const issues = [];
 
+  // Finished end-panel skins (BEP/FWEP/FREP/REP, ~0.75") sit ON the exposed
+  // cabinet face and legitimately overlay the carcase by their thickness — they
+  // are NOT chain members and must be excluded from overlap/gap checks (the wall
+  // boundary check below already excludes them for the same reason). Their own
+  // placement is validated separately (end_panel_inside_run).
+  const isEndPanelOrTrim = (c) =>
+    c.type === 'end_panel' || c.role === 'end-panel' ||
+    /(BEP|FWEP|FREP|REP|EP)\b/i.test(c.sku || '') ||
+    (c.type === 'filler' && (c.width || 0) <= 1);
+
   for (const wall of wallLayouts) {
-    const cabs = (wall.cabinets || [])
+    const allCabs = (wall.cabinets || [])
       .filter(c => typeof c.position === 'number' && c.width > 0)
       .sort((a, b) => a.position - b.position);
+    const cabs = allCabs.filter(c => !isEndPanelOrTrim(c));
 
     for (let i = 0; i < cabs.length - 1; i++) {
       const curr = cabs[i];
@@ -275,17 +286,11 @@ export function validateCabinetChains(wallLayouts) {
       }
     }
 
-    // Wall boundary check. Exclude thin finished end panels (BEP/FWEP/end_panel,
-    // ~0.75") — they sit on the exposed face and legitimately project a fraction
-    // past the run end; they are not a cabinet overflowing the wall.
+    // Wall boundary check on REAL cabinets (cabs is already end-panel-free; thin
+    // finished end-panel skins legitimately project a fraction past the run end).
     if (cabs.length > 0) {
-      const isEndPanelOrTrim = (c) =>
-        c.type === 'end_panel' || c.role === 'end-panel' ||
-        /(BEP|FWEP|FREP|REP|EP)\b/i.test(c.sku || '') ||
-        (c.type === 'filler' && (c.width || 0) <= 1);
-      const realCabs = cabs.filter(c => !isEndPanelOrTrim(c));
       const first = cabs[0];
-      const last = (realCabs[realCabs.length - 1]) || cabs[cabs.length - 1];
+      const last = cabs[cabs.length - 1];
       const lastEnd = last.position + last.width;
 
       if (first.position < -0.5) {

@@ -15,6 +15,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // ── Direct solver/pricing imports ──
 import { solve, scoreAgainstTraining } from '../../eclipse-engine/src/solver.js';
+import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
 import { recommendAppliances } from '../../eclipse-engine/src/appliance-recommender.js';
 import {
   findSku, searchSkus, calculateLayoutPrice, formatCurrency,
@@ -2589,6 +2590,17 @@ export default function App() {
       const result = designMode === 'manual'
         ? buildManualResult({ walls: wallsC, items: manualItems, island, roomType, layoutType })
         : solve(input);
+
+      // Metric / price-group lines (e.g. pronorm) are solved in the W.W. inch
+      // lingua franca, then REALIZED into the active tenant's catalogue — the
+      // geometry is unchanged, every cabinet SKU becomes the tenant's nearest
+      // equivalent so the existing price-group path reprices it. Generic: keys
+      // on the tenant carrying a `realize` config, no brand names. (Manual
+      // designs are already authored in tenant SKUs, so skip them.)
+      const activeTenant = getTenant(materials.brand);
+      if (designMode !== 'manual' && activeTenant?.realize) {
+        realizeInTenant(result, activeTenant, priceGroup);
+      }
 
       // Ensure _inputWalls carries id/length AND ceilingHeight for the views
       // (FloorPlanView / ElevationView CLG line). The solver reduces

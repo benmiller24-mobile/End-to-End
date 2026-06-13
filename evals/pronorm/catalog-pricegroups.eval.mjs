@@ -14,7 +14,11 @@ export default async function run() {
   // capability + locale flags (honest metric gating)
   s.eq('units = mm', t.locale.units, 'mm');
   s.eq('currency = EUR', t.locale.currency, 'EUR');
-  s.ok('autoSolve disabled (inch solver gated)', t.capabilities?.autoSolve === false);
+  // autoSolve now ENABLED via the realize-in-tenant pass: the W.W. inch solver
+  // lays out the kitchen, then each cabinet SKU is swapped to pronorm's nearest
+  // equivalent (geometry unchanged) so the price-group path reprices it.
+  s.ok('autoSolve enabled (realize-in-tenant)', t.capabilities?.autoSolve === true);
+  s.ok('realize config present (U/O/H families)', !!t.realize?.base?.plain && !!t.realize?.wall?.plain && !!t.realize?.tall?.plain);
   s.ok('priceGroups capability', t.capabilities?.priceGroups === true);
   s.ok('catalog > 9000 SKUs', t.catalog.count > 9000);
 
