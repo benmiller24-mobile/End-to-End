@@ -1,16 +1,18 @@
 /**
  * pronorm catalog ↔ REAL ORDER reconciliation (ground truth).
  * ===========================================================
- * Verified against two real pronorm order confirmations supplied by the dealer:
- *   · 356572.00 "Miller Kitchen"  — front range EV → price group 6
- *   · 354778.00 "Display kitchen" — front range    → price group 3
+ * Verified against SEVEN real pronorm order confirmations supplied by the dealer
+ * (Miller 356572 g6, Display 354778 g3, and five Blanchard OC orders g0/g1/g4).
  * Order line prices are EUR at a 50% dealer discount off the spec-book LIST.
- * Every catalog cabinet on both orders reconciled to the cent:
+ * Every STANDARD catalog cabinet across all seven orders reconciled to the cent:
  *   order_price === round(catalog.pg[group] × 0.5)
- * (Made-to-measure worktops/panels — WW/FM/TWK — are area-priced, not catalog
- * list, and are excluded. Certain open/internal/pull-out units bill at a
- * "capped" group 4 below the veneer front's group 6 — a pronorm pricing rule;
- * the catalog value at that group is exact, captured here as g:'4' lines.)
+ * Key model: pronorm kitchens are MULTI-FRONT (two-tone) — each unit prices at
+ * its OWN door front's price group, which can differ from the kitchen's main
+ * front (so one order mixes e.g. g6 veneer units and g4/g1 secondary-front
+ * units; the g:'4' lines below are a secondary front, NOT a "cap"). Excluded,
+ * correctly: made-to-measure worktops/panels (WW/FM/TWK, area-priced) and
+ * MODIFIED units (panel deletion / milling / custom dishwasher fronts), which
+ * carry custom prices by definition.
  *
  * These tuples are the dealer-grade proof that the ingested pronorm prices are
  * correct. A drift in extraction will break them.
@@ -36,6 +38,12 @@ const LINES = [
   { sku: 'US90-76-01', g: '4', list: 859, order: 429.5 },
   { sku: 'U50-76-90', g: '4', list: 748, order: 374 },
   { sku: 'U30-76-45', g: '4', list: 784, order: 392 },
+  // 332119 Blanchard — Y-line secondary front (group 1)
+  { sku: 'PHY20-144', g: '1', list: 144, order: 72 },
+  { sku: 'UY120-41-30', g: '1', list: 790, order: 395 },
+  { sku: 'UY120-76-01', g: '1', list: 856, order: 428 },
+  { sku: 'UY90-38-30', g: '1', list: 585, order: 292.5 },
+  { sku: 'UY90-76-01', g: '1', list: 725, order: 362.5 },
 ];
 
 export default async function run() {

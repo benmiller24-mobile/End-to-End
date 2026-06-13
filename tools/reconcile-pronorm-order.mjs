@@ -36,11 +36,21 @@ const group = t.pricing.frontRanges[range] ?? null;
 
 // Order number: letters then size groups, possibly no space (PH20-208-01) or
 // with one (HSP 60-201-602). Capture the trailing two money tokens (price,total).
+// pronorm kitchens are multi-front (two-tone): a line may carry its OWN
+// "Range XX" in the block beneath it — that unit prices at XX's group, not the
+// header front. Capture per-line range by looking ahead to the next item.
 const lineRe = /^\d+\s+\d+\s+([A-Z][A-Z0-9]*\s?\d{1,3}(?:[ -]\d{1,4})+(?:-\d{1,4})?)\b.*?(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*$/;
+const MOD = /without|Milling|Front layout|Modification|reduc|special|cut|SB998/i;
 const items = [];
-for (const l of allLines) {
-  const mm = l.match(lineRe);
-  if (mm) items.push({ sku: mm[1].trim(), price: eur(mm[2]) });
+for (let i = 0; i < allLines.length; i++) {
+  const mm = allLines[i].match(lineRe);
+  if (!mm) continue;
+  let lineRange = null, modified = false;
+  for (let j = i + 1; j < allLines.length && !allLines[j].match(lineRe); j++) {
+    const r = allLines[j].match(/Range\s+([A-Z]{2,3})\b/); if (r && !lineRange) lineRange = r[1];
+    if (MOD.test(allLines[j])) modified = true;
+  }
+  items.push({ sku: mm[1].trim(), price: eur(mm[2]), lineRange, modified });
 }
 
 // Made-to-measure / area-priced lines aren't catalog list × group (custom
@@ -64,27 +74,25 @@ for (const g of GROUPS) {
 }
 const bestG = Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
 
-// A line reconciles if order = list×0.5 at SOME price group (pronorm caps
-// certain unit types below the front's group). Record which group each hit.
-let atFront = 0, atOther = 0, noMatch = 0; const groupHits = {}; const offs = [];
+// A line reconciles if order = list×0.5 at the unit's OWN front-range group
+// (multi-front kitchens), else any group. Modified/custom-front lines are
+// expected to differ (panel deletions, milling, made-to-measure fronts).
+let reconciled = 0, modSkip = 0, noMatch = 0; const offs = [];
 for (const it of cabs) {
   const pg = byNorm.get(norm(it.sku)).pg;
   let hitG = null;
   for (const g of GROUPS) { const v = pg[g]; if (v != null && Math.abs(Math.round(v * DISCOUNT * 100) / 100 - it.price) <= 0.51) { hitG = g; break; } }
-  if (hitG === bestG) atFront++;
-  else if (hitG != null) { atOther++; groupHits[hitG] = (groupHits[hitG] || 0) + 1; }
-  else { noMatch++; if (offs.length < 20) offs.push(`${it.sku}: order €${it.price} (no group matches; g${bestG} list €${pg[bestG]})`); }
+  if (hitG != null) reconciled++;
+  else if (it.modified) modSkip++;
+  else { noMatch++; if (offs.length < 20) offs.push(`${it.sku}${it.lineRange ? ' [range ' + it.lineRange + ']' : ''}: order €${it.price} (×2=€${(it.price * 2).toFixed(0)} not in ${JSON.stringify(pg)})`); }
 }
-const reconciled = atFront + atOther;
 const customs = items.filter(it => CUSTOM.test(it.sku.replace(/\s/g, ''))).length;
 
-console.log(`\n${path.split('/').pop()}  ·  header Range ${range} (map→g${group}) · front price group: ${bestG}`);
-console.log(`line items parsed: ${items.length}  (catalog cabinets ${cabs.length} · customs/made-to-measure ${customs} · accessories/other ${items.length - cabs.length - customs})`);
-console.log(`✓ at front group g${bestG}: ${atFront}`);
-console.log(`✓ at a capped lower group: ${atOther}  ${Object.keys(groupHits).length ? '(' + Object.entries(groupHits).map(([g, n]) => `g${g}:${n}`).join(' ') + ')' : ''}`);
-console.log(`✗ no group matches: ${noMatch}`);
-if (offs.length) { console.log('\ntrue mismatches:'); offs.forEach(o => console.log('  ' + o)); }
-console.log(`\nCATALOG RECONCILED (price = spec list × 0.5 at some group): ${reconciled}/${cabs.length} = ${cabs.length ? (reconciled / cabs.length * 100).toFixed(1) : 0}%`);
-// per-line matching group, to characterize the unit-type group cap
-const detail = cabs.map(it => { const pg=byNorm.get(norm(it.sku)).pg; let g=null; for(const G of GROUPS){const v=pg[G]; if(v!=null&&Math.abs(Math.round(v*DISCOUNT*100)/100-it.price)<=0.51){g=G;break;}} return `${it.sku}@g${g}`; });
-console.log('per-line groups:', detail.join('  '));
+console.log(`\n${path.split('/').pop()}  ·  header front group ${bestG}`);
+console.log(`lines: ${items.length}  (catalog cabinets ${cabs.length} · made-to-measure ${customs} · other ${items.length - cabs.length - customs})`);
+console.log(`✓ reconciled to the cent (list×0.5 at unit's group): ${reconciled}/${cabs.length}`);
+console.log(`~ modified units (panel del/milling/custom front — expected to differ): ${modSkip}`);
+console.log(`✗ unexplained: ${noMatch}`);
+if (offs.length) { console.log('\nunexplained:'); offs.forEach(o => console.log('  ' + o)); }
+const clean = cabs.length - modSkip;
+console.log(`\nSTANDARD-CABINET MATCH: ${reconciled}/${clean} = ${clean ? (reconciled / clean * 100).toFixed(1) : 0}%  (modified units excluded)`);
