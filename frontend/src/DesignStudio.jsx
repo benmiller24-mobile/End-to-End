@@ -217,8 +217,10 @@ function catalogList(tenantId) {
     if (!sku) continue;
     if (metric) {
       const zone = ({ B: 'base', W: 'upper', T: 'tall', V: 'base' })[e.t] || 'base';
-      rows.push({ sku, price: e.p, w: e.w || 0, h: null, zone,
-        cat: (tenant.catalog.typeNames || {})[e.t] || 'Other', sub: '', units: 'mm' });
+      // Same short category vocabulary as the inch path so the category filter,
+      // fill-gap and facets all match unchanged.
+      const cat = ({ B: 'Base', W: 'Wall', T: 'Tall', V: 'Vanity', F: 'Filler/Panel' })[e.t] || 'Other';
+      rows.push({ sku, price: e.p, w: e.w || 0, h: null, zone, cat, sub: '', units: 'mm' });
       continue;
     }
     const info = skuInfo(sku, tenantId);
