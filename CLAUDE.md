@@ -67,3 +67,25 @@ Shiloh framed line + all 9 overlay/inset constructions; brand/construction UI; i
   gate stay in force. Labels are geometry ground truth (W28.539 = 28.5" cut width);
   never let catalog lookups overwrite them.
 - Cross-tenant evals live in `evals/_cross/` (runner section 3); tenant evals unchanged.
+
+## PRICE-GROUP TENANTS (pronorm)
+- pronorm is a European modular line: METRIC (mm), German order numbers (HSP 60-201-602),
+  and PRICE-GROUP pricing — each cabinet carries ~10 prices (columns N,0-8,10); the chosen
+  front range selects the column. This is a GENERIC capability, not a brand hack:
+  - Catalog rows may carry `pg: {N,'0'..'10'}`; tenant `pricing.{priceGroups, defaultGroup,
+    frontRanges{range→group}}`. `setTenantPriceGroup(id, g)` / `priceGroupForRange(id, range)`
+    in registry.js. buildTenantFromPackage overrides `.p` from the active group at find/search
+    time, so every `.p` consumer works unchanged. Single-price catalogs (Eclipse/Shiloh/Aspect)
+    are untouched — behavior keys on the data shape (`row.pg` present), never on brand name.
+  - `parsePriceGroupPage` (ingestCore) is a generic column-band parser: binds prices to the
+    header's group-column x-positions, so description/dimension digits never leak. Config-selected
+    via `parser.kind: 'priceGroupRows'` like matrix/rows.
+  - tenant `capabilities: { autoSolve:false, units:'mm' }` — the INCH solver does NOT drive
+    metric tenants. "App designs it" is gated off for autoSolve:false; pronorm is designed in the
+    Design Studio (catalog browse + manual placement + price-group pricing). Honest gate, not a stub.
+- Onboarding: tools/ingest-pronorm.mjs (build script, like ingest-spec-book) reads the two GB
+  sales manuals → pronorm.package.json (10,308 SKUs, 46 front ranges) → manifest.js. Extraction
+  verified by an adversarial workflow (25/25 sampled price cells exact). The Y-line group-5 column
+  is legitimately dashed for some ranges — absence there is correct, not a parser miss.
+- LIMITATION (honest): no full priced pronorm kitchen order was available locally to reconcile to
+  the penny; pricing is verified against the spec books, not yet against a pronorm order ack.

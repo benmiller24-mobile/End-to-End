@@ -81,15 +81,33 @@ export function buildTenantFromPackage(pkg) {
   const byCode = new Map(rows.map(e => [e.s, e]));
   const officialRows = pkg.official || [];
   const officialMap = new Map(officialRows.map(e => [e.s, e]));
-  return {
+
+  // ── Price-group resolution (generic European-modular capability) ──────────
+  // A row may carry `pg: {N, '0'..'10'}` — a price per finish/price-group. The
+  // tenant's runtime `pricing.activeGroup` (chosen from the front range) selects
+  // which column is the effective `.p`, so every existing `.p` consumer works
+  // unchanged. Rows without `pg` (Eclipse/Shiloh/Aspect) are returned as-is —
+  // no brand names, no conditionals: the behavior keys purely on the data shape.
+  const hasGroups = rows.some(e => e.pg);
+  const tenantRef = {};   // late-bound so closures see the built tenant's pricing
+  const effPrice = (e) => {
+    if (!e || !e.pg) return e;
+    const g = tenantRef.t?.pricing?.activeGroup ?? pkg.pricing?.defaultGroup ?? '0';
+    const p = e.pg[g] ?? e.pg.N ?? e.p;
+    return p == null ? e : { ...e, p };
+  };
+  const wrapFind = hasGroups ? (e) => effPrice(e) : (e) => e;
+  const wrapList = hasGroups ? (arr) => arr.map(effPrice) : (arr) => arr;
+
+  const tenant = {
     ...pkg,
     catalog: {
-      find: (sku) => byCode.get(sku),
+      find: (sku) => wrapFind(byCode.get(sku)),
       search: (q, limit = 20) => {
         const u = String(q).toUpperCase();
-        return rows.filter(e => e.s.toUpperCase().includes(u)).slice(0, limit);
+        return wrapList(rows.filter(e => e.s.toUpperCase().includes(u)).slice(0, limit));
       },
-      list: () => rows,
+      list: () => wrapList(rows),
       count: rows.length,
       sections: (pkg.catalog && pkg.catalog.sections) || {},
       typeNames: (pkg.catalog && pkg.catalog.typeNames) || {},
@@ -99,6 +117,21 @@ export function buildTenantFromPackage(pkg) {
       list: () => officialRows.map(e => [e.s, e]),
     } : null,
   };
+  tenantRef.t = tenant;
+  return tenant;
+}
+
+/** Set the active price group on a tenant (chosen from its front range, e.g.
+ *  pronorm range MP → group 2). Generic: any tenant whose catalog carries `pg`
+ *  vectors reprices through this. No-op for single-price catalogs. */
+export function setTenantPriceGroup(id, group) {
+  const t = _tenants.get(id);
+  if (t && t.pricing) t.pricing.activeGroup = group != null ? String(group) : undefined;
+}
+/** Resolve a tenant's front-range code (e.g. 'MP') to its price group. */
+export function priceGroupForRange(id, range) {
+  const t = _tenants.get(id);
+  return t?.pricing?.frontRanges?.[range] ?? null;
 }
 
 export function registerTenantPackage(pkg) { registerTenant(buildTenantFromPackage(pkg)); }

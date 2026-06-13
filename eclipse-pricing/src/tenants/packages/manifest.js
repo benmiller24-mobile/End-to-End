@@ -9,5 +9,6 @@
  */
 
 import aspect from './aspect.package.json' with { type: 'json' };
+import pronorm from './pronorm.package.json' with { type: 'json' };
 
-export const TENANT_PACKAGES = [aspect];
+export const TENANT_PACKAGES = [aspect, pronorm];

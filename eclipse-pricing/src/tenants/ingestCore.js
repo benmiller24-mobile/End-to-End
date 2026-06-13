@@ -68,6 +68,70 @@ export function parseRows(pageText, p, pageNo = 0) {
 }
 
 /**
+ * European-modular price-group tables (pronorm and similar): each cabinet row
+ * is `order-no` + a run of prices, one per price GROUP (columns N,0,1…8,10),
+ * with the chosen front range later selecting which column applies. Robust
+ * against dimension digits in the description by binding prices to the price
+ * COLUMNS via their x-positions: a header row (the group labels) gives the
+ * column centers; each row's integers are assigned to the nearest column, so
+ * description/width/door numbers (far-left) never leak into the price vector.
+ *
+ * Input is positioned tokens, not flat text: pages = Map(n → [{s,x,y}]).
+ * Config: { groups: ['N','0',…,'10'], orderPattern, columns?: [x…],
+ *           headerLabels?: ['N','0',…], minPrice, maxPrice }.
+ */
+export function parsePriceGroupPage(items, p = {}, pageNo = 0, carry = {}) {
+  const groups = p.groups || ['N', '0', '1', '2', '3', '4', '5', '6', '7', '8', '10'];
+  const orderRe = new RegExp(p.orderPattern || '^[A-Z][A-Z0-9]{0,3} ?\\d{2,3}-\\d{2,4}(?:-\\d{2,4})?$');
+  const byY = new Map();
+  for (const it of items) { const y = Math.round(it.y / 2) * 2; (byY.get(y) || byY.set(y, []).get(y)).push(it); }
+
+  // Column centers: the header row whose tokens are exactly the group labels.
+  // Carried forward across pages (fixed template) when a page omits the header.
+  let cols = carry.cols || null;
+  for (const [, row] of byY) {
+    const sorted = row.slice().sort((a, b) => a.x - b.x);
+    const labels = sorted.map(t => t.s);
+    const hit = labels.filter(s => groups.includes(s)).length;
+    if (hit >= Math.min(groups.length, 8) && labels.length <= groups.length + 1) {
+      cols = sorted.filter(t => groups.includes(t.s)).map(t => ({ g: t.s, x: t.x }));
+      break;
+    }
+  }
+  if (!cols) return { rows: [], cols: null };
+  const firstColX = Math.min(...cols.map(c => c.x)) - 9;   // prices live at/after the first column
+  carry.cols = cols;
+
+  const rows = [];
+  for (const [, row] of byY) {
+    const sorted = row.slice().sort((a, b) => a.x - b.x);
+    const orderTok = sorted.find(t => orderRe.test(t.s.trim()));
+    if (!orderTok) continue;
+    const sku = orderTok.s.trim().replace(/\s+/g, ' ');
+    const pg = {};
+    for (const t of sorted) {
+      if (t.x < firstColX) continue;                       // skip description/width/door columns
+      if (!/^\d{2,5}$/.test(t.s)) continue;
+      const v = parseInt(t.s, 10);
+      if (v < (p.minPrice ?? 30) || v > (p.maxPrice ?? 99999)) continue;
+      // nearest price column by x
+      let best = null, bd = Infinity;
+      for (const c of cols) { const d = Math.abs(c.x - t.x); if (d < bd) { bd = d; best = c; } }
+      if (best && bd <= 14) pg[best.g] = v;
+    }
+    const priced = Object.keys(pg).length;
+    if (priced < 1) continue;
+    // width from the order number's leading size group (cm), e.g. HSP 60-201 → 60
+    const wm = sku.match(/[A-Z] ?(\d{2,3})-/);
+    const width = wm ? parseInt(wm[1], 10) : 0;
+    const def = p.defaultGroup && pg[p.defaultGroup] != null ? pg[p.defaultGroup]
+      : pg['0'] ?? pg.N ?? pg[Object.keys(pg)[0]];
+    rows.push({ s: sku, p: def, pg, w: width, _page: pageNo });
+  }
+  return { rows, cols };
+}
+
+/**
  * Run the configured parsers over the pages and assemble a tenant package.
  * Returns { pkg, report } — report carries counts, samples and PROBLEMS;
  * callers must treat problems as a failed ingest.
@@ -77,9 +141,18 @@ export function ingestPages(pages, cfg) {
   const parserStats = [];
   for (const parser of (cfg.extract?.parsers || [{ kind: 'matrix' }])) {
     let hits = 0, pagesHit = 0;
-    for (const [n, text] of pages) {
+    const carry = {};   // price-group parser carries column geometry across pages
+    for (const [n, page] of pages) {
       if (!pageInRange(n, parser.pages ?? cfg.extract?.pages)) continue;
-      const rows = parser.kind === 'rows' ? parseRows(text, parser, n) : parseMatrix(text, parser, n);
+      let rows;
+      if (parser.kind === 'priceGroupRows') {
+        // positioned tokens required (array of {s,x,y}); flat-text pages skipped
+        rows = Array.isArray(page) ? parsePriceGroupPage(page, parser, n, carry).rows : [];
+      } else if (parser.kind === 'rows') {
+        rows = parseRows(page, parser, n);
+      } else {
+        rows = parseMatrix(page, parser, n);
+      }
       if (rows.length) { pagesHit++; hits += rows.length; all.push(...rows); }
     }
     parserStats.push({ kind: parser.kind || 'matrix', rows: hits, pages: pagesHit });

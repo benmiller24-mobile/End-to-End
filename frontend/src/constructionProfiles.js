@@ -23,6 +23,20 @@ export const CONSTRUCTIONS = {
     note: 'Eclipse C3 Frameless',
   },
 
+  // ── pronorm (frameless, metric 128mm system) — catalog/price-group tenant.
+  //    The inches renderer/solver does not drive pronorm (autoSolve:false); these
+  //    nominal values keep the catalog browser and labels rendering. Carcase
+  //    depths are the metric standards converted (565mm≈22.2", 351mm≈13.8"). ──
+  pronorm_frameless: {
+    key: 'pronorm_frameless', brand: 'pronorm', label: 'Frameless · 128 system (metric)',
+    frame: false, inset: false, stile: 0, perim: 0.094, divider: 0.094,
+    beaded: false, squareBead: false, modern: false, profile38: false,
+    wallDepth: 13.8, baseDepth: 22.2,
+    hinge: 'concealed', softClose: true, fillerGoldenRule: false,
+    overlayCharge: { door: 0, drawer: 0 }, insetPremiumPct: 0,
+    note: 'pronorm proline / Y-line — frameless 128mm (metric)',
+  },
+
   // ── Shiloh (framed) — 1½" solid-wood face frame ──
   shiloh_overlay_half: {
     key: 'shiloh_overlay_half', brand: 'shiloh', label: '½" Standard Overlay',

@@ -2309,6 +2309,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [materials.brand]);
 
+  // Metric tenants (autoSolve:false, e.g. pronorm) are designed in the Studio —
+  // the inch solver doesn't apply, so switch out of auto mode automatically.
+  useEffect(() => {
+    if (getTenant(materials.brand).capabilities?.autoSolve === false) setDesignMode('manual');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [materials.brand]);
+
   // Countertop selections
   const [countertopSelection, setCountertopSelection] = useState({ sqft: 40, edge: 'straight', cutouts: 1, colorId: null, brand: null, thickness: null });
 
@@ -2684,18 +2691,32 @@ export default function App() {
             {step === 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 24 }}>
                 <div>
-                  {/* ── Design mode: solver-designed vs hand-designed (2020-style) ── */}
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                  {/* ── Design mode: solver-designed vs hand-designed (2020-style) ──
+                       The inches solver doesn't drive metric tenants (e.g. pronorm,
+                       capabilities.autoSolve:false) — auto mode is gated honestly
+                       rather than producing a wrong metric layout. */}
+                  {(() => {
+                    const autoOff = getTenant(materials.brand).capabilities?.autoSolve === false;
+                    return (
+                  <div style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
                     {[['auto', 'App designs it', 'Pick a template, set the room — the solver lays out the cabinets.'],
-                      ['manual', 'Design Studio — I\'ll design it', 'Draw the room and place every cabinet yourself from the catalog (2020-style).']].map(([m, label, hint]) => (
-                      <button key={m} onClick={() => setDesignMode(m)} title={hint}
-                        style={{ flex: 1, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                      ['manual', 'Design Studio — I\'ll design it', 'Draw the room and place every cabinet yourself from the catalog (2020-style).']].map(([m, label, hint]) => {
+                      const disabled = m === 'auto' && autoOff;
+                      return (
+                      <button key={m} disabled={disabled} onClick={() => !disabled && setDesignMode(m)} title={disabled ? 'The auto-layout solver is inch-based; this metric line is designed in the Studio.' : hint}
+                        style={{ flex: 1, padding: '10px 12px', borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700, opacity: disabled ? 0.45 : 1,
                           border: `2px solid ${designMode === m ? C.accent : C.border}`,
                           background: designMode === m ? '#c8a96e22' : C.bg, color: designMode === m ? C.accent : C.muted }}>
                         {label}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
+                  {autoOff && <div style={{ fontSize: 10.5, color: C.dim, marginTop: 5 }}>{getTenant(materials.brand).branding.lineLabel} is metric (mm) — designed in the Studio with full price-group pricing; the inch auto-layout doesn’t apply.</div>}
+                  </div>
+                    );
+                  })()}
 
                   {designMode === 'manual' ? (
                     <>
