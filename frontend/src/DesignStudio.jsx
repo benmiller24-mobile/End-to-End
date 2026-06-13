@@ -207,9 +207,19 @@ function catalogList(tenantId) {
     }
     return rows;
   }
+  // Metric tenants carry their own width on the row and don't follow the
+  // W.W. inch SKU grammar — trust the row's data and the type the package
+  // assigned, rather than re-parsing the code with the inch-tuned skuInfo.
+  const metric = tenant.locale?.units === 'mm';
   for (const e of tenant.catalog.list()) {
     const sku = e.s;
     if (!sku) continue;
+    if (metric) {
+      const zone = ({ B: 'base', W: 'upper', T: 'tall', V: 'base' })[e.t] || 'base';
+      rows.push({ sku, price: e.p, w: e.w || 0, h: null, zone,
+        cat: (tenant.catalog.typeNames || {})[e.t] || 'Other', sub: '', units: 'mm' });
+      continue;
+    }
     const info = skuInfo(sku, tenantId);
     rows.push({ sku, price: e.p, w: info.w, h: info.h, zone: info.zone, cat: { B: 'Base', W: 'Wall', T: 'Tall', V: 'Vanity' }[e.t] || 'Other', sub: '' });
   }
@@ -1405,7 +1415,7 @@ export default function DesignStudio({ walls, onWallsChange, items, onItemsChang
                 background: armed?.sku === r.sku ? '#c8a96e22' : 'transparent', borderBottom: '1px solid #f1ece4' }}>
               <FrontThumb w={r.w} h={r.h} dc={r.dc || 0} drc={r.drc || 0} zone={r.zone} />
               <span style={{ fontFamily: 'monospace', fontWeight: 600, flex: 1 }}>{r.sku}</span>
-              <span style={{ color: '#999', fontSize: 10 }}>{r.w ? `${r.w}w` : ''}{r.h ? `×${r.h}h` : ''}</span>
+              <span style={{ color: '#999', fontSize: 10 }}>{r.units === 'mm' ? (r.w ? `${r.w}cm w` : '') : `${r.w ? `${r.w}w` : ''}${r.h ? `×${r.h}h` : ''}`}</span>
               <span style={{ color: '#777', fontVariantNumeric: 'tabular-nums' }}
                 title={r.approx ? 'Family-resolved price — exact catalog row not found; verify before ordering' : undefined}>
                 {r.price != null ? `${r.approx ? '≈' : ''}$${Number(r.price).toLocaleString()}` : '—'}</span>
