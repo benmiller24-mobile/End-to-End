@@ -41,10 +41,21 @@ export function extractionToRoom(ext) {
       ...(a.widthIn >= 12 && a.widthIn <= 84 ? { width: Math.round(a.widthIn) } : {}),
       ...(typeof a.positionIn === 'number' ? { position: Math.round(a.positionIn) } : {}) }));
   const island = ext.island ? { length: Math.round(ext.island.lengthIn), depth: Math.round(ext.island.depthIn || 42) } : null;
+  // Domain guard: this tool designs RESIDENTIAL cabinetry. Reject commercial /
+  // institutional / building-scale plans (a 100-ft "wall", duplicate sinks /
+  // fridges / ranges) — they are out of scope, not design failures. The vision
+  // model already extracted them; we just decline to auto-design them.
+  const maxWall = walls.reduce((m, w) => Math.max(m, w.length), 0);
+  const count = (re) => appliances.filter(a => re.test(a.type)).length;
+  let outOfDomain = null;
+  if (maxWall > 360) outOfDomain = `wall ${maxWall}" > 30ft (building/commercial scale)`;
+  else if (count(/refriger/) > 1) outOfDomain = `${count(/refriger/)} refrigerators (commercial)`;
+  else if (count(/sink/) > 2) outOfDomain = `${count(/sink/)} sinks (commercial)`;
+  else if (count(/range|cooktop/) > 2) outOfDomain = `${count(/range|cooktop/)} cooktops/ranges (commercial)`;
   return {
     layoutType: LAYOUT_MAP[ext.layoutType] || 'L',
     walls, appliances, island, ceiling: ceil,
-    scaleStatus: ext.scaleStatus, notes: ext.notes,
+    scaleStatus: ext.scaleStatus, notes: ext.notes, outOfDomain,
   };
 }
 
@@ -84,7 +95,8 @@ export async function runVisionImage(file) {
   const image = fs.readFileSync(file).toString('base64');
   const extraction = await runExtraction({ image, mediaType });
   const room = extractionToRoom(extraction);
-  if (!room.walls.length) return { file, extraction, room, brands: {}, noRoom: true };
+  if (!room.walls.length) return { file: path.basename(file), extraction, room, brands: {}, noRoom: true };
+  if (room.outOfDomain) return { file: path.basename(file), extraction, room, brands: {}, outOfDomain: room.outOfDomain };
   const brands = runBrands(room);
   return { file: path.basename(file), extraction, room, brands };
 }
@@ -95,10 +107,12 @@ function replay(jsonPath) {
   const results = [];
   let pass = 0, total = 0;
   console.log(`\n══ Live-vision REPLAY (${jsonPath}) × ${BRANDS.length} brands ══\n`);
+  let outDom = 0;
   for (const p of prior) {
     if (!p.extraction) { console.log(`• ${p.file}: ${p.error || p.skipped || 'no extraction'}`); continue; }
     const room = extractionToRoom(p.extraction);
     if (!room.walls.length) { console.log(`• ${p.file}: no kitchen walls`); results.push({ ...p, noRoom: true }); continue; }
+    if (room.outOfDomain) { console.log(`• ${p.file}: out-of-domain — ${room.outOfDomain}`); results.push({ ...p, room, outOfDomain: room.outOfDomain }); outDom++; continue; }
     const brands = runBrands(room);
     const ws = room.walls.map(w => `${w.id}${w.length}`).join('/');
     const allPass = BRANDS.every(b => brands[b].pass);
@@ -107,7 +121,7 @@ function replay(jsonPath) {
     console.log(`• ${p.file} [${p.extraction.layoutType} ${ws} scale=${p.extraction.scaleStatus}] ${line}`);
     results.push({ ...p, room, brands });
   }
-  console.log(`\n══ ${pass}/${total} images pass in ALL 3 brands ══`);
+  console.log(`\n══ ${pass}/${total} residential kitchens pass in ALL 3 brands (${outDom} out-of-domain rejected) ══`);
   return results;
 }
 

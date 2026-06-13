@@ -14,6 +14,15 @@ const SEARCHES = [
   'kitchen cabinet plan', 'galley kitchen plan', 'L-shaped kitchen plan',
   'U-shaped kitchen plan', 'cocina plano', 'küche grundriss', 'cuisine plan',
   'kitchen floorplan drawing', 'apartment floor plan kitchen',
+  // whole-home / real-estate plans contain a kitchen the vision model isolates
+  'house floor plan', 'apartment floor plan', 'home floor plan dimensions',
+  'real estate floor plan', 'architectural floor plan house', 'flat floor plan',
+  'bungalow floor plan', 'condo floor plan', 'residential floor plan',
+  'floor plan with dimensions', 'floor plan drawing room',
+  // more languages broaden the freely-licensed pool
+  'cucina planimetria', 'keuken plattegrond', 'cuisine plan amenagement',
+  'grundriss wohnung küche', 'planta baja cocina', 'plan appartement cuisine',
+  'plattegrond woning', 'planritning kök', 'plan maison cuisine',
 ];
 
 async function searchImages(term) {
