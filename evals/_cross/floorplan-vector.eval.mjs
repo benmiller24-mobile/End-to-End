@@ -67,5 +67,23 @@ export default async function run() {
   const chr = load('christiansen-drawings-pages.json');
   s.ok('Christiansen NOT classified as design PDF (no cabinet labels in text layer)', !looksLikeDesignPdf(chr, 'eclipse'));
 
+  // ── Wilterding laundry golden (second Cyncly set, different label styles) ──
+  const wilt = load('wilterding-drawings-pages.json');
+  s.ok('Wilterding classified as design PDF', looksLikeDesignPdf(wilt, 'eclipse'));
+  const w = parseDesignPdf(wilt, 'eclipse');
+  const printed = w.walls.map(x => x.length);
+  s.ok('printed walls include 95 and 72', printed.includes(95) && printed.includes(72));
+  s.ok('no false island from interior panels', w.island === null);
+  for (const must of ['RW3336-24D', 'B12R-FHD', 'SB33-RT', 'W3036', 'W1536L', 'B24L-FHD', 'REP38427-FTK-R']) {
+    s.ok(`recovered ${must}`, w.wallItems.some(it => it.sku === must));
+  }
+  s.ok('washer/dryer model labels rejected (WM4500HBA, DLEX4500B)',
+    !w.wallItems.some(it => /WM4500|DLEX/.test(it.sku)));
+  s.ok('quoted-dim glyphs never pollute SKUs', w.wallItems.every(it => !/\d+"/.test(it.sku)));
+
+  // ── pronorm order document must NOT classify as a design drawing ──
+  const bd = load('bd475-orderdoc-pages.json');
+  s.ok('BD475 order document rejected by classifier (model codes ≠ plan)', !looksLikeDesignPdf(bd, 'eclipse'));
+
   return s.done();
 }
