@@ -27,6 +27,12 @@ export default defineConfig({
   build: {
     outDir: '../dist',
     rollupOptions: {
+      // Multi-page: the dealer app (index) + the consumer render embed
+      // (embed.html, iframed by the FAKS site). Both share the engine + views.
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        embed: path.resolve(__dirname, 'embed.html'),
+      },
       // Mark Node.js built-ins as external stubs
       external: [],
     }
