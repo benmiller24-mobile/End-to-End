@@ -33,7 +33,7 @@ function woodColor(species, finish) {
   return '#c8a26a';
 }
 
-export default function Kitchen3DView({ solverResult, materials, construction, countertopColor, trim, prefs, selectedAppliances }) {
+export default function Kitchen3DView({ solverResult, materials, construction, countertopColor, trim, prefs, selectedAppliances, consumer = false }) {
   const mountRef = useRef(null);
   const [err, setErr] = useState(null);
   const [aiUrl, setAiUrl] = useState(null);
@@ -82,7 +82,7 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       const W = mount.clientWidth || 900, H = Math.max(480, Math.round((mount.clientWidth || 900) * 0.6));
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#eceae6');
+      scene.background = new THREE.Color(consumer ? '#f7f4ee' : '#eceae6');
 
       const camera = new THREE.PerspectiveCamera(45, W / H, 1, 5000);
       renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -553,42 +553,56 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
     } catch (e) { setErr(e.message); }
   }, [solverResult, materials, construction, countertopColor, trim]);
 
-  const panel = { background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: 12, marginBottom: 16 };
+  // Theme: dealer = dark studio chrome; consumer (FAKS embed) = light, paper-toned.
+  const T = consumer
+    ? { panel: '#ffffff', border: '#e0d8ca', head: '#a89279', body: '#3d2b1f', dim: '#a89279',
+        btnText: '#fff', btnBg: '#3d2b1f', btnBusy: '#cdbfa8', btnGrad: null,
+        errBg: '#fbeae7', errBorder: '#d4a843', errText: '#9b3b2e', link: '#7a8b6f', imgBorder: '#e0d8ca' }
+    : { panel: '#1e293b', border: '#334155', head: '#94a3b8', body: '#94a3b8', dim: '#64748b',
+        btnText: '#fff', btnBg: null, btnBusy: '#334155', btnGrad: 'linear-gradient(135deg,#8b5cf6,#3b82f6)',
+        errBg: '#451a1a', errBorder: '#f59e0b', errText: '#fca5a5', link: '#3b82f6', imgBorder: '#334155' };
+  const panel = { background: T.panel, border: `1px solid ${T.border}`, borderRadius: 8, padding: 12, marginBottom: 16 };
   return (
     <div style={panel}>
-      <div style={{ fontWeight: 600, fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-        3D View — built from your exact layout (drag to orbit)
+      <div style={{ fontWeight: 600, fontSize: 11, color: T.head, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+        {consumer ? 'Your kitchen in 3D — drag to rotate' : '3D View — built from your exact layout (drag to orbit)'}
       </div>
-      {err && <div style={{ color: '#fca5a5', fontSize: 12, marginBottom: 8 }}>3D error: {err}</div>}
+      {err && <div style={{ color: T.errText, fontSize: 12, marginBottom: 8 }}>3D error: {err}</div>}
       <div ref={mountRef} style={{ width: '100%', minHeight: 480, borderRadius: 6, overflow: 'hidden' }} />
-      <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>
-        Deterministic massing from the solver — cabinet positions/sizes match the floor plan and elevations exactly. Drag to rotate, scroll to zoom.
+      <div style={{ fontSize: 10, color: T.dim, marginTop: 6 }}>
+        {consumer
+          ? 'Built from your exact layout — cabinet sizes and positions match the floor plan and elevations. Drag to rotate, scroll to zoom.'
+          : 'Deterministic massing from the solver — cabinet positions/sizes match the floor plan and elevations exactly. Drag to rotate, scroll to zoom.'}
       </div>
 
       {/* ── Photoreal AI pass (img2img over the accurate 3D) ── */}
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #334155' }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
-          Photoreal pass — orbit to the view you want, then generate. The AI keeps this 3D geometry and adds realism.
+      <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
+        <div style={{ fontSize: 11, color: T.body, marginBottom: 8 }}>
+          {consumer
+            ? 'Turn the view above into a photorealistic image — it keeps your exact layout and just adds realism.'
+            : 'Photoreal pass — orbit to the view you want, then generate. The AI keeps this 3D geometry and adds realism.'}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <label style={{ fontSize: 11, color: '#64748b' }}>Realism strength {strength.toFixed(2)}</label>
-          <input type="range" min="0.2" max="0.75" step="0.05" value={strength}
-            onChange={e => setStrength(parseFloat(e.target.value))} style={{ flex: 1 }} />
-          <span style={{ fontSize: 9, color: '#64748b' }}>(lower = closer to 3D)</span>
-        </div>
+        {!consumer && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <label style={{ fontSize: 11, color: T.dim }}>Realism strength {strength.toFixed(2)}</label>
+            <input type="range" min="0.2" max="0.75" step="0.05" value={strength}
+              onChange={e => setStrength(parseFloat(e.target.value))} style={{ flex: 1 }} />
+            <span style={{ fontSize: 9, color: T.dim }}>(lower = closer to 3D)</span>
+          </div>
+        )}
         <button onClick={generatePhotoreal} disabled={aiLoading}
-          style={{ width: '100%', padding: 11, border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600,
-            cursor: aiLoading ? 'wait' : 'pointer', color: '#fff',
-            background: aiLoading ? '#334155' : 'linear-gradient(135deg,#8b5cf6,#3b82f6)' }}>
-          {aiLoading ? 'Rendering photoreal… (30–60s)' : 'Generate photoreal from this view'}
+          style={{ width: '100%', padding: 12, border: 'none', borderRadius: consumer ? 10 : 6, fontSize: 14, fontWeight: 700,
+            cursor: aiLoading ? 'wait' : 'pointer', color: T.btnText,
+            background: aiLoading ? T.btnBusy : (T.btnGrad || T.btnBg) }}>
+          {aiLoading ? 'Rendering your kitchen… (30–60s)' : (consumer ? 'Generate photorealistic render' : 'Generate photoreal from this view')}
         </button>
-        {aiErr && <div style={{ marginTop: 10, padding: 10, background: '#451a1a', border: '1px solid #f59e0b', borderRadius: 6, fontSize: 12, color: '#fca5a5' }}>{aiErr}</div>}
+        {aiErr && <div style={{ marginTop: 10, padding: 10, background: T.errBg, border: `1px solid ${T.errBorder}`, borderRadius: 6, fontSize: 12, color: T.errText }}>{aiErr}</div>}
         {aiUrl && (
           <div style={{ marginTop: 12 }}>
-            <img src={aiUrl} alt="Photoreal render" style={{ width: '100%', borderRadius: 8, border: '1px solid #334155' }} />
+            <img src={aiUrl} alt="Photoreal render" style={{ width: '100%', borderRadius: 8, border: `1px solid ${T.imgBorder}` }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-              <span style={{ fontSize: 10, color: '#64748b' }}>Photoreal (img2img) over your 3D geometry · Leonardo</span>
-              <a href={aiUrl} download="kitchen_photoreal.jpg" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#3b82f6', fontWeight: 600 }}>Download</a>
+              <span style={{ fontSize: 10, color: T.dim }}>{consumer ? 'Photorealistic render of your layout · Leonardo AI' : 'Photoreal (img2img) over your 3D geometry · Leonardo'}</span>
+              <a href={aiUrl} download="kitchen_photoreal.jpg" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: T.link, fontWeight: 600 }}>Download</a>
             </div>
           </div>
         )}

@@ -127,7 +127,7 @@ export default function EmbedApp() {
             titleBlock={titleBlock} consumer />
         )}
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: C.taupe }}>Loading…</div>}>
-          {tab === '3d' && <Kitchen3DView solverResult={result} materials={materials} construction={construction} countertopColor={null} trim={trim} prefs={spec.prefs || {}} selectedAppliances={[]} />}
+          {tab === '3d' && <Kitchen3DView solverResult={result} materials={materials} construction={construction} countertopColor={null} trim={trim} prefs={spec.prefs || {}} selectedAppliances={[]} consumer />}
         </Suspense>
       </div>
     </div>
