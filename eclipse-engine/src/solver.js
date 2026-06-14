@@ -384,7 +384,7 @@ export function solve(input) {
       } : {}),
     };
   });
-  const layoutType = input.layoutType || inferLayoutType(walls, !!peninsula, !!island);
+  const layoutType = normalizeLayoutType(input.layoutType) || inferLayoutType(walls, !!peninsula, !!island);
   // Opt-in: snap cooking-appliance widths to the layout recommendation (default off).
   let _applianceApplied = [];
   if (input.applyApplianceRec || (prefs && prefs.applyApplianceRec)) {
@@ -1932,6 +1932,24 @@ export function solve(input) {
 
 
 // ─── CORNER RESOLVER ────────────────────────────────────────────────────────
+
+// Accept short layout codes (consumer funnel sends "L"/"U"/"single") as well as
+// the canonical long forms the solver keys off ("l-shape"/"u-shape"/...). Without
+// this, a consumer "U" matches none of the layoutType checks → corners are never
+// resolved → adjacent walls overfill and collide in the inside corners.
+function normalizeLayoutType(lt) {
+  if (!lt) return null;
+  const s = String(lt).trim().toLowerCase();
+  const MAP = {
+    l: 'l-shape', 'l-shape': 'l-shape',
+    u: 'u-shape', 'u-shape': 'u-shape',
+    g: 'g-shape', 'g-shape': 'g-shape',
+    single: 'single-wall', 'single-wall': 'single-wall', 'single-wall-island': 'single-wall-island',
+    galley: 'galley', 'galley-peninsula': 'galley-peninsula',
+    peninsula: 'peninsula', island: 'island',
+  };
+  return MAP[s] || lt;
+}
 
 function resolveCorners(walls, layoutType, prefs) {
   const corners = [];
