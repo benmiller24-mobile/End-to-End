@@ -16,10 +16,10 @@ import { loadLocalTenantPackages } from './tenantLocal.js';
 import { getConstruction } from './constructionProfiles.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
-// 3D (Three.js) and the AI renderer are heavy — load their chunks only when
-// the user opens those tabs, so the floor plan paints instantly.
+// 3D (Three.js) is heavy — load its chunk only when the user opens that tab,
+// so the floor plan paints instantly. Kitchen3DView also carries the photoreal
+// AI render (img2img over the real 3D geometry — matches the actual layout).
 const Kitchen3DView = lazy(() => import('./Kitchen3DView.jsx'));
-const LeonardoRenderer = lazy(() => import('./LeonardoRenderer.jsx'));
 
 loadLocalTenantPackages();   // register data-package tenants (pronorm etc.) before solving
 
@@ -81,8 +81,7 @@ function buildSolverResult(spec) {
 const TABS = [
   { id: 'plan', label: 'Floor plan' },
   { id: 'elev', label: 'Elevations' },
-  { id: '3d', label: '3D' },
-  { id: 'render', label: 'Photo render' },
+  { id: '3d', label: '3D & photo render' },
 ];
 
 export default function EmbedApp() {
@@ -129,7 +128,6 @@ export default function EmbedApp() {
         )}
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: C.taupe }}>Loading…</div>}>
           {tab === '3d' && <Kitchen3DView solverResult={result} materials={materials} construction={construction} countertopColor={null} trim={trim} prefs={spec.prefs || {}} selectedAppliances={[]} />}
-          {tab === 'render' && <LeonardoRenderer solverResult={result} materials={materials} selectedAppliances={[]} countertopColor={null} prefs={spec.prefs || {}} trim={trim} construction={construction} />}
         </Suspense>
       </div>
     </div>
