@@ -93,7 +93,7 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(consumer ? '#f7f4ee' : '#eceae6');
 
-      const camera = new THREE.PerspectiveCamera(45, W / H, 1, 5000);
+      const camera = new THREE.PerspectiveCamera(38, W / H, 1, 5000);
       renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
       renderer.setSize(W, H);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -234,7 +234,11 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       };
       const isPlainPanelSku = (sku) => /^(F\d|OVF|SCRIBE|3SRM|.?[BWR]?EP|REP|FWEP|FBEP|EDG|PNL|DWP|FDP|GRILLE|TK)/.test((sku || '').toUpperCase());
       const addBaseFronts = (f, c, mat, rMat) => {
-        const sku = (c.sku || '').toUpperCase();
+        // Detect drawers/sink/panel from the ORIGINAL W.W. sku — realize-in-tenant
+        // swaps c.sku to a metric body (e.g. pronorm "U 100-76-01") that carries
+        // no front semantics, so without this pronorm renders every base as plain
+        // doors. _wwSku preserves the design intent (B4D42 → 4 drawers, etc.).
+        const sku = (c._wwSku || c.sku || '').toUpperCase();
         if (isPlainPanelSku(sku)) return;
         const x0 = c.position, w = c.width;
         const n = drawerCountOf(sku);
@@ -534,10 +538,20 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
       scene.add(sun);
 
       // ── Camera + controls (3/4 view) ──
+      // Aim from INSIDE the room: the average inward wall-normal points into the
+      // open space, so the camera always looks INTO the kitchen (at the cabinet
+      // fronts), never at the back of a wall. Falls back to a corner 3/4 when the
+      // normals cancel (galley / parallel runs).
       const span = Math.max(roomW, roomD);
-      camera.position.set(span * 0.75, CEIL * 1.15, span * 0.95);
+      let inx = 0, inz = 0;
+      wp.forEach(f => { const a = f.angle * Math.PI / 180; inx += -Math.sin(a); inz += Math.cos(a); });
+      let il = Math.hypot(inx, inz);
+      if (il < 0.35) { inx = 0.7; inz = 0.7; il = Math.hypot(inx, inz); }
+      inx /= il; inz /= il;
+      const camDist = span * 1.45;
+      camera.position.set(inx * camDist, CEIL * 0.95, inz * camDist);
       controls = new OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 40, 0);
+      controls.target.set(0, 38, 0);
       controls.enableDamping = true; controls.dampingFactor = 0.08;
       controls.maxPolarAngle = Math.PI / 2.05;
       controls.update();
