@@ -6,7 +6,9 @@
 // then becomes a lead routed to a local dealer that carries the chosen line.
 // CORS-open so the separate Next.js consumer site can call it.
 import { configureProject, priceRange } from '../../eclipse-engine/src/index.js';
-import { getTenant, hasTenant } from '../../eclipse-pricing/src/tenants/index.js';
+import { solve } from '../../eclipse-engine/src/solver.js';
+import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
+import { getTenant, hasTenant, setTenantPriceGroup, priceGroupForRange } from '../../eclipse-pricing/src/tenants/index.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -36,7 +38,28 @@ export default async (req) => {
       room: { walls, appliances, prefs, layoutType, roomType, island, peninsula, applyApplianceRec: true },
       materials: { brand, species: style.species, door: style.door, construction: style.construction },
     });
-    const total = result.quote?.projectTotal || result.pricing?.projectTotal || 0;
+    let total = result.quote?.projectTotal || result.pricing?.projectTotal || 0;
+
+    // Price-group tenants (e.g. pronorm) are NOT priced by configureProject — it
+    // prices every brand from the Eclipse list table. Reprice them from their OWN
+    // catalogue at the chosen price group via realize-in-tenant, so the finish
+    // (front range → group) actually drives the number. Dealer-safe: this only
+    // reads the tenant catalog; the Eclipse/dealer engine path is untouched.
+    if (line?.realize && line?.catalog && line?.pricing?.priceGroups) {
+      const reqGroup = body.priceGroup != null ? String(body.priceGroup)
+        : (style.frontRange ? priceGroupForRange(brand, style.frontRange) : null);
+      const group = reqGroup ?? line.pricing.defaultGroup ?? '0';
+      try {
+        setTenantPriceGroup(brand, group);
+        const sr = solve({ walls, appliances, prefs, layoutType, roomType, island, peninsula, applyApplianceRec: true });
+        realizeInTenant(sr, line, group);
+        const pgTotal = (sr.placements || []).reduce((a, c) => a + (c._price || 0), 0);
+        if (pgTotal > 0) total = pgTotal;
+      } catch {
+        // keep the configureProject fallback total if catalog pricing fails
+      }
+    }
+
     const range = priceRange(total, { pct: body.uncertaintyPct ?? 0.15, currency });
 
     // Consumer-safe payload — strictly NO sku / cost / margin fields.
