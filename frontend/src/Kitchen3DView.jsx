@@ -74,6 +74,15 @@ export default function Kitchen3DView({ solverResult, materials, construction, c
     setAiLoading(false);
   }, [solverResult, materials, construction, countertopColor, trim, prefs, selectedAppliances, strength]);
 
+  // In the consumer embed (iframed by FAKS), hand the finished render URL up to
+  // the parent page so it can attach it to the lead / share. No-op in the
+  // dealer app (top-level window === parent).
+  useEffect(() => {
+    if (consumer && aiUrl && typeof window !== 'undefined' && window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'faks:render', url: aiUrl }, '*');
+    }
+  }, [consumer, aiUrl]);
+
   useEffect(() => {
     if (!solverResult || !mountRef.current) return;
     const mount = mountRef.current;
