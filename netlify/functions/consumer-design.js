@@ -31,7 +31,9 @@ export default async (req) => {
 
     // Solve + price with the engine (let the solver place appliances by type).
     const result = configureProject({
-      room: { walls, appliances, prefs, layoutType, roomType, island, peninsula },
+      // applyApplianceRec lets the solver PLACE appliances given only their types
+      // (the consumer picks "I have a fridge/range/sink/DW", not positions).
+      room: { walls, appliances, prefs, layoutType, roomType, island, peninsula, applyApplianceRec: true },
       materials: { brand, species: style.species, door: style.door, construction: style.construction },
     });
     const total = result.quote?.projectTotal || result.pricing?.projectTotal || 0;

@@ -10,11 +10,14 @@
 // whitespace is valid JSON, so callers still just res.json().
 import { runExtraction } from '../lib/floorplanCore.js';
 
+// CORS-open so the separate FAKS / Showroom Atlas consumer site can post photos.
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 const json = (o, status = 200) =>
-  new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
+  new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
 
 export default async (req) => {
   try {
+    if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: CORS });
     if (!process.env.ANTHROPIC_API_KEY) return json({ error: 'ANTHROPIC_API_KEY is not configured on the server — add it in Netlify site settings to enable floorplan import.' }, 503);
     if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
     const body = await req.json();
@@ -37,7 +40,7 @@ export default async (req) => {
         }
       },
     });
-    return new Response(stream, { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(stream, { status: 200, headers: { 'Content-Type': 'application/json', ...CORS } });
   } catch (e) {
     return json({ error: e?.message || String(e) }, 500);
   }
