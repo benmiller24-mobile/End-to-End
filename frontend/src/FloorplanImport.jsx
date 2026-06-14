@@ -11,8 +11,47 @@
  * imported dimensions arrive as customer-supplied (not field-verified), so the
  * order-readiness gate keeps protecting the order.
  */
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { extractPositionedPages, looksLikeDesignPdf, parseDesignPdf } from './floorplanVector.js';
+import { SPECIES_PCT, DOORS, GLAZES, HIGHLIGHTS, CHAR_TECHNIQUES, INTERIORS, DRAWER_BOXES } from '../../eclipse-pricing/src/index.js';
+import { CONSTRUCTIONS } from './constructionProfiles.js';
+import { getTenant, listTenants } from '../../eclipse-pricing/src/tenants/index.js';
+
+const FIELD_DATASET = { glaze: GLAZES, highlight: HIGHLIGHTS, charTechniques: CHAR_TECHNIQUES, interiorFinish: INTERIORS, drawerBox: DRAWER_BOXES };
+const FIELD_LABELS = {
+  glaze: 'Glaze', highlight: 'Highlight', charTechniques: 'Character Technique', interiorFinish: 'Interior Finish',
+  upperDoor: 'Upper Door (if different)', edgeProfile: 'Edge Profile / Banding', drawerBox: 'Drawer Box', drawerGuide: 'Drawer Guide',
+  frontRange: 'Front Range (sets price group)', frontColour: 'Front Colour', carcaseColour: 'Carcase Colour',
+  interiorColour: 'Interior Colour', handleType: 'Handle Type', handleColour: 'Handle Colour', softClose: 'Door Opening / Soft-Close',
+  edgeDesign: 'Carcase Edge Design', plinthHeight: 'Plinth Height', plinthDesign: 'Plinth Design',
+};
+const frameStylesFor = (brand) => Object.keys(CONSTRUCTIONS).filter(k => CONSTRUCTIONS[k].brand === brand);
+
+// Build the default project spec for a line: sensible material defaults + the
+// first option of each of that tenant's cover-sheet fields, so the form opens
+// pre-filled and the imported design prices/draws to a real spec immediately.
+function defaultSpec(brand) {
+  const cs = getTenant(brand).coverSheet || { fields: [], options: {} };
+  const orderSpec = {};
+  for (const f of cs.fields || []) {
+    const tenantOpts = (cs.options || {})[f];
+    if (tenantOpts && tenantOpts.length) orderSpec[f] = tenantOpts[0];
+    else if (FIELD_DATASET[f]) orderSpec[f] = FIELD_DATASET[f][0]?.v ?? '';
+    else orderSpec[f] = '';
+  }
+  const frames = frameStylesFor(brand);
+  return {
+    materials: {
+      brand,
+      species: SPECIES_PCT.Maple != null ? 'Maple' : Object.keys(SPECIES_PCT)[0],
+      door: (DOORS[0] && DOORS[0].v) || '',
+      finishColor: 'Natural',
+      frameStyle: frames[0] || Object.keys(CONSTRUCTIONS)[0],
+      construction: 'Standard',
+    },
+    orderSpec,
+  };
+}
 
 const C = { accent: '#b8944e', danger: '#c0392b', ok: '#3a7d44', dim: '#8a8a8a', border: '#e4ddd2' };
 const btn = (solid) => ({
@@ -102,7 +141,13 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
   const [calib, setCalib] = useState({ pts: [], inches: '' });
   const [hints, setHints] = useState('');
   const [review, setReview] = useState(null);     // { source, walls, appliances, island, items?, notes, problems }
+  const [spec, setSpec] = useState(() => defaultSpec(brand));   // project spec collected at upload
   const imgRef = useRef(null);
+  // Keep the spec's line in sync if the studio brand changes before an import.
+  useEffect(() => { setSpec(s => (s.materials.brand === brand ? s : defaultSpec(brand))); }, [brand]);
+  const setLine = (b) => setSpec(s => ({ materials: { ...s.materials, brand: b, frameStyle: frameStylesFor(b)[0] || s.materials.frameStyle }, orderSpec: defaultSpec(b).orderSpec }));
+  const setMat = (k, v) => setSpec(s => ({ ...s, materials: { ...s.materials, [k]: v } }));
+  const setCs = (k, v) => setSpec(s => ({ ...s, orderSpec: { ...s.orderSpec, [k]: v } }));
 
   const reset = () => { setMode('idle'); setPages([]); setDocRef(null); setCanvas(null); setCalib({ pts: [], inches: '' }); setReview(null); setBusy(''); };
 
@@ -236,6 +281,7 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
       appliances: review.appliances.filter(a => KNOWN.includes(a.type)),
       island: review.island, ceilingHeight: review.ceilingHeight || null,
     };
+    payload.spec = spec;   // line + wood + door + construction + cover-sheet fields
     if (withCabinets && review.items?.length) onApplyDesign({ ...payload, items: review.items });
     else onApplyRoom(payload);
     reset(); setOpen(false);
@@ -327,6 +373,55 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
             <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>
               Imported dimensions are customer-supplied until field-verified — quotes stay budget-grade and the order gate stays closed, exactly like hand-typed measurements.
             </div>
+
+            {/* ── Project specification: collected at upload so the drawings +
+                 pricing come out per the customer's spec, not app defaults. ── */}
+            {(() => {
+              const sLbl = { fontSize: 10, color: C.dim, display: 'block', marginBottom: 2 };
+              const sIn = { width: '100%', fontSize: 11, padding: '3px 5px', border: `1px solid ${C.border}`, borderRadius: 4, background: '#fff' };
+              const cs = getTenant(spec.materials.brand).coverSheet || { fields: [], options: {} };
+              const csField = (key) => {
+                const opts = (cs.options || {})[key];
+                if (opts && opts.length) return (
+                  <div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
+                    <select value={opts.includes(spec.orderSpec[key]) ? spec.orderSpec[key] : opts[0]} onChange={e => setCs(key, e.target.value)} style={sIn}>
+                      {opts.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                );
+                if (FIELD_DATASET[key]) return (
+                  <div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
+                    <select value={spec.orderSpec[key]} onChange={e => setCs(key, e.target.value)} style={sIn}>
+                      {FIELD_DATASET[key].map(g => <option key={g.v} value={g.v}>{g.l}</option>)}</select></div>
+                );
+                if (key === 'upperDoor') return null;
+                return (<div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
+                  <input value={spec.orderSpec[key] ?? ''} onChange={e => setCs(key, e.target.value)} style={sIn} /></div>);
+              };
+              return (
+                <div style={{ marginTop: 12, padding: 10, border: `1px solid ${C.border}`, borderRadius: 6, background: '#fff' }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: '#5d4d2e', marginBottom: 8 }}>
+                    Project specification — pricing &amp; drawings use this
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    <div><label style={sLbl}>Line</label>
+                      <select value={spec.materials.brand} onChange={e => setLine(e.target.value)} style={sIn}>
+                        {listTenants().map(t => <option key={t.id} value={t.id}>{t.branding?.lineLabel || t.id}</option>)}</select></div>
+                    <div><label style={sLbl}>Wood species</label>
+                      <select value={spec.materials.species} onChange={e => setMat('species', e.target.value)} style={sIn}>
+                        {Object.keys(SPECIES_PCT).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                    <div><label style={sLbl}>Door style</label>
+                      <select value={spec.materials.door} onChange={e => setMat('door', e.target.value)} style={sIn}>
+                        {DOORS.map(d => <option key={d.v} value={d.v}>{d.l}</option>)}</select></div>
+                    <div><label style={sLbl}>Construction</label>
+                      <select value={spec.materials.frameStyle} onChange={e => setMat('frameStyle', e.target.value)} style={sIn}>
+                        {(frameStylesFor(spec.materials.brand).length ? frameStylesFor(spec.materials.brand) : Object.keys(CONSTRUCTIONS)).map(k => <option key={k} value={k}>{CONSTRUCTIONS[k].label}</option>)}</select></div>
+                    <div><label style={sLbl}>Finish / colour</label>
+                      <input value={spec.materials.finishColor} onChange={e => setMat('finishColor', e.target.value)} style={sIn} placeholder="e.g. Classic White" /></div>
+                    {(cs.fields || []).filter(f => f !== 'upperDoor').map(csField)}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               {review.walls.length ? (<>
                 {review.items?.length

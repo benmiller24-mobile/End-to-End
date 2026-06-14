@@ -2252,12 +2252,21 @@ export default function App() {
   });
 
   // ── Floorplan import (photo/PDF → room, design PDF → room + cabinets). ──
+  // The uploader collects the project spec (line, wood, door, construction +
+  // cover-sheet fields); apply it so drawings + the 3-line pricing come out per
+  // the customer's spec rather than app defaults.
+  const applyImportedSpec = (spec) => {
+    if (!spec) return;
+    if (spec.materials) setMaterials(m => ({ ...m, ...spec.materials }));
+    if (spec.orderSpec) setOrderSpec(o => ({ ...o, ...spec.orderSpec }));
+  };
   const applyImportedRoom = (payload) => {
     setLayoutType(payload.layoutType || 'l-shape');
     setWalls(payload.walls);
     setAppliances(payload.appliances?.length ? payload.appliances : []);
     setIsland(payload.island ? { length: payload.island.length, depth: payload.island.depth } : null);
     if (payload.ceilingHeight) setPrefs(pr => ({ ...pr, ceilingHeight: payload.ceilingHeight }));
+    applyImportedSpec(payload.spec);
     setDesignMode('auto');
     setManualItems([]);
   };
