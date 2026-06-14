@@ -149,6 +149,54 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
   const setMat = (k, v) => setSpec(s => ({ ...s, materials: { ...s.materials, [k]: v } }));
   const setCs = (k, v) => setSpec(s => ({ ...s, orderSpec: { ...s.orderSpec, [k]: v } }));
 
+  // Project specification — line, wood, door, construction, finish + this line's
+  // cover-sheet fields. Shown as soon as the importer opens so the dealer enters
+  // the spec WITH the upload; it flows into the priced output + drawings.
+  const renderSpecForm = () => {
+    const sLbl = { fontSize: 10, color: C.dim, display: 'block', marginBottom: 2 };
+    const sIn = { width: '100%', fontSize: 11, padding: '3px 5px', border: `1px solid ${C.border}`, borderRadius: 4, background: '#fff' };
+    const cs = getTenant(spec.materials.brand).coverSheet || { fields: [], options: {} };
+    const csField = (key) => {
+      const opts = (cs.options || {})[key];
+      if (opts && opts.length) return (
+        <div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
+          <select value={opts.includes(spec.orderSpec[key]) ? spec.orderSpec[key] : opts[0]} onChange={e => setCs(key, e.target.value)} style={sIn}>
+            {opts.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+      );
+      if (FIELD_DATASET[key]) return (
+        <div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
+          <select value={spec.orderSpec[key]} onChange={e => setCs(key, e.target.value)} style={sIn}>
+            {FIELD_DATASET[key].map(g => <option key={g.v} value={g.v}>{g.l}</option>)}</select></div>
+      );
+      if (key === 'upperDoor') return null;
+      return (<div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
+        <input value={spec.orderSpec[key] ?? ''} onChange={e => setCs(key, e.target.value)} style={sIn} /></div>);
+    };
+    return (
+      <div style={{ marginTop: 10, padding: 10, border: `1.5px solid ${C.accent}`, borderRadius: 6, background: '#fffdf7' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#5d4d2e', marginBottom: 2 }}>① Your specification</div>
+        <div style={{ fontSize: 10.5, color: C.dim, marginBottom: 8 }}>Set the line, wood, door &amp; finish — the imported drawings and the 3-line pricing come out to this spec.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div><label style={sLbl}>Line</label>
+            <select value={spec.materials.brand} onChange={e => setLine(e.target.value)} style={sIn}>
+              {listTenants().map(t => <option key={t.id} value={t.id}>{t.branding?.lineLabel || t.id}</option>)}</select></div>
+          <div><label style={sLbl}>Wood species</label>
+            <select value={spec.materials.species} onChange={e => setMat('species', e.target.value)} style={sIn}>
+              {Object.keys(SPECIES_PCT).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+          <div><label style={sLbl}>Door style</label>
+            <select value={spec.materials.door} onChange={e => setMat('door', e.target.value)} style={sIn}>
+              {DOORS.map(d => <option key={d.v} value={d.v}>{d.l}</option>)}</select></div>
+          <div><label style={sLbl}>Construction</label>
+            <select value={spec.materials.frameStyle} onChange={e => setMat('frameStyle', e.target.value)} style={sIn}>
+              {(frameStylesFor(spec.materials.brand).length ? frameStylesFor(spec.materials.brand) : Object.keys(CONSTRUCTIONS)).map(k => <option key={k} value={k}>{CONSTRUCTIONS[k].label}</option>)}</select></div>
+          <div><label style={sLbl}>Finish / colour</label>
+            <input value={spec.materials.finishColor} onChange={e => setMat('finishColor', e.target.value)} style={sIn} placeholder="e.g. Classic White" /></div>
+          {(cs.fields || []).filter(f => f !== 'upperDoor').map(csField)}
+        </div>
+      </div>
+    );
+  };
+
   const reset = () => { setMode('idle'); setPages([]); setDocRef(null); setCanvas(null); setCalib({ pts: [], inches: '' }); setReview(null); setBusy(''); };
 
   const onFile = async (file) => {
@@ -301,6 +349,8 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
       </div>
       {busy && <div style={{ fontSize: 11, color: busy.startsWith('Failed') || busy.startsWith('Extraction failed') ? C.danger : C.dim, marginTop: 6 }}>{busy}</div>}
 
+      {open && renderSpecForm()}
+
       {open && mode === 'pages' && (
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           {pages.map(p => (
@@ -374,54 +424,7 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
               Imported dimensions are customer-supplied until field-verified — quotes stay budget-grade and the order gate stays closed, exactly like hand-typed measurements.
             </div>
 
-            {/* ── Project specification: collected at upload so the drawings +
-                 pricing come out per the customer's spec, not app defaults. ── */}
-            {(() => {
-              const sLbl = { fontSize: 10, color: C.dim, display: 'block', marginBottom: 2 };
-              const sIn = { width: '100%', fontSize: 11, padding: '3px 5px', border: `1px solid ${C.border}`, borderRadius: 4, background: '#fff' };
-              const cs = getTenant(spec.materials.brand).coverSheet || { fields: [], options: {} };
-              const csField = (key) => {
-                const opts = (cs.options || {})[key];
-                if (opts && opts.length) return (
-                  <div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
-                    <select value={opts.includes(spec.orderSpec[key]) ? spec.orderSpec[key] : opts[0]} onChange={e => setCs(key, e.target.value)} style={sIn}>
-                      {opts.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
-                );
-                if (FIELD_DATASET[key]) return (
-                  <div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
-                    <select value={spec.orderSpec[key]} onChange={e => setCs(key, e.target.value)} style={sIn}>
-                      {FIELD_DATASET[key].map(g => <option key={g.v} value={g.v}>{g.l}</option>)}</select></div>
-                );
-                if (key === 'upperDoor') return null;
-                return (<div key={key}><label style={sLbl}>{FIELD_LABELS[key] || key}</label>
-                  <input value={spec.orderSpec[key] ?? ''} onChange={e => setCs(key, e.target.value)} style={sIn} /></div>);
-              };
-              return (
-                <div style={{ marginTop: 12, padding: 10, border: `1px solid ${C.border}`, borderRadius: 6, background: '#fff' }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 700, color: '#5d4d2e', marginBottom: 8 }}>
-                    Project specification — pricing &amp; drawings use this
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                    <div><label style={sLbl}>Line</label>
-                      <select value={spec.materials.brand} onChange={e => setLine(e.target.value)} style={sIn}>
-                        {listTenants().map(t => <option key={t.id} value={t.id}>{t.branding?.lineLabel || t.id}</option>)}</select></div>
-                    <div><label style={sLbl}>Wood species</label>
-                      <select value={spec.materials.species} onChange={e => setMat('species', e.target.value)} style={sIn}>
-                        {Object.keys(SPECIES_PCT).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                    <div><label style={sLbl}>Door style</label>
-                      <select value={spec.materials.door} onChange={e => setMat('door', e.target.value)} style={sIn}>
-                        {DOORS.map(d => <option key={d.v} value={d.v}>{d.l}</option>)}</select></div>
-                    <div><label style={sLbl}>Construction</label>
-                      <select value={spec.materials.frameStyle} onChange={e => setMat('frameStyle', e.target.value)} style={sIn}>
-                        {(frameStylesFor(spec.materials.brand).length ? frameStylesFor(spec.materials.brand) : Object.keys(CONSTRUCTIONS)).map(k => <option key={k} value={k}>{CONSTRUCTIONS[k].label}</option>)}</select></div>
-                    <div><label style={sLbl}>Finish / colour</label>
-                      <input value={spec.materials.finishColor} onChange={e => setMat('finishColor', e.target.value)} style={sIn} placeholder="e.g. Classic White" /></div>
-                    {(cs.fields || []).filter(f => f !== 'upperDoor').map(csField)}
-                  </div>
-                </div>
-              );
-            })()}
-
+            <div style={{ fontSize: 10.5, color: C.dim, marginTop: 8 }}>Your specification is set above ①.</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               {review.walls.length ? (<>
                 {review.items?.length
