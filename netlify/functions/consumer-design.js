@@ -40,8 +40,11 @@ export default async (req) => {
     const range = priceRange(total, { pct: body.uncertaintyPct ?? 0.15, currency });
 
     // Consumer-safe payload — strictly NO sku / cost / margin fields.
+    // configureProject exposes the count at result.layout.totalCabinets (the
+    // per-wall counts live in result.layout.walls[].cabinetCount).
     const layout = result.layout || {};
-    const cabinetCount = layout.metadata?.totalCabinets || (layout.placements || []).filter(p => p.type !== 'appliance').length;
+    const cabinetCount = layout.totalCabinets
+      || (layout.walls || []).reduce((a, w) => a + (w.cabinetCount || 0), 0) || 0;
     const wallRun = (walls || []).reduce((a, w) => a + (w.length || 0), 0);
     const out = {
       brand,
@@ -53,7 +56,7 @@ export default async (req) => {
       priceRange: range,                          // { low, high, mid, display }
       // a minimal plan for a friendly visual (positions only, no SKUs)
       plan: (walls || []).map(w => ({ id: w.id, length: w.length })),
-      appliances: (layout.placements || []).filter(p => p.type === 'appliance').map(p => ({ type: p.applianceType, wall: p.wall })),
+      appliances: (appliances || []).map(a => ({ type: a.type })),   // echo what the customer has
       disclaimer: 'Estimated range for cabinetry only — a local dealer confirms your exact quote.',
     };
     return new Response(JSON.stringify(out), { status: 200, headers: CORS });
