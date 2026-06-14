@@ -13,7 +13,7 @@
  */
 import React, { useRef, useState, useEffect } from 'react';
 import { extractPositionedPages, looksLikeDesignPdf, parseDesignPdf } from './floorplanVector.js';
-import { SPECIES_PCT, DOORS, GLAZES, HIGHLIGHTS, CHAR_TECHNIQUES, INTERIORS, DRAWER_BOXES } from '../../eclipse-pricing/src/index.js';
+import { SPECIES_PCT, DOORS, FINISH_COLORS, GLAZES, HIGHLIGHTS, CHAR_TECHNIQUES, INTERIORS, DRAWER_BOXES } from '../../eclipse-pricing/src/index.js';
 import { CONSTRUCTIONS } from './constructionProfiles.js';
 import { getTenant, listTenants } from '../../eclipse-pricing/src/tenants/index.js';
 
@@ -40,12 +40,13 @@ function defaultSpec(brand) {
     else orderSpec[f] = '';
   }
   const frames = frameStylesFor(brand);
+  const species = SPECIES_PCT.Maple != null ? 'Maple' : Object.keys(SPECIES_PCT)[0];
+  const finishes = FINISH_COLORS[species] || [];
   return {
     materials: {
-      brand,
-      species: SPECIES_PCT.Maple != null ? 'Maple' : Object.keys(SPECIES_PCT)[0],
+      brand, species,
       door: (DOORS[0] && DOORS[0].v) || '',
-      finishColor: 'Natural',
+      finishColor: finishes.includes('Natural') ? 'Natural' : (finishes[0] || ''),
       frameStyle: frames[0] || Object.keys(CONSTRUCTIONS)[0],
       construction: 'Standard',
     },
@@ -147,6 +148,13 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
   useEffect(() => { setSpec(s => (s.materials.brand === brand ? s : defaultSpec(brand))); }, [brand]);
   const setLine = (b) => setSpec(s => ({ materials: { ...s.materials, brand: b, frameStyle: frameStylesFor(b)[0] || s.materials.frameStyle }, orderSpec: defaultSpec(b).orderSpec }));
   const setMat = (k, v) => setSpec(s => ({ ...s, materials: { ...s.materials, [k]: v } }));
+  // Species drives the available finishes (Walnut on Alder, Straw on White Oak,
+  // OW-Polar paint on Maple, …) — snap the finish to one valid for the species.
+  const setSpecies = (sp) => setSpec(s => {
+    const cols = FINISH_COLORS[sp] || [];
+    const finishColor = cols.includes(s.materials.finishColor) ? s.materials.finishColor : (cols.includes('Natural') ? 'Natural' : (cols[0] || ''));
+    return { ...s, materials: { ...s.materials, species: sp, finishColor } };
+  });
   const setCs = (k, v) => setSpec(s => ({ ...s, orderSpec: { ...s.orderSpec, [k]: v } }));
 
   // Project specification — line, wood, door, construction, finish + this line's
@@ -181,16 +189,21 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
             <select value={spec.materials.brand} onChange={e => setLine(e.target.value)} style={sIn}>
               {listTenants().map(t => <option key={t.id} value={t.id}>{t.branding?.lineLabel || t.id}</option>)}</select></div>
           <div><label style={sLbl}>Wood species</label>
-            <select value={spec.materials.species} onChange={e => setMat('species', e.target.value)} style={sIn}>
+            <select value={spec.materials.species} onChange={e => setSpecies(e.target.value)} style={sIn}>
               {Object.keys(SPECIES_PCT).map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+          <div><label style={sLbl}>Finish / stain / paint</label>
+            {(FINISH_COLORS[spec.materials.species] || []).length > 0 ? (
+              <select value={spec.materials.finishColor} onChange={e => setMat('finishColor', e.target.value)} style={sIn}>
+                {FINISH_COLORS[spec.materials.species].map(c => <option key={c} value={c}>{c} on {spec.materials.species}</option>)}</select>
+            ) : (
+              <input value={spec.materials.finishColor} onChange={e => setMat('finishColor', e.target.value)} style={sIn} placeholder="finish / colour" />
+            )}</div>
           <div><label style={sLbl}>Door style</label>
             <select value={spec.materials.door} onChange={e => setMat('door', e.target.value)} style={sIn}>
               {DOORS.map(d => <option key={d.v} value={d.v}>{d.l}</option>)}</select></div>
           <div><label style={sLbl}>Construction</label>
             <select value={spec.materials.frameStyle} onChange={e => setMat('frameStyle', e.target.value)} style={sIn}>
               {(frameStylesFor(spec.materials.brand).length ? frameStylesFor(spec.materials.brand) : Object.keys(CONSTRUCTIONS)).map(k => <option key={k} value={k}>{CONSTRUCTIONS[k].label}</option>)}</select></div>
-          <div><label style={sLbl}>Finish / colour</label>
-            <input value={spec.materials.finishColor} onChange={e => setMat('finishColor', e.target.value)} style={sIn} placeholder="e.g. Classic White" /></div>
           {(cs.fields || []).filter(f => f !== 'upperDoor').map(csField)}
         </div>
       </div>
