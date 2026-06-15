@@ -2229,6 +2229,7 @@ function StepIndicator({ steps, current, onStep }) {
 export default function App() {
   const [view, setView] = useState('designer');
   const [step, setStep] = useState(0);
+  const [showCompare, setShowCompare] = useState(false);  // live value-engineering panel in Materials
 
   // Layout state
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -2666,6 +2667,51 @@ export default function App() {
 
   const STEPS = ['Layout', 'Materials', 'Appliances', 'Countertops', 'Trim & Molding', 'Review'];
 
+  // ── Live design feedback (rec: validate + price + preview AS YOU DESIGN) ──
+  // On the Materials step we silently solve the current layout once (it only
+  // re-solves when the LAYOUT changes, not on finish changes) so we can show a
+  // running price, a live elevation, and a compare panel without leaving Step 1.
+  const previewResult = useMemo(() => {
+    if (step !== 1) return null;
+    try {
+      const ceilH = Number(prefs.ceilingHeight) || 96;
+      const wallsC = walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || ceilH }));
+      const input = { layoutType, roomType, walls: wallsC, appliances, prefs };
+      if (island) input.island = island;
+      if (peninsula) input.peninsula = peninsula;
+      const result = designMode === 'manual'
+        ? buildManualResult({ walls: wallsC, items: manualItems, island, roomType, layoutType })
+        : solve(input);
+      const activeTenant = getTenant(materials.brand);
+      if (designMode !== 'manual' && activeTenant?.realize) realizeInTenant(result, activeTenant, priceGroup);
+      result._inputWalls = (result._inputWalls || wallsC).map(w => ({ ...w, id: w.id, length: w.length, ceilingHeight: w._realCeilingHeight || w.ceilingHeight || ceilH }));
+      if (result.walls && result.walls[0] && !result.walls[0].id) result.walls.forEach(w => { w.id = w.wallId; w.length = w.wallLength; });
+      return result;
+    } catch { return null; }
+  }, [step, layoutType, roomType, walls, appliances, prefs, island, peninsula, designMode, manualItems, materials.brand, priceGroup]);
+
+  const previewQuote = useMemo(() => {
+    if (!previewResult) return null;
+    try { return priceWithMaterials(previewResult, lineMods, materials); } catch { return null; }
+  }, [previewResult, materials, lineMods, priceWithMaterials]);
+  const previewTotal = (previewQuote?.subtotal || 0) + (previewQuote?.fabrication?.subtotal || 0);
+  const previewCabCount = (previewResult?.placements || []).filter(p => p.type !== 'appliance').length;
+  const _cur = getTenant(materials.brand)?.locale?.currency || 'USD';
+  const fmtMoney = (n) => new Intl.NumberFormat(undefined, { style: 'currency', currency: _cur, maximumFractionDigits: 0 }).format(n || 0);
+
+  // Order-readiness, computed live (reuses the same gate the order package uses).
+  // Pre-solve it reflects the input checks (dims / cover sheet / style); the
+  // solve-derived checks light up once a layout exists.
+  const readiness = useMemo(() => {
+    try {
+      return evaluateOrderReadiness({
+        solverResult: solverResult || previewResult, quote: quote || previewQuote,
+        walls, selectedAppliances: selectedBrandAppliances, projectMeta, orderSpec,
+        construction: getConstruction(materials.frameStyle), materials,
+      });
+    } catch { return null; }
+  }, [solverResult, previewResult, quote, previewQuote, walls, selectedBrandAppliances, projectMeta, orderSpec, materials]);
+
   return (
     <div style={{ fontFamily: "'Questrial', 'Helvetica Neue', Arial, sans-serif", color: C.text, background: C.bg, minHeight: '100vh' }}>
       {/* Header */}
@@ -2745,6 +2791,25 @@ export default function App() {
         ) : (
           <>
             <StepIndicator steps={STEPS} current={step} onStep={setStep} />
+
+            {/* ── Live order-readiness strip (validate as you design, not at Solve) ── */}
+            {readiness && (() => {
+              const blockers = readiness.checks.filter(c => !c.pass && c.severity === 'blocker');
+              const warnings = readiness.checks.filter(c => !c.pass && c.severity === 'warning');
+              const fails = [...blockers, ...warnings];
+              return (
+                <div style={{ margin: '-8px 0 16px', padding: '8px 12px', borderRadius: 8, fontSize: 12, lineHeight: 1.5,
+                  background: readiness.ready ? '#e8f3ea' : '#fdf3e3', border: `1px solid ${readiness.ready ? '#bcd9c2' : '#e8cd92'}` }}>
+                  <strong style={{ color: readiness.ready ? '#2f6b3a' : '#9a6b16' }}>
+                    {readiness.ready ? '✓ Order-ready' : `⚠ ${blockers.length} blocker${blockers.length === 1 ? '' : 's'}${warnings.length ? ` · ${warnings.length} warning${warnings.length === 1 ? '' : 's'}` : ''} before this can be ordered`}
+                  </strong>
+                  {fails.length > 0 && (
+                    <span style={{ color: C.muted }}>{'  —  '}{fails.slice(0, 4).map(c => c.label).join(' · ')}{fails.length > 4 ? ` +${fails.length - 4} more` : ''}</span>
+                  )}
+                  <span style={{ color: C.dim }}>{'  ·  '}A budget quote is fine now; these must clear to send a clean order.</span>
+                </div>
+              );
+            })()}
 
             {/* ═══ STEP 0: LAYOUT ═══ */}
             {step === 0 && (
@@ -2931,6 +2996,34 @@ export default function App() {
               <div style={{ maxWidth: 700, margin: '0 auto' }}>
                 <div style={panelStyle}>
                   <div style={sectionTitle}>Materials & Pricing</div>
+
+                  {/* ── Live estimate + preview (updates as you change finishes) ── */}
+                  {previewResult && (
+                    <div style={{ marginBottom: 14, padding: 12, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: C.dim, fontWeight: 600 }}>Live estimate</div>
+                          <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.1 }}>{fmtMoney(previewTotal)}</div>
+                          <div style={{ fontSize: 10.5, color: C.dim }}>{previewCabCount} cabinets · cabinetry + fabrication · updates as you choose</div>
+                        </div>
+                        <button onClick={() => setShowCompare(s => !s)} style={{ ...btnOutline, padding: '6px 12px', fontSize: 12 }}>
+                          {showCompare ? 'Hide compare' : 'Compare finishes'}
+                        </button>
+                      </div>
+                      <div style={{ marginTop: 10, maxHeight: 250, overflow: 'auto', border: `1px solid ${C.border}`, borderRadius: 6, background: '#fff' }}>
+                        <ElevationView solverResult={previewResult} trim={trimSelections}
+                          doorStyle={materials.door} species={materials.species} finishColor={materials.finishColor}
+                          grainHorizontal={materials.grainHorizontal} hardware={materials.hardware} hardwareFinish={materials.hardwareFinish}
+                          countertopColor={null} appliances={selectedBrandAppliances}
+                          construction={getConstruction(materials.frameStyle)} titleBlock={{}} />
+                      </div>
+                      {showCompare && (
+                        <div style={{ marginTop: 10 }}>
+                          <MultiQuotePanel baseMaterials={materials} priceWith={(mats) => priceWithMaterials(previewResult, lineMods, mats)} />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* ── Cabinet line + framed/inset construction ── */}
                   <div style={{ marginBottom: 12, padding: '10px', background: C.bg, borderRadius: 6, border: `1px solid ${C.border}` }}>
