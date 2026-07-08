@@ -40,6 +40,9 @@ A configurator that takes a room (walls, appliances, prefs) → solves a cabinet
 Shiloh framed line + all 9 overlay/inset constructions; brand/construction UI; interim Shiloh pricing + brand-aware lookup; sculptural plaster hood + arched zellige niche; "feature the hood" (drops flanking uppers); 3D View (Three.js) + img2img photoreal pass; design-accurate AI prompt with per-wall composition; full elevation SKU audit + fixes (blind base/wall corners, waste base, wine, vanity combinations, angle corners, panels/mouldings, the "no door > 24″" rule). See the report docs in the project folder: `Shiloh-Integration-Plan.md`, `Elevation-Drawing-Audit.md`, `Pricing-Audit-Report.md`, `Current-Trends-Integration.md`.
 
 ## Likely next tasks
+0. Execute the phased plan in **`docs/Finish-Plan-Cyncly-Moat.md`** (competitive
+   differentiation vs Cyncly: re-quote weapon → three-option explainable auto-design →
+   trust flywheel → self-serve onboarding → product shell).
 1. Load the **official Shiloh price CSV** → replace `SHILOH_RAW_SKU_DATA`, wire the 1¼″-overlay per-door charge, flip pricing from interim to verified (`Shiloh-Scraped-Prices-v342.csv` is there to diff).
 2. Polish the **3D view** materials/lighting/camera and the **Leonardo** depth/img2img tuning (validate on the deployed Netlify site — can't be done headless).
 3. Optional deeper **dimensional** drawing audit (toe heights, rail widths, drawer-face heights, mullion patterns) per cabinet family vs each catalog spec page.
@@ -87,5 +90,11 @@ Shiloh framed line + all 9 overlay/inset constructions; brand/construction UI; i
   sales manuals → pronorm.package.json (10,308 SKUs, 46 front ranges) → manifest.js. Extraction
   verified by an adversarial workflow (25/25 sampled price cells exact). The Y-line group-5 column
   is legitimately dashed for some ranges — absence there is correct, not a parser miss.
-- LIMITATION (honest): no full priced pronorm kitchen order was available locally to reconcile to
-  the penny; pricing is verified against the spec books, not yet against a pronorm order ack.
+- Pricing is now verified against REAL pronorm order confirmations: 8 orders reconcile at
+  100% (multi-front model; see `tools/reconcile-pronorm-order.mjs` and the eval fixtures).
+  The old "spec-book-only" limitation is resolved.
+
+## ROADMAP
+The active build plan is `docs/Finish-Plan-Cyncly-Moat.md` — phased, file-anchored, with
+acceptance gates. Start there when picking up work; it also lists where this file's
+"Current state" section has gone stale (Phase 0 refreshes it).
