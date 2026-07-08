@@ -30,8 +30,39 @@
  *     validation: { styleCompat: bool },        // run door×species×finish matrix?
  *     pricing: { fallbackTenant: id|null },     // price-fallback line (flagged on quotes)
  *     coverFields: { field10Label, field10Key },// order cover-sheet field variants
+ *     ackFormat: {…},                           // order-confirmation parsing config —
+ *                                               // see DEFAULT_ACK_FORMAT below; pure data
+ *                                               // (regex SOURCES as strings) so a JSON
+ *                                               // package can carry a complete format
  *   }
  */
+
+// The W.W. Wood confirmation shape (calibrated on real acks #45923/28/33,
+// June 2026) — the default ackFormat for any tenant that doesn't declare its
+// own. kind picks the parser strategy in frontend/src/ackReconcile.js:
+//   anchoredTotal — item price sits on a labeled line; the SKU is walked back
+//   numberedRows  — "idx qty SKU … price total" rows (European confirmations)
+// listFactor: printed prices are at this fraction of LIST (0.5 = a 50%-
+// discounted confirmation); parse normalizes back to list for reconciliation.
+export const DEFAULT_ACK_FORMAT = {
+  kind: 'anchoredTotal',
+  decimal: 'us',
+  listFactor: 1,
+  itemAnchor: 'Total Price\\s*\\$?([\\d,]+\\.\\d{2})',
+  skipLine: '^(PV|TFL|HPL|MAPLE|WALNUT|ALDER|CHERRY|FEG|FTK Price|Guide|Drawer|Walnut|3\\/4"|5\\/8"|Ship|Order|Page|Header|Total|Cabinet)',
+  skuPatterns: [
+    '^([A-Z][A-Z0-9 ().\\/\\-]{0,14}?)(\\d{1,2}(?:\\s*1\\/2)?)W\\b',
+    '^([A-Z]{1,6}\\d{0,3}\\s?\\(\\d+\\/?\\d*\\))',
+    '^([A-Z][A-Z0-9().\\/\\-]{1,16})',
+  ],
+  totals: {
+    cabinetTotal: 'Cabinet Total:?\\s*\\$?([\\d,]+\\.\\d{2})',
+    dealerDiscount: 'Dealer Discount:?\\s*\\$?([\\d,]+\\.\\d{2})',
+    repDiscount: 'Rep Discount:?\\s*\\$?([\\d,]+\\.\\d{2})',
+    orderAmount: 'Order Amount:?\\s*\\$?([\\d,]+\\.\\d{2})',
+  },
+  orderNumber: 'Order Number:?\\s*\\.{0,8}\\s*(\\d{4,6})',
+};
 
 const _tenants = new Map();
 let _activeId = 'eclipse';
@@ -46,7 +77,11 @@ export function registerTenant(t) {
     pricing: { fallbackTenant: null },
     coverFields: { field10Label: '10. Drawer Box Type', field10Key: 'drawerBox' },
     coverSheet: { fields: ['glaze', 'highlight', 'charTechniques', 'interiorFinish', 'upperDoor', 'edgeProfile', 'drawerBox', 'drawerGuide'], options: {} },
+    ackFormat: DEFAULT_ACK_FORMAT,
     ...t,
+    // Consumer-embed presentation defaults (EmbedApp): frameStyle null → the
+    // tenant's defaultConstruction; hardware is the door-pull style.
+    consumer: { frameStyle: null, hardware: 'knob', ...(t.consumer || {}) },
     branding: {
       displayName: 'Kitchen Designer', manufacturerName: t.id, lineLabel: t.id,
       lineSub: '', lineDescriptor: t.id, companyName: '', formCodePrefix: t.id.slice(0, 3).toUpperCase(),

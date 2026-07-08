@@ -36,7 +36,7 @@ import DesignStudio from './DesignStudio.jsx';
 import { buildManualResult, seedFromSolverResult, competes, newId, ISLAND_WALL } from './manualDesign.js';
 import FloorplanImport from './FloorplanImport.jsx';
 import { evaluateOrderReadiness } from './orderReadiness.js';
-import { parseAcknowledgment, reconcile } from './ackReconcile.js';
+import { parseAcknowledgment, reconcile, buildGoldenOrderEval } from './ackReconcile.js';
 
 // ── Template & data imports ──
 import { TEMPLATES, getTemplate, listTemplates, getTemplateCategories } from '../../eclipse-engine/src/templates.js';
@@ -1120,15 +1120,41 @@ function AccessoryCatalogPanel({ lines, onChange, quote }) {
 }
 
 // ==================== ACK RECONCILIATION (T3b) ====================
-// The dealer has 24 hours to review the W.W. Wood confirmation. Paste its
-// text (open the PDF → select all → copy) and diff it against this quote.
-function AckCheckPanel({ quote }) {
+// The dealer has a short window to review the manufacturer's confirmation.
+// Paste its text (open the PDF → select all → copy) and diff it against this
+// quote. The confirmation's SHAPE comes from the tenant's ackFormat config —
+// no manufacturer-specific parsing in code.
+function AckCheckPanel({ quote, brand }) {
   const [text, setText] = useState('');
   const [result, setResult] = useState(null);
+  const tenant = getTenant(brand);
 
   const run = () => {
-    const ack = parseAcknowledgment(text);
+    const ack = parseAcknowledgment(text, tenant.ackFormat);
     setResult({ ack, rec: reconcile(ack, quote) });
+  };
+
+  // Trust flywheel: a ZERO-VARIANCE reconciliation becomes a permanent
+  // regression eval — pin every acknowledged line the live resolver already
+  // reproduces to the penny, download it ready to commit to evals/<tenant>/.
+  const promoteFixture = () => {
+    if (!result?.rec?.clean) return;
+    setPricingBrand(brand);
+    const lines = [], skipped = [];
+    for (const it of (result.ack.items || [])) {
+      let e = null;
+      try { e = findSkuNormalized(it.sku); } catch { /* unpinnable */ }
+      if (e && !e.error && Math.abs((e.p || 0) - it.total) <= 0.02) lines.push([it.sku, e.p]);
+      else skipped.push(it.sku);
+    }
+    if (!lines.length) return;
+    const src = buildGoldenOrderEval({ tenantId: brand, orderNumber: result.rec.orderNumber, lines, skipped });
+    const blob = new Blob([src], { type: 'text/javascript' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `order-${result.rec.orderNumber || 'reconciled'}.eval.mjs`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   return (
@@ -1138,7 +1164,7 @@ function AckCheckPanel({ quote }) {
         When the order confirmation arrives, open the PDF, select all, copy, and paste it here. Every line is diffed against this quote so corrections can go back to orders@wwinc.com the same day.
       </p>
       <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
-        placeholder="Paste the full text of the W.W. Wood order confirmation here…"
+        placeholder={`Paste the full text of the ${tenant.branding.manufacturerName} order confirmation here…`}
         style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }} />
       <button onClick={run} disabled={!text.trim()} style={{ ...btnPrimary, marginTop: 8, opacity: text.trim() ? 1 : 0.5 }}>
         Reconcile against quote
@@ -1156,6 +1182,16 @@ function AckCheckPanel({ quote }) {
                 ? `✓ CLEAN — ${rec.matched.length} line${rec.matched.length === 1 ? '' : 's'} match${ack.orderNumber ? ` (order #${ack.orderNumber})` : ''}. Subtotal agrees${rec.ackTotals.cabinetTotal != null ? ` at ${formatCurrency(rec.ackTotals.cabinetTotal)}` : ''}.`
                 : `✗ VARIANCES FOUND${ack.orderNumber ? ` (order #${ack.orderNumber})` : ''} — mark these on the acknowledgment and resend within 24 hours.`}
             </div>
+            {rec.clean && (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button onClick={promoteFixture} style={{ ...btnOutline, fontSize: 12 }}>
+                  ⤓ Save as regression fixture
+                </button>
+                <span style={{ fontSize: 10.5, color: C.dim }}>
+                  Pins every reconciled line as a golden-order eval — drop the file into <code>evals/{brand}/</code> and commit; this order then guards pricing forever.
+                </span>
+              </div>
+            )}
             {rec.totalDelta != null && Math.abs(rec.totalDelta) > 0.02 && (
               <div style={{ marginTop: 8, fontSize: 13 }}>
                 <strong>Cabinet Total:</strong> acknowledgment {formatCurrency(rec.ackTotals.cabinetTotal)} vs quote {formatCurrency(rec.quoteSubtotal)} —{' '}
@@ -2447,7 +2483,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               </p>
             </div>
 
-            <AckCheckPanel quote={quote} />
+            <AckCheckPanel quote={quote} brand={materials.brand} />
           </div>
         );
       })()}

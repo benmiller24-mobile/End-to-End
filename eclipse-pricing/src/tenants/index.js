@@ -14,5 +14,5 @@ export {
   registerTenant, registerTenantPackage, buildTenantFromPackage,
   getTenant, listTenants, hasTenant,
   setActiveTenant, getActiveTenant, activeTenantId, removeTenant,
-  setTenantPriceGroup, priceGroupForRange,
+  setTenantPriceGroup, priceGroupForRange, DEFAULT_ACK_FORMAT,
 } from './registry.js';

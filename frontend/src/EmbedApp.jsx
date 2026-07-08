@@ -25,17 +25,19 @@ loadLocalTenantPackages();   // register data-package tenants (pronorm etc.) bef
 
 const C = { sage: '#7a8b6f', espresso: '#3d2b1f', gold: '#d4a843', taupe: '#a89279', paper: '#f7f4ee', line: '#e0d8ca' };
 
-const FRAME_BY_BRAND = { eclipse: 'eclipse_frameless', pronorm: 'pronorm_frameless', shiloh: 'shiloh_overlay_125' };
+// Presentation defaults come from the TENANT (consumer.frameStyle/hardware,
+// falling back to its defaultConstruction) — never from brand names in code.
 function defaultMaterials(brand, override = {}) {
+  const t = getTenant(brand);
   return {
     brand,
-    frameStyle: override.frameStyle || FRAME_BY_BRAND[brand] || 'eclipse_frameless',
+    frameStyle: override.frameStyle || t.consumer?.frameStyle || t.defaultConstruction || 'eclipse_frameless',
     species: override.species || 'Maple',
     door: override.door || 'METRO',
     construction: override.construction || 'Standard',
     finishColor: override.finishColor || 'Natural',
     grainHorizontal: !!override.grainHorizontal,
-    hardware: override.hardware || (brand === 'pronorm' ? 'bar' : 'knob'),
+    hardware: override.hardware || t.consumer?.hardware || 'knob',
     hardwareFinish: override.hardwareFinish || 'Brushed Nickel',
   };
 }

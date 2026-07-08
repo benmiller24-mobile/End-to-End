@@ -207,6 +207,26 @@ regression test**, and the ack parser stops being manufacturer-specific.
    the config-driven parser; a promoted fixture runs green under `evals/run.mjs`;
    zero brand conditionals introduced (grep gate: `if.*brand.*===`).
 
+> **Phase 3 record (2026-07-08) — DONE.** Shipped: tenant `ackFormat` config
+> (schema + `DEFAULT_ACK_FORMAT` in registry.js — all regex SOURCES as strings so
+> a pure-JSON package can carry a complete format; `listFactor` normalizes
+> discounted confirmations to list). `ackReconcile.js` now has two config-driven
+> strategies: `anchoredTotal` (the calibrated W.W. default) and `numberedRows`
+> (pronorm's EU-decimal 50%-discount rows, added to pronorm.package.json as pure
+> data — proving the second-format shape). Flywheel closed:
+> `buildGoldenOrderEval` + an in-app "Save as regression fixture" button on every
+> zero-variance reconciliation — pins each acknowledged line the live resolver
+> reproduces to the penny, in the exact `evals/<tenant>/order-*.eval.mjs` shape,
+> ready to commit. New eval `_cross/ack-formats.eval.mjs` (26 checks) covers both
+> parsers, EU normalization, clean/variance reconciles, tenant config presence,
+> and EXECUTES the generated fixture's assertions. Order-readiness audit: all 9
+> checks are real (none stubbed) and key on tenant fields — no changes needed
+> beyond a stale comment. The brand-conditional grep gate caught one real
+> violation (EmbedApp `brand === 'pronorm'` hardware + a brand-keyed frame map):
+> replaced with a `consumer: {frameStyle, hardware}` tenant field (defaults in
+> registry; shiloh keeps its 1¼" embed look, pronorm keeps bar pulls — behavior
+> byte-identical). Floors: evals **378/0**, build clean.
+
 ### Phase 4 — Self-serve manufacturer onboarding, team-wide (M4) (≈2 sessions)
 
 Target: **a manufacturer rep uploads a spec book and price list; a validated,
