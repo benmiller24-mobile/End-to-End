@@ -75,6 +75,18 @@ Goal: a trustworthy starting line so later phases can detect regressions.
    at this document.
 3. Acceptance: all suites at or above recorded counts; build clean; CLAUDE.md truthful.
 
+> **Phase 0 record (2026-07-08) — DONE.** Floors locked: test-pricing **153/0**,
+> test.js **31/0**, test-patterns **194/5** (pre-existing), test-configurator
+> **177/8** (pre-existing), `evals/run.mjs` **325/0**, si corpus
+> **180/180 (100%)**, frontend build clean. Two defects found and fixed en route:
+> (1) the si design metric scored corner units as zero fill — the eval had only
+> ever been green because pre-`c3ec705` short-code kitchens skipped corner
+> resolution entirely; scorer now credits both corner legs and treats open-corner
+> wedges as unbuildable (out of the denominator). (2) `generateMountingRails` was
+> silently skipped for every kitchen since integration — the solver passed walls
+> keyed `id` where the module expects `wallId`, and per-wall layout objects where
+> it expects a flat cabinet list. Rails now generate (probe: 3 rails on a U).
+
 ### Phase 1 — Productize the re-quote weapon (M2) (≈1–2 sessions)
 
 The smallest gap with the biggest demo payoff. Target experience: **drop any 2020

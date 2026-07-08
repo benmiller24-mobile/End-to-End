@@ -43,10 +43,22 @@ function scoreDesign(result, room) {
   // inflate the ratio past 100% against the wall length.
   const wallIds = new Set((room.walls || []).map(w => w.id));
   const wallLen = (room.walls || []).reduce((a, w) => a + (w.length || 0), 0);
-  const baseLen = placements.filter(p => isBaseZone(p) && wallIds.has(p.wall))
+  let baseLen = placements.filter(p => isBaseZone(p) && wallIds.has(p.wall))
     .reduce((a, p) => a + (Number(p.width) || 0), 0);
-  const fill = wallLen > 0 ? baseLen / wallLen : 0;
-  if (wallLen > 0 && fill < 0.75) issues.push(`base-run fill only ${(fill * 100).toFixed(0)}% (gaps/short run)`);
+  // Corner units live on a compound wall ("A-B") and cover run on BOTH legs
+  // (lazy susan 36+36, blind 36+27) — credit that span. OPEN corners (angled
+  // junctions where no manufactured unit fits) instead REMOVE their reserved
+  // wedge from the denominator: unbuildable by design, not a solver gap.
+  let deadLen = 0;
+  for (const c of (result.corners || [])) {
+    if (!wallIds.has(c.wallA) || !wallIds.has(c.wallB)) continue;
+    const span = (Number(c.wallAConsumption) || Number(c.size) || 36)
+               + (Number(c.wallBConsumption) || Number(c.size) || 36);
+    if (c.sku) baseLen += span; else deadLen += span;
+  }
+  const usableLen = Math.max(0, wallLen - deadLen);
+  const fill = usableLen > 0 ? baseLen / usableLen : 0;
+  if (usableLen > 0 && fill < 0.75) issues.push(`base-run fill only ${(fill * 100).toFixed(0)}% (gaps/short run)`);
   if (fill > 1.05) issues.push(`base run overfills walls ${(fill * 100).toFixed(0)}%`);
 
   const score = Math.max(0, 100 - issues.length * 25 - (nan.length ? 25 : 0));

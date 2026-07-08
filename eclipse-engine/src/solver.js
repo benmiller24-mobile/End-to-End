@@ -1354,8 +1354,13 @@ export function solve(input) {
   // Generates rail cut list with stud-aligned screw locations.
   let mountingRails = null;
   try {
-    const wallDefs = walls.map(w => ({ id: w.id, length: w.length, ceilingHeight: w.ceilingHeight || _ceilH }));
-    mountingRails = generateMountingRails(upperLayouts, wallDefs, {
+    const wallDefs = walls.map(w => ({ wallId: w.id, length: w.length, ceilingHeight: w.ceilingHeight || _ceilH }));
+    // generateMountingRails wants a FLAT cabinet list ({wallId, x, width, height}),
+    // not the per-wall layout objects — flatten, skipping appliances (no box to hang).
+    const upperCabs = upperLayouts.flatMap(ul => (ul.cabinets || [])
+      .filter(c => c.type !== 'appliance' && Number.isFinite(Number(c.width)))
+      .map(c => ({ wallId: ul.wallId, x: Number(c.position) || 0, width: Number(c.width), height: Number(c._elev?.height ?? c.height) || 30 })));
+    mountingRails = generateMountingRails(upperCabs, wallDefs, {
       lightingEnabled: prefs?.underCabinetLighting || false,
       studSpacing: 16,
     });
