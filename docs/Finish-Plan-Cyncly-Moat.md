@@ -5,6 +5,26 @@ app from "differentiators built" to "product finished," phase by phase, with fil
 anchors and acceptance gates. Execute phases in order; every phase ends with the
 standing quality gates green (see Guardrails) and a deploy.
 
+> ## PROGRAM STATUS — ALL SIX PHASES EXECUTED (2026-07-08)
+> Phases 0–5 are done, committed, and pushed (see the per-phase records below for
+> what shipped, what was verified, and every honest scope note). Final floors:
+> **evals 397/0** (was 325/0 at baseline — five new gated evals: counter-quote,
+> design-options, ack-formats, onboarding, share-link), **si corpus 180/180**,
+> **test-pricing 153/0**, all engine suites at floor, `npm test` chain repaired
+> and green end-to-end, frontend build clean, brand-conditional grep clean.
+>
+> **What still needs a human / live environment:**
+> 1. Deploy to Netlify and validate the three headless-unverifiable surfaces:
+>    3D/Leonardo tabs, the magic-link email flow + cross-device sync (needs a
+>    provisioned Supabase project — run `supabase/schema.sql`, enable email OTP),
+>    and the themed embed on the FAKS page.
+> 2. Official Shiloh price CSV (blocked on data): swap `SHILOH_RAW_SKU_DATA`,
+>    wire the 1¼″-overlay per-door charge, diff vs the scraped CSV, flip the
+>    interim disclaimer.
+> 3. Feed the flywheels: pin more 2020 dialects (drop positioned-page JSON into
+>    `evals/_cross/fixtures/`), and promote real acks via the in-app
+>    "Save as regression fixture" button as orders reconcile.
+
 ---
 
 ## 1. Strategic frame (why these phases and not others)

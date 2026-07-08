@@ -1465,7 +1465,7 @@ function DesignRationalePanel({ decisions }) {
  *  honest per-item resolution grades and a one-click customer-facing PDF.
  *  Pricing goes through counterQuote.js — the same pure module the
  *  evals/_cross/counter-quote eval pins, so this panel can't drift. */
-function CounterQuotePanel({ importMeta, placements, materials }) {
+export function CounterQuotePanel({ importMeta, placements, materials }) {
   const [showAll, setShowAll] = useState(false);
   const [exporting, setExporting] = useState(false);
   const quoteRows = useMemo(
