@@ -385,6 +385,12 @@ export function solve(input) {
     };
   });
   const layoutType = normalizeLayoutType(input.layoutType) || inferLayoutType(walls, !!peninsula, !!island);
+  // Fresh rationale trace for this solve — passes call noteDecision() at the
+  // moments a designer would explain; the result exposes them as .decisions.
+  __decisions = [];
+  noteDecision('layout', input.layoutType
+    ? `Room read as ${layoutType} across ${walls.length} wall${walls.length === 1 ? '' : 's'}.`
+    : `No layout given — inferred ${layoutType} from ${walls.length} wall${walls.length === 1 ? '' : 's'}${island ? ' + island' : ''}.`);
   // Opt-in: snap cooking-appliance widths to the layout recommendation (default off).
   let _applianceApplied = [];
   if (input.applyApplianceRec || (prefs && prefs.applyApplianceRec)) {
@@ -572,10 +578,21 @@ export function solve(input) {
     const islandHasSink = assignedAppliances.some(a => a.type === 'sink' && a.wall === 'island' && a !== sink);
     const islandFits = island && (island.length || 0) >= 96 && !islandHasSink;
 
-    if (windowWall) { sink.wall = windowWall.id; if (!sink.position) sink.position = 'center'; moveDW(windowWall.id); return; }
-    if (islandFits) { moveDW('island'); sink.wall = 'island'; if (!sink.position) sink.position = 'center'; return; }
+    if (windowWall) {
+      sink.wall = windowWall.id; if (!sink.position) sink.position = 'center'; moveDW(windowWall.id);
+      noteDecision('sink', `Sink shared the range wall — moved under the window on wall ${windowWall.id} (classic sink-at-window; separates prep from cooking)${dw && dw.wall === windowWall.id ? ', dishwasher follows to stay beside it' : ''}.`, 'NKBA 21/23 — work-zone separation & DW adjacency');
+      return;
+    }
+    if (islandFits) {
+      moveDW('island'); sink.wall = 'island'; if (!sink.position) sink.position = 'center';
+      noteDecision('sink', `Sink shared the range wall — moved onto the ${island.length}" island so prep faces the room${dw && dw.wall === 'island' ? '; dishwasher follows' : ''}.`, 'NKBA 21/23 — work-zone separation & DW adjacency');
+      return;
+    }
     const alt = (walls || []).filter(w => w.id !== range.wall).sort((a, b) => b.length - a.length)[0];
-    if (alt) { sink.wall = alt.id; moveDW(alt.id); }
+    if (alt) {
+      sink.wall = alt.id; moveDW(alt.id);
+      noteDecision('sink', `Sink shared the range wall — moved to wall ${alt.id} (the longest other run)${dw && dw.wall === alt.id ? '; dishwasher follows' : ''}.`, 'NKBA 21/23 — work-zone separation & DW adjacency');
+    }
   })();
 
   // Build appliance lookup
@@ -589,6 +606,20 @@ export function solve(input) {
 
   // Phase 1: Resolve corners (skip for single-wall rooms like vanity)
   const corners = resolveCorners(walls, layoutType, pf);
+  for (const c of corners) {
+    if (c.openCorner) {
+      noteDecision('corners', `Walls ${c.wallA}/${c.wallB} meet at ${c.turn}° — no manufactured corner unit fits a non-right corner, so ${c.size}" per leg is reserved open.`);
+    } else {
+      const WHY = {
+        lazy_susan_explicit: 'as requested', lazy_susan_auto: 'best access for these run lengths',
+        lazy_susan_auto_standard: 'the most-used treatment in comparable projects',
+        lazy_susan_default: 'the dependable default here',
+        lazy_susan_30pct_downgrade: `a larger unit would eat over 30% of a wall — downsized to keep run for cabinets`,
+        blind_30pct_downgrade: 'kept compact so the short wall still holds cabinetry',
+      };
+      noteDecision('corners', `Corner ${c.wallA}/${c.wallB}: ${c.sku} ${c.type === 'lazySusan' ? 'lazy susan' : c.type} (${c.wallAConsumption || c.size}"+${c.wallBConsumption || c.size}" of run), ${WHY[c.patternId] || 'chosen for access and storage efficiency'}.`, 'NKBA 29 — corner storage must stay functional');
+    }
+  }
 
   // ── Build 3D Spatial Model ──
   // Creates the vertical zone + depth tier framework that the solver uses
@@ -644,6 +675,12 @@ export function solve(input) {
   // Phase 3: Generate island layout (room-aware sizing first)
   const _islandFitWarnings = [];
   const islandSized = island ? fitIslandToRoom(island, walls, layoutType, _islandFitWarnings) : null;
+  for (const w of _islandFitWarnings) {
+    noteDecision('island', w.message, 'NKBA 6 — 42" work aisle / 36" walkway');
+  }
+  if (island && islandSized && !_islandFitWarnings.length) {
+    noteDecision('island', `${islandSized.length}"×${islandSized.depth}" island fits with full work aisles on both sides.`, 'NKBA 6 — 42" work aisle');
+  }
   let islandLayout = null;
   if (islandSized) {
     const islandAppliances = appByWall["island"] || [];
@@ -662,7 +699,14 @@ export function solve(input) {
   // classic "auto-generated" tell. Runs BEFORE the uppers solve so the hood follows the
   // centered range. Reflows only the movable middle, conserves total width, reverts on any
   // anomaly. Part of the "validate proportions & self-correct before finalizing" pass.
-  try { centerCookingZone(wallLayouts); } catch (_e) { /* non-fatal */ }
+  try {
+    centerCookingZone(wallLayouts);
+    for (const wl of wallLayouts) {
+      if (wl._cookingCentered != null) {
+        noteDecision('cooking', `Range re-centered at ${wl._cookingCentered}" on wall ${wl.wallId} with balanced flanking cabinets — an off-center cooktop reads as an accident.`);
+      }
+    }
+  } catch (_e) { /* non-fatal */ }
 
   // Phase 4: Generate upper cabinets (skip for non-kitchen rooms that don't use uppers)
   const upperLayouts = [];
@@ -682,7 +726,10 @@ export function solve(input) {
   closeUpperGaps(upperLayouts, wallLayouts, walls);
 
   // Phase 4a-feature: optionally feature the hood by clearing the range wall’s field uppers
-  if (pf.featureHood) featureRangeWall(upperLayouts);
+  if (pf.featureHood) {
+    featureRangeWall(upperLayouts);
+    noteDecision('uppers', 'Feature-hood wall: flanking field uppers cleared so the hood reads as the focal point of the cooking wall.');
+  }
 
   // Phase 4b: Generate upper corner cabinets (WSC pairs + SA angle transitions)
   const upperCorners = pf.upperApproach !== "none" ? solveUpperCorners(corners, upperLayouts, pf, walls) : [];
@@ -1855,6 +1902,7 @@ export function solve(input) {
     placements,
     coordinatedPlacements,
     validation,
+    decisions: __decisions || [],   // design rationale trace (see noteDecision)
     moldingPaths,           // path-based molding segments for renderer
     spatialValidation: spatialReport, // full spatial validation report
     countertopPolyline,     // automated countertop path (Z=34.5, 1.5" thick)
@@ -1935,6 +1983,15 @@ export function solve(input) {
   };
 }
 
+
+// ─── DESIGN RATIONALE TRACE ─────────────────────────────────────────────────
+// solve() resets this at entry and reads it into result.decisions; passes call
+// noteDecision(pass, text, rule?) wherever a real design choice is made. solve()
+// is synchronous and never re-enters itself, so a module slot is safe.
+let __decisions = null;
+function noteDecision(pass, text, rule = null) {
+  if (__decisions) __decisions.push({ pass, text, ...(rule ? { rule } : {}) });
+}
 
 // ─── CORNER RESOLVER ────────────────────────────────────────────────────────
 

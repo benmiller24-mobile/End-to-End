@@ -182,6 +182,7 @@ export async function exportPDF(options = {}) {
     formatCurrency = (v) => `$${v.toLocaleString()}`,
     bom = [],          // [{sku, qty, w, h, d, walls}] — project-wide bill of materials
     specs = [],        // construction-notes lines (brand, overlay, species, hardware, …)
+    rationale = [],    // solver decision trace — why the design is the way it is
   } = options;
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
@@ -322,7 +323,7 @@ export async function exportPDF(options = {}) {
   }
 
   // ── BOM + construction notes sheet(s) — the order-entry page ──
-  if (bom.length > 0 || specs.length > 0) {
+  if (bom.length > 0 || specs.length > 0 || rationale.length > 0) {
     doc.addPage('letter', 'landscape');
     let y = margin + 8;
     doc.setFontSize(14);
@@ -388,6 +389,25 @@ export async function exportPDF(options = {}) {
       for (const line of specs) {
         doc.text(`•  ${line}`, margin, y);
         y += 12;
+      }
+    }
+
+    // Design rationale — the solver explains its choices on the record.
+    if (rationale.length > 0) {
+      if (y + 30 + rationale.length * 12 > pageH - 30) {
+        doc.addPage('letter', 'landscape');
+        y = margin + 8;
+      }
+      y += 18;
+      doc.setFontSize(12);
+      doc.setTextColor(26, 26, 26);
+      doc.text('DESIGN RATIONALE', margin, y);
+      y += 12;
+      doc.setFontSize(8.5);
+      doc.setTextColor(70, 70, 70);
+      for (const line of rationale) {
+        const wrapped = doc.splitTextToSize(`•  ${line}`, pageW - 2 * margin);
+        for (const w of wrapped) { doc.text(w, margin, y); y += 12; }
       }
     }
   }

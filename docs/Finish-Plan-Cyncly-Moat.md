@@ -162,6 +162,29 @@ salesperson with zero CAD training.
    the si corpus without dropping its recorded pass-rate; deterministic across runs;
    `test-pricing` 153/0; render-verify one option's elevations.
 
+> **Phase 2 record (2026-07-08) — DONE.** Shipped: `eclipse-engine/src/designOptions.js`
+> (`solveOptions` — 4 deterministic lenses: Balanced / Storage-first / Feature /
+> Value-engineered; dedupe by placement signature; ranked by validation cleanliness +
+> training fit; Balanced always the reference); a `decisions[]` rationale trace in
+> solver.js (`noteDecision`) at the real choice points — layout read, sink relocation
+> (window / island / longest-run, DW follows), corner treatment with the 30% guard and
+> open-corner reservations, island fit vs NKBA aisles, cooking-zone re-centering,
+> feature-hood — with NKBA citations; App: `DesignOptionsPanel` (option cards with
+> MiniPlan schematics, per-option price, closest-real-project match, 3 rationale
+> bullets, one-click adopt), `DesignRationalePanel` ("Why this design"), DESIGN
+> RATIONALE section on the exported proposal PDF, and dealer taste memory (adopted
+> lenses vote; future solves surface that lens first — device-local counts, no model).
+> New eval `evals/_cross/design-options.eval.mjs`: every template ≥2 distinct options,
+> ≥75% of kitchens get 3 (compact/single-wall rooms legitimately converge — fake
+> choices are never padded in), all explained, deterministic, NKBA cited. Verified by
+> SSR-rendering MiniPlan + the panel headlessly (no NaN, real boxes/prices). Floors:
+> evals **352/0**, si corpus 180/180, engine suites unchanged, build clean.
+> Honest scope cuts: (1) the scorer stays in `evals/si/` — moving it into the engine
+> would drag tenant-catalog imports into a pure package; ranking uses engine-side
+> signals instead. (2) Options are gated off for metric/realize tenants and the
+> consumer embed for now — realization is per-design, and the embed can't be verified
+> headless; both are follow-ups, not silent gaps.
+
 ### Phase 3 — Close the trust flywheel (M3) (≈1–2 sessions)
 
 Target: **every real factory acknowledgment a dealer pastes in becomes a permanent

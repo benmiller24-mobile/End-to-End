@@ -15,6 +15,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // ── Direct solver/pricing imports ──
 import { solve, scoreAgainstTraining } from '../../eclipse-engine/src/solver.js';
+import { solveOptions } from '../../eclipse-engine/src/designOptions.js';
 import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
 import { recommendAppliances } from '../../eclipse-engine/src/appliance-recommender.js';
 import {
@@ -1213,6 +1214,164 @@ function loadDealerSettings() {
   catch { return { ...DEALER_DEFAULTS }; }
 }
 
+// ── Dealer taste memory (design-option lenses) ──
+// Every adopted option votes for its lens; future solves surface that lens
+// first. Device-local, honest learning — no model, just counts.
+const LENS_PREF_KEY = 'ekd.lensPrefs.v1';
+function loadLensOrder() {
+  try { const c = JSON.parse(localStorage.getItem(LENS_PREF_KEY)) || {}; return Object.keys(c).sort((a, b) => c[b] - c[a]); }
+  catch { return []; }
+}
+function bumpLensPref(id) {
+  try { const c = JSON.parse(localStorage.getItem(LENS_PREF_KEY)) || {}; c[id] = (c[id] || 0) + 1; localStorage.setItem(LENS_PREF_KEY, JSON.stringify(c)); }
+  catch { /* private mode */ }
+}
+
+/** Tiny top-view schematic of an option — walls walked at right angles with
+ *  base-zone boxes; enough to SEE how the three options differ at a glance.
+ *  (Exported for the headless SSR check.) */
+export function MiniPlan({ result, width = 190 }) {
+  const walls = result._inputWalls || [];
+  if (!walls.length) return null;
+  const D = [[1, 0], [0, -1], [-1, 0], [0, 1]];               // E, N, W, S (CCW walk)
+  const nrm = (d) => [d[1], -d[0]];                           // interior side
+  const segs = [];
+  let dir = 0, px = 0, py = 0;
+  const pts = [[0, 0]];
+  for (const w of walls) {
+    const d = D[dir];
+    segs.push({ id: w.id, x: px, y: py, d, n: nrm(d), len: w.length });
+    px += d[0] * w.length; py += d[1] * w.length;
+    pts.push([px, py]); dir = (dir + 1) % 4;
+  }
+  const boxes = [];
+  for (const p of (result.placements || [])) {
+    if (!p.sku && p.type !== 'appliance') continue;
+    if (!['base', 'tall', 'appliance', 'corner'].includes(p.type)) continue;
+    const seg = segs.find(s => s.id === p.wall || (p.wall || '').startsWith(s.id + '-'));
+    if (!seg || typeof p.position !== 'number') continue;
+    const depth = 24;
+    const x0 = seg.x + seg.d[0] * p.position, y0 = seg.y + seg.d[1] * p.position;
+    const x1 = x0 + seg.d[0] * (p.width || 0) + seg.n[0] * depth;
+    const y1 = y0 + seg.d[1] * (p.width || 0) + seg.n[1] * depth;
+    boxes.push({ x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0), t: p.type });
+  }
+  const allX = [...pts.map(p => p[0]), ...boxes.map(b => b.x), ...boxes.map(b => b.x + b.w)];
+  const allY = [...pts.map(p => p[1]), ...boxes.map(b => b.y), ...boxes.map(b => b.y + b.h)];
+  const minX = Math.min(...allX), maxX = Math.max(...allX), minY = Math.min(...allY), maxY = Math.max(...allY);
+  const island = result.island ? { L: result.island.length || 60, D: result.island.depth || 36 } : null;
+  const pad = 8, sc = (width - 2 * pad) / Math.max(maxX - minX, 1);
+  const H = Math.max((maxY - minY) * sc + 2 * pad, 46) + (island ? 0 : 0);
+  const X = (v) => (v - minX) * sc + pad, Y = (v) => (v - minY) * sc + pad;
+  const FILL = { base: '#d9c9a5', tall: '#b8a074', corner: '#c9b489', appliance: '#e8e6e1' };
+  return (
+    <svg width={width} height={H} style={{ background: '#fcfaf6', borderRadius: 4 }}>
+      {boxes.map((b, i) => (
+        <rect key={i} x={X(b.x)} y={Y(b.y)} width={Math.max(b.w * sc, 1.5)} height={Math.max(b.h * sc, 1.5)}
+          fill={FILL[b.t] || '#ddd'} stroke="#8a7551" strokeWidth={0.5} />
+      ))}
+      {segs.map(s => (
+        <line key={s.id} x1={X(s.x)} y1={Y(s.y)} x2={X(s.x + s.d[0] * s.len)} y2={Y(s.y + s.d[1] * s.len)}
+          stroke="#6b5b3e" strokeWidth={2.5} strokeLinecap="square" />
+      ))}
+      {island && (
+        <rect x={(width - island.L * sc) / 2} y={Y((minY + maxY) / 2) - (island.D * sc) / 2}
+          width={island.L * sc} height={island.D * sc} fill="#d9c9a5" stroke="#6b5b3e" strokeWidth={1} rx={1.5} />
+      )}
+    </svg>
+  );
+}
+
+/** The three-option chooser — the flagship: room in, three explained, priced,
+ *  adoptable designs out. Cyncly accelerates a designer; this replaces the
+ *  blank canvas. */
+export function DesignOptionsPanel({ options, activeLensId, onAdopt, priceResult }) {
+  const prices = useMemo(() => options.map(o => {
+    try { const q = priceResult(o.result); return (q.subtotal || 0) + (q.fabrication?.subtotal || 0); }
+    catch { return null; }
+  }), [options, priceResult]);
+  if (!options || options.length < 2) return null;
+  const bullets = (o) => {
+    const ds = o.result.decisions || [];
+    const pick = ['sink', 'island', 'uppers', 'cooking', 'corners', 'layout'];
+    const out = [];
+    for (const pass of pick) {
+      const d = ds.find(x => x.pass === pass);
+      if (d && out.length < 3) out.push(d.text);
+    }
+    return out;
+  };
+  return (
+    <div style={{ ...panelStyle, border: `1.5px solid ${C.accent}`, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>✦ Three ways to build this room</div>
+        <span style={{ fontSize: 10.5, color: C.dim }}>same walls, three design philosophies — every choice explained, nothing is a black box</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 12, marginTop: 12 }}>
+        {options.map((o) => {
+          const active = o.lens.id === activeLensId;
+          const i = options.indexOf(o);
+          return (
+            <div key={o.lens.id} style={{
+              border: `1.5px solid ${active ? C.accent : C.border}`, borderRadius: 8, padding: 10,
+              background: active ? '#fffdf6' : '#fff',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#5d4d2e' }}>{o.lens.label}</span>
+                {active && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: C.accent, borderRadius: 8, padding: '1px 7px' }}>SHOWING</span>}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.dim, minHeight: 26, marginTop: 2 }}>{o.lens.blurb}</div>
+              <div style={{ margin: '8px 0' }}><MiniPlan result={o.result} /></div>
+              <div style={{ fontSize: 11.5, display: 'flex', gap: 10 }}>
+                <span style={{ fontWeight: 700, color: C.accent }}>{prices[i] != null ? formatCurrency(Math.round(prices[i])) : '—'}</span>
+                <span style={{ color: C.dim }}>{o.summary.cabinets} cabinets</span>
+              </div>
+              {o.training?.closestMatch && (
+                <div style={{ fontSize: 9.5, color: C.dim, marginTop: 2 }}>closest real project: {o.training.closestMatch} ({o.training.confidence}%)</div>
+              )}
+              <ul style={{ margin: '6px 0 0', paddingLeft: 15, fontSize: 10, color: '#555' }}>
+                {bullets(o).map((b, k) => <li key={k} style={{ marginBottom: 2 }}>{b}</li>)}
+              </ul>
+              {!active && (
+                <button onClick={() => onAdopt(o)}
+                  style={{ marginTop: 8, width: '100%', fontSize: 11, fontWeight: 700, padding: '5px 0', cursor: 'pointer', border: 'none', borderRadius: 4, background: C.accent, color: '#fff' }}>
+                  Use this design
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Design rationale — the active design explains itself, pass by pass. */
+function DesignRationalePanel({ decisions }) {
+  const [open, setOpen] = useState(true);
+  if (!decisions?.length) return null;
+  const TAG = { layout: 'Layout', sink: 'Sink', corners: 'Corners', island: 'Island', cooking: 'Cooking wall', uppers: 'Uppers' };
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>{open ? '▾' : '▸'} Why this design</div>
+        <span style={{ fontSize: 10.5, color: C.dim }}>{decisions.length} decision{decisions.length > 1 ? 's' : ''}, each with its reason — printed on the proposal too</span>
+      </div>
+      {open && (
+        <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 12, color: '#444' }}>
+          {decisions.map((d, i) => (
+            <li key={i} style={{ marginBottom: 5 }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: C.accent, textTransform: 'uppercase', marginRight: 6 }}>{TAG[d.pass] || d.pass}</span>
+              {d.text}
+              {d.rule && <span style={{ fontSize: 9.5, color: C.dim }}> — {d.rule}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** Counter-Quote — the landing panel of the competitive re-quote flow: a design
  *  imported from a competitor's 2020/Cyncly PDF, priced in EVERY line with
  *  honest per-item resolution grades and a one-click customer-facing PDF.
@@ -1452,7 +1611,8 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
   projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {},
   lineMods = {}, onChangeLineMods, onEditInStudio, priceWith = null,
-  accessoryLines = [], onChangeAccessoryLines = () => {}, importMeta = null }) {
+  accessoryLines = [], onChangeAccessoryLines = () => {}, importMeta = null,
+  designOptions = null, activeLensId = 'balanced', onAdoptOption = () => {}, priceResult = null }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1509,6 +1669,13 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           )}
         </div>
       )}
+
+      {/* Three-option auto-design chooser + the active design's rationale */}
+      {designOptions && priceResult && (
+        <DesignOptionsPanel options={designOptions} activeLensId={activeLensId}
+          onAdopt={onAdoptOption} priceResult={priceResult} />
+      )}
+      <DesignRationalePanel decisions={solverResult.decisions} />
 
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
@@ -1579,6 +1746,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               'All dimensions to face of finished cabinet U.N.O. — verify in field before fabrication.',
               'Appliances & fixtures by others — confirm rough-ins and cut-outs against manufacturer specs.',
             ];
+            const rationale = (solverResult.decisions || []).map(d => d.text + (d.rule ? ` (${d.rule})` : ''));
             await exportPDF({
               title: projectMeta.name
                 ? `${projectMeta.name}${projectMeta.customer ? ' — ' + projectMeta.customer : ''}`
@@ -1592,6 +1760,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               formatCurrency,
               bom,
               specs,
+              rationale,
             });
           } catch (e) { console.error('PDF export failed:', e); }
           setExporting(false);
@@ -2384,6 +2553,11 @@ export default function App() {
   // importMeta (source/filename/count) survives to the quote step and switches
   // on the Competitive Re-Quote panel — the deliverable of a 2020-PDF import.
   const [importMeta, setImportMeta] = useState(null);
+
+  // Three-option auto-design: computed at Solve for auto-mode rooms; the
+  // active lens tracks which option the dealer is looking at / adopted.
+  const [designOptions, setDesignOptions] = useState(null);
+  const [activeLensId, setActiveLensId] = useState('balanced');
   const applyImportedSpec = (spec) => {
     if (!spec) return;
     if (spec.materials) setMaterials(m => ({ ...m, ...spec.materials }));
@@ -2716,6 +2890,17 @@ export default function App() {
   }, [accessoryLines, priceGroup]);
   const priceDesign = useCallback((result, mods) => priceWithMaterials(result, mods, materials), [priceWithMaterials, materials]);
 
+  // Adopt one of the three design options: it becomes THE design (and votes
+  // for its lens in the dealer taste memory).
+  const adoptOption = useCallback((o) => {
+    setSolverResult(o.result);
+    setActiveLensId(o.lens.id);
+    bumpLensPref(o.lens.id);
+    if (o.lens.prefs && Object.keys(o.lens.prefs).length) setPrefs(p => ({ ...p, ...o.lens.prefs }));
+    try { setTrainingScore(scoreAgainstTraining(o.result)); } catch (_e) { setTrainingScore(null); }
+    setQuote(priceDesign(o.result, lineMods));
+  }, [priceDesign, lineMods]);
+
   useEffect(() => {
     if (solverResult) setQuote(priceDesign(solverResult, lineMods));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2766,6 +2951,25 @@ export default function App() {
       }
 
       setSolverResult(result);
+
+      // Three-option auto-design: same room under the other design lenses.
+      // Auto-mode only; metric (realize) tenants price per-option later once
+      // realization is per-option — honest gate, not a stub.
+      let optionsOut = null;
+      if (designMode !== 'manual' && !activeTenant?.realize) {
+        try {
+          const { options } = solveOptions(input, { count: 3, lensOrder: loadLensOrder() });
+          for (const o of options) {
+            o.result._inputWalls = (o.result._inputWalls || wallsC).map(w => ({
+              ...w, id: w.id, length: w.length,
+              ceilingHeight: w._realCeilingHeight || w.ceilingHeight || ceilH,
+            }));
+          }
+          if (options.length >= 2) optionsOut = options;
+        } catch (_e) { /* options are additive — never block the solve */ }
+      }
+      setDesignOptions(optionsOut);
+      setActiveLensId('balanced');
 
       const score = designMode === 'manual' ? null : scoreAgainstTraining(result);
       setTrainingScore(score);
@@ -2913,6 +3117,8 @@ export default function App() {
             accessoryLines={accessoryLines} onChangeAccessoryLines={setAccessoryLines}
             priceWith={(mats) => priceWithMaterials(solverResult, lineMods, mats)}
             importMeta={importMeta}
+            designOptions={designOptions} activeLensId={activeLensId} onAdoptOption={adoptOption}
+            priceResult={(r) => priceWithMaterials(r, lineMods, materials)}
             onEditInStudio={() => {
               setManualItems(seedFromSolverResult(solverResult));
               setDesignMode('manual');
