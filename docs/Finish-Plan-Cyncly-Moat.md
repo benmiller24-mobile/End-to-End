@@ -294,6 +294,26 @@ exists at our price point (free-to-dealer, manufacturer-funded).
 5. Acceptance: save → reload across devices; share link opens logged-out; existing
    single-device flow unchanged when Supabase env is absent; all gates green.
 
+> **Phase 5 record (2026-07-08) — DONE.** Shipped: cloud project persistence
+> (`projectStore.js` mirrors every save/delete/revision to a new
+> `project_snapshots` table — denormalized to the app's own record shape, RLS
+> owner-only, `updated_at_ms` as the sync tiebreaker; `syncProjectsFromCloud()`
+> merges newer-wins on sign-in and pushes local-only projects up); dealer
+> sign-in (`AuthBadge` in the header — Supabase magic link, appears only when
+> the env is configured, triggers project sync, "N projects synced" flash);
+> customer share links (the "🔗 Customer link" button encodes the CURRENT
+> design as `items` + estimate into the branded consumer embed URL — the embed
+> grew a `buildManualResult` path so shared designs rebuild VERBATIM rather than
+> re-solving, plus a budget-grade estimate band; read-only by design, no order
+> path); README deploy checklist (env vars, Supabase setup, pre-deploy gate
+> commands, embed notes). New eval `_cross/share-link.eval.mjs` pins round-trip
+> fidelity: every placed cabinet survives seed → JSON → rebuild at its position.
+> Floors: evals **397/0**, si corpus 180/180, all engine suites at floor, build
+> clean. Live checks that need a deployed site + provisioned Supabase (magic-link
+> email flow, true cross-device pull, embed on the FAKS page) remain the first
+> post-deploy validation — the code paths are env-gated and no-op cleanly
+> without configuration.
+
 ---
 
 ## 4. Standing guardrails (every phase)

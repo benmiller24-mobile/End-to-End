@@ -14,6 +14,7 @@ import { getTenant, setTenantPriceGroup } from '../../eclipse-pricing/src/tenant
 import { setPricingBrand } from './skuResolver.js';
 import { loadLocalTenantPackages, syncTeamTenantPackages } from './tenantLocal.js';
 import { getConstruction } from './constructionProfiles.js';
+import { buildManualResult } from './manualDesign.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
 // 3D (Three.js) is heavy — load its chunk only when the user opens that tab,
@@ -53,7 +54,9 @@ function decodeSpec() {
   } catch { return null; }
 }
 
-// Reconstruct the solverResult exactly as App.handleSolve does.
+// Reconstruct the solverResult exactly as App.handleSolve does. A spec that
+// carries `items` (a dealer share-link of a manual/imported/adopted design)
+// rebuilds VERBATIM through the manual path — no re-solve divergence.
 function buildSolverResult(spec) {
   const ceilH = Number(spec.prefs?.ceilingHeight) || 96;
   const wallsC = (spec.walls || []).map(w => ({ ...w, ceilingHeight: w.ceilingHeight || ceilH }));
@@ -65,7 +68,9 @@ function buildSolverResult(spec) {
     ...(spec.peninsula ? { peninsula: spec.peninsula } : {}),
   };
   setPricingBrand(spec.materials?.brand || spec.brand || 'eclipse');
-  const result = solve(input);
+  const result = spec.items?.length
+    ? buildManualResult({ walls: wallsC, items: spec.items, island: spec.island || null, roomType: input.roomType, layoutType: spec.layoutType })
+    : solve(input);
   const t = getTenant(spec.materials?.brand || spec.brand || 'eclipse');
   if (t?.realize) {
     const group = spec.priceGroup ?? t.pricing?.defaultGroup ?? '0';
@@ -132,6 +137,14 @@ export default function EmbedApp() {
         </span>
         {TABS.map(t => <button key={t.id} style={tabBtn(t)} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
+      {spec.estimate?.value > 0 && (
+        <div style={{ padding: '8px 14px', background: '#fffdf4', borderBottom: `1px solid ${C.line}`, fontSize: 12.5, color: C.espresso }}>
+          <strong style={{ color: gold }}>{spec.estimate.label || 'Cabinetry estimate'}: ${Math.round(spec.estimate.value).toLocaleString()}</strong>
+          <span style={{ color: C.taupe, marginLeft: 8, fontSize: 11 }}>
+            Budget figure from your designer — not a quote; dimensions to be field-verified before ordering.
+          </span>
+        </div>
+      )}
       <div style={{ padding: 12 }}>
         {tab === 'plan' && <FloorPlanView solverResult={result} inputWalls={result._inputWalls} titleBlock={titleBlock} consumer />}
         {tab === 'elev' && (

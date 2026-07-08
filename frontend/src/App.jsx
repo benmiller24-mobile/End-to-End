@@ -60,7 +60,8 @@ import { loadLocalTenantPackages, syncTeamTenantPackages } from './tenantLocal.j
 // Register product lines added on this device (in-app PDF onboarding) before
 // the first render reads the tenant registry.
 loadLocalTenantPackages();
-import { listProjects, loadProject, saveProject, deleteProject, newProjectId, addRevision, getRevisions } from './lib/projectStore.js';
+import { listProjects, loadProject, saveProject, deleteProject, newProjectId, addRevision, getRevisions, syncProjectsFromCloud } from './lib/projectStore.js';
+import { supabaseConfigured, getSupabase } from './lib/supabase.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
 import ApplianceRecommendationPanel from './ApplianceRecommendationPanel.jsx';
@@ -1382,6 +1383,57 @@ export function DesignOptionsPanel({ options, activeLensId, onAdopt, priceResult
   );
 }
 
+/** Dealer sign-in (magic link) — appears only when Supabase is configured.
+ *  Signing in turns on cross-device projects + team tenant packages; the app
+ *  is fully functional signed-out (localStorage). */
+function AuthBadge({ onSynced }) {
+  const [session, setSession] = useState(null);
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('');
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const sb = getSupabase();
+    if (!sb) return undefined;
+    sb.auth.getSession().then(({ data }) => setSession(data?.session || null));
+    const { data: sub } = sb.auth.onAuthStateChange((_evt, s) => {
+      setSession(s);
+      if (s) syncProjectsFromCloud().then(n => onSynced?.(n));
+    });
+    return () => sub?.subscription?.unsubscribe();
+  }, [onSynced]);
+  if (!supabaseConfigured) return null;
+  if (session) {
+    return (
+      <span style={{ fontSize: 11.5, color: C.muted, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 7, height: 7, borderRadius: 4, background: '#3a7d44', display: 'inline-block' }} />
+        {session.user?.email}
+        <button onClick={() => getSupabase()?.auth.signOut()} style={{ fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 4, background: 'transparent', color: C.dim }}>
+          sign out
+        </button>
+      </span>
+    );
+  }
+  return (
+    <span style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(o => !o)} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Sign in</button>
+      {open && (
+        <span style={{ position: 'absolute', top: '110%', right: 0, zIndex: 50, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, boxShadow: '0 6px 18px rgba(0,0,0,0.12)', display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@dealership.com"
+            style={{ fontSize: 12, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 4, width: 180 }} />
+          <button disabled={!/^\S+@\S+\.\S+$/.test(email)} onClick={async () => {
+            setStatus('sending…');
+            const { error } = await getSupabase().auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+            setStatus(error ? `failed: ${error.message}` : 'link sent — check your email');
+          }} style={{ fontSize: 12, fontWeight: 700, padding: '5px 10px', cursor: 'pointer', border: 'none', borderRadius: 4, background: C.accent, color: '#fff', whiteSpace: 'nowrap' }}>
+            Send link
+          </button>
+          {status && <span style={{ fontSize: 10.5, color: C.dim, whiteSpace: 'nowrap' }}>{status}</span>}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Design rationale — the active design explains itself, pass by pass. */
 function DesignRationalePanel({ decisions }) {
   const [open, setOpen] = useState(true);
@@ -1652,6 +1704,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [dealer, setDealer] = useState(loadDealerSettings);
   useEffect(() => {
     try { localStorage.setItem(DEALER_SETTINGS_KEY, JSON.stringify(dealer)); } catch { /* private mode */ }
@@ -1753,6 +1806,27 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             {t.label}
           </button>
         ))}
+        {/* Customer share link — the design reopens read-only in the branded
+            consumer embed, verbatim (items, not a re-solve), with a budget-
+            grade estimate band. */}
+        <button onClick={() => {
+          try {
+            const items = seedFromSolverResult(solverResult).map(({ id: _id, ...it }) => it);
+            const spec = {
+              layoutType: solverResult.layoutType, roomType: solverResult.roomType,
+              walls: (solverResult._inputWalls || walls).map(w => ({ id: w.id, length: w.length, ceilingHeight: w.ceilingHeight })),
+              island: solverResult.island ? { length: solverResult.island.length, depth: solverResult.island.depth } : null,
+              prefs, materials, items,
+              estimate: { label: `${getTenant(materials.brand).branding.lineLabel} cabinetry (list)`, value: cabinetTotal },
+            };
+            const url = `${window.location.origin}/embed.html?design=${encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(spec)))))}`;
+            navigator.clipboard?.writeText(url);
+            setShareCopied(true); setTimeout(() => setShareCopied(false), 2500);
+          } catch (e) { console.error('share link failed:', e); }
+        }} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.accent}`,
+          background: 'transparent', color: C.accent, fontWeight: 600, marginLeft: 'auto' }}>
+          {shareCopied ? '✓ Link copied' : '🔗 Customer link'}
+        </button>
         {/* PDF Export button */}
         <button onClick={async () => {
           setExporting(true);
@@ -1802,7 +1876,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
           setExporting(false);
         }} disabled={exporting}
           style={{ padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.accent}`,
-            background: 'transparent', color: C.accent, fontWeight: 600, marginLeft: 'auto' }}>
+            background: 'transparent', color: C.accent, fontWeight: 600, marginLeft: 8 }}>
           {exporting ? 'Exporting...' : 'Export PDF'}
         </button>
         <button onClick={() => setDebugOverlay(d => !d)}
@@ -3108,6 +3182,7 @@ export default function App() {
             </span>
           )}
           {saveFlash && <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{saveFlash}</span>}
+          <AuthBadge onSynced={(n) => { if (n > 0) { setSaveFlash(`☁ ${n} project${n > 1 ? 's' : ''} synced`); setTimeout(() => setSaveFlash(''), 3000); } }} />
           <button onClick={handleSaveProject} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Save</button>
           <button onClick={() => setShowProjects(true)} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Projects</button>
         </div>

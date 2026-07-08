@@ -117,3 +117,29 @@ create policy "Owners delete tenant packages" on tenant_packages
 
 create trigger tenant_packages_updated_at before update on tenant_packages
   for each row execute function update_updated_at();
+
+-- ── Project snapshots (cross-device persistence for the dealer app) ──
+-- Mirrors frontend/src/lib/projectStore.js exactly (denormalized: the app's
+-- own record shape, revisions embedded). Owner-only via RLS. The normalized
+-- projects/rooms/revisions tables above remain for future reporting; the app
+-- syncs through this table.
+create table project_snapshots (
+  id text primary key,                 -- the app's project id (p_…)
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  meta jsonb default '{}',
+  state jsonb default '{}',
+  revisions jsonb default '[]',
+  updated_at_ms bigint not null,       -- the app's updatedAt (ms epoch) — sync tiebreaker
+  updated_at timestamptz default now()
+);
+
+alter table project_snapshots enable row level security;
+
+create policy "Users can CRUD own project snapshots" on project_snapshots
+  for all using (auth.uid() = user_id);
+
+create trigger project_snapshots_updated_at before update on project_snapshots
+  for each row execute function update_updated_at();
+
+create index idx_project_snapshots_user on project_snapshots(user_id);
