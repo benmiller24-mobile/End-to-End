@@ -28,6 +28,7 @@ import {
 import { modChargeList, ROT_OPTIONS } from '../../eclipse-pricing/src/modData.js';
 import { SECTIONS, TYPE_NAMES } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
+import { buildCounterQuote, counterQuoteDeltas } from './counterQuote.js';
 export { setPricingBrand, findSkuNormalized };
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
 import DesignStudio from './DesignStudio.jsx';
@@ -1212,6 +1213,125 @@ function loadDealerSettings() {
   catch { return { ...DEALER_DEFAULTS }; }
 }
 
+/** Counter-Quote — the landing panel of the competitive re-quote flow: a design
+ *  imported from a competitor's 2020/Cyncly PDF, priced in EVERY line with
+ *  honest per-item resolution grades and a one-click customer-facing PDF.
+ *  Pricing goes through counterQuote.js — the same pure module the
+ *  evals/_cross/counter-quote eval pins, so this panel can't drift. */
+function CounterQuotePanel({ importMeta, placements, materials }) {
+  const [showAll, setShowAll] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const quoteRows = useMemo(
+    () => (placements || []).filter(p => p.sku && p.type !== 'appliance').map(p => ({ sku: p.sku, qty: p.qty || 1 })),
+    [placements]);
+  const cq = useMemo(() => {
+    try { return buildCounterQuote({ placements: quoteRows, materials }); }
+    catch { return null; }
+  }, [quoteRows, materials]);
+  if (!cq || !cq.columns.length || !quoteRows.length) return null;
+  const deltas = counterQuoteDeltas(cq.columns);
+  const attention = cq.columns[0].rows
+    .map((_, i) => i)
+    .filter(i => cq.columns.some(c => c.rows[i] && c.rows[i].resolution !== 'exact'));
+  const rowIdx = showAll ? cq.columns[0].rows.map((_, i) => i) : attention;
+  const RES_STYLE = {
+    normalized: { color: '#9a6d1a', label: '≈' },
+    substituted: { color: C.warn, label: 'no true match — filler' },
+    missing: { color: C.warn, label: 'no equivalent' },
+  };
+  const doExport = async () => {
+    setExporting(true);
+    try {
+      const { exportCounterQuotePDF } = await import('./pdfExport.js');
+      await exportCounterQuotePDF({
+        title: importMeta.filename ? importMeta.filename.replace(/\.pdf$/i, '') : 'Imported design',
+        sourceNote: `Imported from ${importMeta.filename || 'design PDF'} (${importMeta.source === 'vector' ? 'deterministic 2020/Cyncly read' : 'AI extraction'}) · ${quoteRows.length} line items`,
+        columns: cq.columns, deltas, formatCurrency,
+      });
+    } finally { setExporting(false); }
+  };
+  return (
+    <div style={{ ...panelStyle, border: `1.5px solid ${C.accent}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>⚔ Competitive Re-Quote</div>
+        <span style={{ fontSize: 10.5, color: C.dim }}>
+          {importMeta.filename ? `from ${importMeta.filename}` : 'imported design'} — their design, priced in every line you carry
+        </span>
+        <button onClick={doExport} disabled={exporting}
+          style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '4px 12px', cursor: 'pointer', border: 'none', borderRadius: 4, background: C.accent, color: '#fff' }}>
+          {exporting ? 'Building…' : '⤓ Counter-quote PDF'}
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+        {cq.columns.map((c, i) => {
+          const unresolved = c.counts.missing + c.counts.substituted;
+          return (
+            <div key={c.tenantId} style={{ flex: '1 1 150px', background: '#faf8f5', borderRadius: 6, padding: '8px 10px' }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: '#5d4d2e' }}>{c.label}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.accent, fontVariantNumeric: 'tabular-nums' }}>
+                {c.currency}{c.subtotal.toLocaleString()}
+              </div>
+              <div style={{ fontSize: 9.5, color: deltas[i] == null ? C.dim : deltas[i] < 0 ? '#3a7d44' : C.warn }}>
+                {i === 0 ? 'reference line' : deltas[i] == null ? 'different currency' :
+                  `${deltas[i] < 0 ? '−' : '+'}${c.currency}${Math.abs(Math.round(deltas[i])).toLocaleString()} vs ${cq.columns[0].label}`}
+              </div>
+              {unresolved > 0 && (
+                <div style={{ fontSize: 9.5, color: C.warn, fontWeight: 700 }}>{unresolved} item{unresolved > 1 ? 's' : ''} without a true equivalent</div>
+              )}
+              {c.note && <div style={{ fontSize: 8.5, color: C.dim, marginTop: 3 }}>{c.note}</div>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 10, fontSize: 10.5, color: C.dim }}>
+        {attention.length === 0
+          ? 'Every item resolved exactly in every line.'
+          : `${attention.length} of ${cq.columns[0].rows.length} items resolve by rule or lack an equivalent somewhere — review below; nothing is silently dropped.`}
+        {cq.columns[0].rows.length > (showAll ? 0 : attention.length) && (
+          <button onClick={() => setShowAll(s => !s)}
+            style={{ marginLeft: 8, fontSize: 10, padding: '1px 8px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 3, background: 'transparent', color: C.dim }}>
+            {showAll ? 'show attention items only' : 'show all items'}
+          </button>
+        )}
+      </div>
+      {rowIdx.length > 0 && (
+        <div style={{ overflowX: 'auto', marginTop: 6 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                <th style={{ padding: '4px 8px', textAlign: 'left', color: C.dim, fontSize: 9.5, textTransform: 'uppercase' }}>Design SKU</th>
+                {cq.columns.map(c => <th key={c.tenantId} style={{ padding: '4px 8px', textAlign: 'right', color: C.dim, fontSize: 9.5, textTransform: 'uppercase' }}>{c.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rowIdx.map(i => (
+                <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ padding: '3px 8px', fontFamily: 'monospace' }}>{cq.columns[0].rows[i].srcSku}</td>
+                  {cq.columns.map(c => {
+                    const r = c.rows[i];
+                    if (!r) return <td key={c.tenantId} />;
+                    const st = RES_STYLE[r.resolution];
+                    return (
+                      <td key={c.tenantId} style={{ padding: '3px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: st ? st.color : C.text }}>
+                        {r.resolution === 'missing' ? 'no equivalent'
+                          : r.resolution === 'substituted' ? `${st.label} ${c.currency}${Math.round(r.total).toLocaleString()}`
+                          : <>{r.sku !== r.srcSku ? <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{r.sku} </span> : null}{st ? st.label + ' ' : ''}{c.currency}{Math.round(r.total).toLocaleString()}</>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ marginTop: 8, fontSize: 9.5, color: C.dim }}>
+        Cabinet list prices. Imported dimensions are customer-supplied — this sheet is budget-grade until a field measure; trim &amp; fabrication price on the full proposal.
+      </div>
+    </div>
+  );
+}
+
 /** Multi-Quote (ProKitchen's killer sales feature): the SAME design priced in
  *  up to 4 species/door-style columns side-by-side, through the identical
  *  pricing path the main quote uses. Pure function of placements × style. */
@@ -1332,7 +1452,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
   projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {},
   lineMods = {}, onChangeLineMods, onEditInStudio, priceWith = null,
-  accessoryLines = [], onChangeAccessoryLines = () => {} }) {
+  accessoryLines = [], onChangeAccessoryLines = () => {}, importMeta = null }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -1977,6 +2097,11 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             </div>
           )}
 
+          {/* Competitive Re-Quote: an imported (2020/Cyncly) design priced in every line */}
+          {importMeta?.items > 0 && (
+            <CounterQuotePanel importMeta={importMeta} placements={solverResult.placements} materials={materials} />
+          )}
+
           {/* Multi-Quote: same design, up to 4 styles side-by-side */}
           {priceWith && <MultiQuotePanel baseMaterials={materials} priceWith={priceWith} />}
 
@@ -2256,12 +2381,16 @@ export default function App() {
   // The uploader collects the project spec (line, wood, door, construction +
   // cover-sheet fields); apply it so drawings + the 3-line pricing come out per
   // the customer's spec rather than app defaults.
+  // importMeta (source/filename/count) survives to the quote step and switches
+  // on the Competitive Re-Quote panel — the deliverable of a 2020-PDF import.
+  const [importMeta, setImportMeta] = useState(null);
   const applyImportedSpec = (spec) => {
     if (!spec) return;
     if (spec.materials) setMaterials(m => ({ ...m, ...spec.materials }));
     if (spec.orderSpec) setOrderSpec(o => ({ ...o, ...spec.orderSpec }));
   };
   const applyImportedRoom = (payload) => {
+    setImportMeta(payload.importMeta || null);
     setLayoutType(payload.layoutType || 'l-shape');
     setWalls(payload.walls);
     setAppliances(payload.appliances?.length ? payload.appliances : []);
@@ -2555,6 +2684,7 @@ export default function App() {
   const handleTemplateSelect = useCallback((templateId) => {
     const tmpl = getTemplate(templateId);
     if (!tmpl) return;
+    setImportMeta(null);   // a template is a fresh design, not an import
     setSelectedTemplate(templateId);
     setLayoutType(tmpl.input.layoutType);
     setRoomType(tmpl.input.roomType);
@@ -2782,6 +2912,7 @@ export default function App() {
             lineMods={lineMods} onChangeLineMods={setLineMods}
             accessoryLines={accessoryLines} onChangeAccessoryLines={setAccessoryLines}
             priceWith={(mats) => priceWithMaterials(solverResult, lineMods, mats)}
+            importMeta={importMeta}
             onEditInStudio={() => {
               setManualItems(seedFromSolverResult(solverResult));
               setDesignMode('manual');

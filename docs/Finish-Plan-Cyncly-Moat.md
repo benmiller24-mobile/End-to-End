@@ -110,6 +110,24 @@ reconstructed, priced in every line we carry, with the delta.**
 4. Acceptance: all four fixtures reconstruct and price exactly; SSR→resvg render-verify
    on the comparison view's plan/elevations; Phase 0 gates green.
 
+> **Phase 1 record (2026-07-08) — DONE.** Shipped: `frontend/src/counterQuote.js`
+> (pure, eval-pinned multi-line re-quote with exact/normalized/substituted/missing
+> grades — nothing silently dropped), `CounterQuotePanel` in App.jsx (auto-appears
+> on the quote step whenever a design was imported with cabinets; per-line totals,
+> deltas suppressed across currencies, attention rows, one-click PDF),
+> `exportCounterQuotePDF` in pdfExport.js (BUDGET watermark on every page, per-line
+> interim-pricing notes), and import provenance (`importMeta`) threaded from
+> FloorplanImport → App. New eval `evals/_cross/counter-quote.eval.mjs` (18 checks:
+> Mautz re-quotes in all 3 lines, Eclipse fully exact/normalized, pronorm misses
+> surface as explicit rows, deltas currency-safe, deterministic). One resolver gap
+> found + fixed: island sink label `IWS30`/`IBS36` now maps to the SB sink-base
+> family instead of the filler catch-all. Floors: evals now **343/0**; engine
+> suites unchanged; build clean. NOTE: Wong / Mark&Jane order PDFs were priced
+> live during development but never committed as fixtures — only Mautz, Wilterding,
+> Christiansen (vision-routing) and BD475 (order-doc rejection) are pinnable from
+> the repo. To pin more dialects, drop the source PDFs' positioned-page JSON into
+> `evals/_cross/fixtures/` (see `tools/extract-order-pages.mjs`).
+
 ### Phase 2 — "The app designs it, three ways, and explains itself" (M1) (≈3–4 sessions)
 
 The flagship. Cyncly's AI accelerates a designer; ours replaces the blank canvas.

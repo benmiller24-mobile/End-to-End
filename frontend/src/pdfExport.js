@@ -7,6 +7,158 @@ import { jsPDF } from 'jspdf';
 import 'svg2pdf.js';
 
 /**
+ * Competitive Re-Quote sheet — the deliverable of the 2020-PDF import flow:
+ * the customer's existing design, priced line-by-line in every line we carry.
+ * Budget-grade by definition (imported dims are customer-supplied), so every
+ * page carries the watermark; per-line resolution honesty comes straight from
+ * counterQuote.js (missing / substituted rows are printed, never dropped).
+ *
+ * @param {Object} opts
+ * @param {string} opts.title        project / customer name
+ * @param {string} opts.sourceNote   e.g. 'Imported from Mautz-Kitchen.pdf (2020 design PDF), 21 cabinets'
+ * @param {Array}  opts.columns      buildCounterQuote(...).columns
+ * @param {Array}  opts.deltas       counterQuoteDeltas(columns)
+ * @param {Function} [opts.formatCurrency]
+ */
+export async function exportCounterQuotePDF({ title = 'Competitive Re-Quote', sourceNote = '', columns = [], deltas = [], formatCurrency = (v) => `$${Math.round(v).toLocaleString()}` }) {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+
+  const watermark = () => {
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.08 }));
+    doc.setFontSize(90);
+    doc.setTextColor(160, 60, 40);
+    doc.text('BUDGET — NOT FIELD-VERIFIED', pageW / 2, pageH / 2, { align: 'center', angle: 22 });
+    doc.restoreGraphicsState();
+  };
+  const footer = () => {
+    doc.setFontSize(7);
+    doc.setTextColor(138, 138, 138);
+    doc.text('Competitive re-quote — imported dimensions are customer-supplied; pricing is manufacturer list until field-verified.', margin, pageH - 15);
+  };
+
+  watermark();
+  doc.setFontSize(8);
+  doc.setTextColor(184, 148, 78);
+  doc.text('PINNACLE SALES', margin, margin + 2);
+  doc.setFontSize(20);
+  doc.setTextColor(26, 26, 26);
+  doc.text(`Competitive Re-Quote — ${title}`, margin, margin + 20);
+  doc.setDrawColor(200, 169, 110);
+  doc.setLineWidth(1.5);
+  doc.line(margin, margin + 26, margin + 170, margin + 26);
+  doc.setFontSize(9);
+  doc.setTextColor(85, 85, 85);
+  doc.text(`${sourceNote}${sourceNote ? '  ·  ' : ''}Generated ${new Date().toLocaleDateString()}`, margin, margin + 40);
+
+  // ── Totals band: one card per line, delta vs the first column ──
+  let y = margin + 56;
+  const cardW = Math.min(180, (pageW - 2 * margin - 10 * (columns.length - 1)) / columns.length);
+  columns.forEach((c, i) => {
+    const x = margin + i * (cardW + 10);
+    doc.setFillColor(250, 248, 245);
+    doc.roundedRect(x, y, cardW, 56, 4, 4, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(93, 77, 46);
+    doc.text(c.label, x + 8, y + 13);
+    doc.setFontSize(14);
+    doc.setTextColor(184, 148, 78);
+    doc.text(`${c.currency}${c.subtotal.toLocaleString()}`, x + 8, y + 30);
+    doc.setFontSize(7.5);
+    const d = deltas[i];
+    if (d != null) {
+      doc.setTextColor(d < 0 ? 58 : 150, d < 0 ? 125 : 80, d < 0 ? 68 : 80);
+      doc.text(`${d < 0 ? '−' : '+'}${c.currency}${Math.abs(Math.round(d)).toLocaleString()} vs ${columns[0].label}`, x + 8, y + 41);
+    } else if (i > 0) {
+      doc.setTextColor(138, 138, 138);
+      doc.text('different currency — no direct delta', x + 8, y + 41);
+    }
+    const unresolved = c.counts.missing + c.counts.substituted;
+    if (unresolved > 0) {
+      doc.setTextColor(160, 60, 40);
+      doc.text(`${unresolved} item${unresolved > 1 ? 's' : ''} without a true equivalent`, x + 8, y + 51);
+    }
+  });
+  y += 72;
+
+  // ── Line-by-line table: source SKU + per-line resolved SKU & price ──
+  const srcW = 120;
+  const colW = (pageW - 2 * margin - srcW) / columns.length;
+  const rowH = 12;
+  const header = () => {
+    doc.setFillColor(236, 233, 228);
+    doc.rect(margin, y, pageW - 2 * margin, rowH + 2, 'F');
+    doc.setFontSize(7.5);
+    doc.setTextColor(60, 60, 60);
+    doc.text('DESIGN SKU', margin + 3, y + 9);
+    columns.forEach((c, i) => doc.text(c.label.toUpperCase(), margin + srcW + i * colW + 3, y + 9));
+    y += rowH + 2;
+  };
+  header();
+  doc.setFontSize(7.5);
+  const rowCount = columns[0]?.rows?.length || 0;
+  for (let r = 0; r < rowCount; r++) {
+    if (y + rowH > pageH - 30) {
+      footer();
+      doc.addPage('letter', 'landscape');
+      watermark();
+      y = margin;
+      header();
+      doc.setFontSize(7.5);
+    }
+    doc.setTextColor(26, 26, 26);
+    doc.setFont('courier', 'normal');
+    doc.text(String(columns[0].rows[r].srcSku || '').slice(0, 22), margin + 3, y + 9);
+    doc.setFont('helvetica', 'normal');
+    columns.forEach((c, i) => {
+      const row = c.rows[r];
+      const x = margin + srcW + i * colW + 3;
+      if (!row) return;
+      if (row.resolution === 'missing') {
+        doc.setTextColor(160, 60, 40);
+        doc.text('no equivalent', x, y + 9);
+      } else if (row.resolution === 'substituted') {
+        doc.setTextColor(160, 60, 40);
+        doc.text(`no true match — filler ${c.currency}${Math.round(row.total).toLocaleString()}`, x, y + 9);
+      } else {
+        doc.setTextColor(26, 26, 26);
+        const marker = row.resolution === 'normalized' ? ' ≈' : '';
+        doc.text(`${String(row.sku).slice(0, 16)}${marker}  ${c.currency}${Math.round(row.total).toLocaleString()}`, x, y + 9);
+      }
+    });
+    doc.setDrawColor(228, 221, 210);
+    doc.setLineWidth(0.4);
+    doc.line(margin, y + rowH, pageW - margin, y + rowH);
+    y += rowH;
+  }
+
+  // Subtotals row + per-line notes (interim-pricing disclaimers travel with the line).
+  doc.setFontSize(8.5);
+  doc.setTextColor(26, 26, 26);
+  doc.setFont('helvetica', 'bold');
+  if (y + 40 > pageH - 30) { footer(); doc.addPage('letter', 'landscape'); watermark(); y = margin; }
+  doc.text('Cabinet list total', margin + 3, y + 12);
+  columns.forEach((c, i) => doc.text(`${c.currency}${c.subtotal.toLocaleString()}`, margin + srcW + i * colW + 3, y + 12));
+  doc.setFont('helvetica', 'normal');
+  y += 24;
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text('≈ resolved by family/size rule (review before ordering). Cabinet list prices only — trim, fabrication, delivery and install are quoted on the full proposal.', margin, y);
+  y += 10;
+  for (const c of columns) {
+    if (c.note) { doc.text(`${c.label}: ${c.note}`, margin, y); y += 9; }
+  }
+  footer();
+
+  const filename = `Counter-Quote_${title.replace(/[^A-Za-z0-9-]+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(filename);
+  return filename;
+}
+
+/**
  * Export all SVG elements matching a selector into a PDF
  * @param {Object} options
  * @param {string} options.title - Project title for the header

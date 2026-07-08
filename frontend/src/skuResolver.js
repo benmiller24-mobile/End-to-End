@@ -239,6 +239,8 @@ function resolveSku(sku, _depth = 0) {
   if (/^S?UT\d/.test(sku)) { r = nearestInFamily('UT', widthOf(sku)); if (r) return r; }
   if (/^PBC/.test(sku)) { const w = widthOf(sku); r = nearestInFamily('PBC334 1/2-', w) || nearestInFamily('PBC', w); if (r) return r; }
   if (/^BD\d/.test(sku)) { const w = widthOf(sku); r = _baseFind('B3D' + w) || nearestInFamily('B3D', w) || nearestInFamily('DRBDO', w); if (r) return r; }
+  // Island work/base sink (2020 plan label IWS30 / IBS36) → sink base at width.
+  if (/^I[WB]S\d/.test(sku)) { const w = widthOf(sku); r = _baseFind('SB' + w) || nearestInFamily('SB', w); if (r) return r; }
   // Trim / panels / brackets / shelves with no exact catalog entry → a low-cost profile filler.
   if (/^(FDP|GRILLE|DWP|DW-?TK|DEP|LBRK)/i.test(sku) || /EDGE BANDED SHELF|SHELF/i.test(sku)) {
     r = searchSkus('PROFILE FILLER')[0] || searchSkus('FILLER')[0]; if (r) return r;

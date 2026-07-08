@@ -142,6 +142,7 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
   const [calib, setCalib] = useState({ pts: [], inches: '' });
   const [hints, setHints] = useState('');
   const [review, setReview] = useState(null);     // { source, walls, appliances, island, items?, notes, problems }
+  const [fileName, setFileName] = useState('');   // travels with the import → counter-quote provenance
   const [spec, setSpec] = useState(() => defaultSpec(brand));   // project spec collected at upload
   const imgRef = useRef(null);
   // Keep the spec's line in sync if the studio brand changes before an import.
@@ -215,6 +216,7 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
   const onFile = async (file) => {
     if (!file) return;
     reset(); setOpen(true);
+    setFileName(file.name || '');
     try {
       if (/pdf$/i.test(file.type) || /\.pdf$/i.test(file.name)) {
         setBusy('Reading PDF…');
@@ -343,6 +345,11 @@ export default function FloorplanImport({ brand, onApplyRoom, onApplyDesign }) {
       island: review.island, ceilingHeight: review.ceilingHeight || null,
     };
     payload.spec = spec;   // line + wood + door + construction + cover-sheet fields
+    // Provenance for the counter-quote flow: what was imported, from where.
+    payload.importMeta = {
+      source: review.source, filename: fileName,
+      items: (withCabinets && review.items?.length) || 0,
+    };
     if (withCabinets && review.items?.length) onApplyDesign({ ...payload, items: review.items });
     else onApplyRoom(payload);
     reset(); setOpen(false);
