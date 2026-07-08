@@ -55,7 +55,7 @@ import {
 import { CONSTRUCTIONS, getConstruction } from './constructionProfiles.js';
 import { getTenant, listTenants, setTenantPriceGroup } from '../../eclipse-pricing/src/tenants/index.js';
 import ProductLinesManager from './ProductLinesManager.jsx';
-import { loadLocalTenantPackages } from './tenantLocal.js';
+import { loadLocalTenantPackages, syncTeamTenantPackages } from './tenantLocal.js';
 
 // Register product lines added on this device (in-app PDF onboarding) before
 // the first render reads the tenant registry.
@@ -2594,6 +2594,13 @@ export default function App() {
   // active lens tracks which option the dealer is looking at / adopted.
   const [designOptions, setDesignOptions] = useState(null);
   const [activeLensId, setActiveLensId] = useState('balanced');
+
+  // Team tenant packages (Supabase-gated): pull lines onboarded on OTHER
+  // devices; a tick re-renders the brand pickers when new ones arrive.
+  const [, setTenantSyncTick] = useState(0);
+  useEffect(() => {
+    syncTeamTenantPackages().then(ids => { if (ids.length) setTenantSyncTick(t => t + 1); });
+  }, []);
   const applyImportedSpec = (spec) => {
     if (!spec) return;
     if (spec.materials) setMaterials(m => ({ ...m, ...spec.materials }));

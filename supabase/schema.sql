@@ -91,3 +91,29 @@ create index idx_projects_user on projects(user_id);
 create index idx_rooms_project on rooms(project_id);
 create index idx_revisions_room on revisions(room_id);
 create index idx_saved_templates_user on saved_templates(user_id);
+
+-- ── Team-shared tenant packages (in-app product-line onboarding) ──
+-- A line onboarded on one device (ProductLinesManager → saveLocalTenantPackage)
+-- exists for the whole dealership: any authenticated user reads every package;
+-- writers own their rows.
+create table tenant_packages (
+  id text primary key,                 -- tenant id (slug), e.g. 'aspect'
+  name text not null,                  -- manufacturer display name
+  package jsonb not null,              -- the complete zero-code tenant package
+  created_by uuid references auth.users(id) on delete set null,
+  updated_at timestamptz default now()
+);
+
+alter table tenant_packages enable row level security;
+
+create policy "Team reads all tenant packages" on tenant_packages
+  for select using (auth.role() = 'authenticated');
+create policy "Owners insert tenant packages" on tenant_packages
+  for insert with check (auth.uid() = created_by or created_by is null);
+create policy "Owners update tenant packages" on tenant_packages
+  for update using (auth.uid() = created_by or created_by is null);
+create policy "Owners delete tenant packages" on tenant_packages
+  for delete using (auth.uid() = created_by or created_by is null);
+
+create trigger tenant_packages_updated_at before update on tenant_packages
+  for each row execute function update_updated_at();

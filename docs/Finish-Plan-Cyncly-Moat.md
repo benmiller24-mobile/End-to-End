@@ -254,6 +254,27 @@ the direct attack on Content-in-Cloud's queue.
    browser profile; generic eval suite green for the new tenant; Eclipse default
    behavior byte-identical (no regression in existing suites).
 
+> **Phase 4 record (2026-07-08) — DONE.** Shipped: honest Supabase client
+> (`lib/supabase.js` — `supabaseConfigured` + lazy `getSupabase()`, null when the
+> env is absent; no more garbage-placeholder client); team tenant store in
+> `tenantLocal.js` (save/remove upsert/delete to a new `tenant_packages` table,
+> `syncTeamTenantPackages()` pulls the dealership's lines at startup in both the
+> dealer app and the embed — localStorage behavior unchanged and still the
+> offline path); `tenant_packages` schema + RLS (team-wide read, owner write)
+> appended to `supabase/schema.sql`; eval-scaffold generator
+> (`frontend/src/evalScaffold.js` + an "⤓ Eval scaffold" button in
+> ProductLinesManager) emitting a ready-to-commit `catalog-sanity.eval.mjs` with
+> deterministic ingest-sampled spot prices and the golden-order TODO that the
+> Phase-3 flywheel later fulfils; white-label embed theming (tenant palette gold
+> + "<Line> Designer" masthead from branding — no code per brand). Provenance
+> disclaimers were already auto-set at ingest (verified, not re-built). New eval
+> `_cross/onboarding.eval.mjs` (14 checks) executes a generated scaffold's
+> assertions against the live Aspect tenant. Floors: evals **392/0**, build
+> clean, pricing 153/0. Cross-device acceptance can't be exercised headless
+> (needs a provisioned Supabase project) — the code path is env-gated and
+> no-ops cleanly without it; first live check happens on the deployed site.
+> Standing task unchanged: official Shiloh price CSV is still blocked on data.
+
 ### Phase 5 — Product shell: persistence, sharing, identity (≈2–3 sessions)
 
 What makes it a product a dealership adopts, and the layer where nothing Cyncly-shaped

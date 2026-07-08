@@ -1,13 +1,21 @@
 /**
- * Locally-added product lines (in-app PDF onboarding).
+ * Locally-added product lines (in-app PDF onboarding) — team-shared when
+ * Supabase is configured.
  * =====================================================
  * Tenant packages created by the in-app uploader persist in localStorage on
  * THIS device and register into the tenant registry at startup — the same
  * zero-code package format the repo manifest uses, so a local line can be
  * promoted to a permanent one by downloading its JSON and committing it to
  * eclipse-pricing/src/tenants/packages/.
+ *
+ * TEAM LAYER (additive, env-gated): when VITE_SUPABASE_* is set, every saved
+ * package also upserts to the `tenant_packages` table, and startup pulls the
+ * team's packages down (syncTeamTenantPackages) — a line onboarded on one
+ * device exists for the whole dealership. The synchronous localStorage API is
+ * unchanged; the offline path never degrades.
  */
 import { registerTenantPackage, removeTenant, hasTenant } from '../../eclipse-pricing/src/tenants/index.js';
+import { getSupabase } from './lib/supabase.js';
 
 const KEY = 'ekd.tenantPackages';
 
@@ -32,11 +40,50 @@ export function saveLocalTenantPackage(pkg) {
   pkgs.push(pkg);
   writeStore(pkgs);
   registerTenantPackage(pkg);
+  // Team layer: fire-and-forget upsert; local save already succeeded.
+  const sb = getSupabase();
+  if (sb) {
+    sb.from('tenant_packages')
+      .upsert({ id: pkg.id, name: pkg.branding?.manufacturerName || pkg.id, package: pkg }, { onConflict: 'id' })
+      .then(({ error }) => { if (error) console.warn('tenant package team-sync failed:', error.message); });
+  }
 }
 
 export function removeLocalTenantPackage(id) {
   writeStore(readStore().filter(p => p.id !== id));
   removeTenant(id);
+  const sb = getSupabase();
+  if (sb) {
+    sb.from('tenant_packages').delete().eq('id', id)
+      .then(({ error }) => { if (error) console.warn('tenant package team-delete failed:', error.message); });
+  }
+}
+
+/**
+ * Pull the team's packages down and register any this device doesn't have.
+ * Returns the newly-registered ids (empty when Supabase isn't configured, on
+ * error, or when everything already matched). Call once at startup; callers
+ * may re-render brand pickers when ids come back.
+ */
+export async function syncTeamTenantPackages() {
+  const sb = getSupabase();
+  if (!sb) return [];
+  try {
+    const { data, error } = await sb.from('tenant_packages').select('id, package');
+    if (error || !Array.isArray(data)) return [];
+    const local = readStore();
+    const added = [];
+    for (const row of data) {
+      const pkg = row.package;
+      if (!pkg || !pkg.id || !pkg.catalog) continue;
+      if (!hasTenant(pkg.id)) { try { registerTenantPackage(pkg); added.push(pkg.id); } catch { continue; } }
+      if (!local.some(p => p.id === pkg.id)) local.push(pkg);
+    }
+    if (added.length) writeStore(local);
+    return added;
+  } catch {
+    return [];
+  }
 }
 
 export function localTenantIds() { return readStore().map(p => p.id); }

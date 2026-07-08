@@ -12,7 +12,7 @@ import { solve } from '../../eclipse-engine/src/solver.js';
 import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
 import { getTenant, setTenantPriceGroup } from '../../eclipse-pricing/src/tenants/index.js';
 import { setPricingBrand } from './skuResolver.js';
-import { loadLocalTenantPackages } from './tenantLocal.js';
+import { loadLocalTenantPackages, syncTeamTenantPackages } from './tenantLocal.js';
 import { getConstruction } from './constructionProfiles.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
@@ -22,6 +22,7 @@ import ElevationView from './ElevationView.jsx';
 const Kitchen3DView = lazy(() => import('./Kitchen3DView.jsx'));
 
 loadLocalTenantPackages();   // register data-package tenants (pronorm etc.) before solving
+const _teamSync = syncTeamTenantPackages();   // team lines (Supabase-gated) — resolves [] when unconfigured
 
 const C = { sage: '#7a8b6f', espresso: '#3d2b1f', gold: '#d4a843', taupe: '#a89279', paper: '#f7f4ee', line: '#e0d8ca' };
 
@@ -91,12 +92,16 @@ export default function EmbedApp() {
   // Default to the floor plan — paints instantly. The 3D tab pulls a large
   // Three.js chunk, so load it only when the user opens it.
   const [tab, setTab] = useState('plan');
+  // Re-build once team tenant packages land (the embed's brand may be a line
+  // onboarded on another device).
+  const [teamSynced, setTeamSynced] = useState(false);
+  React.useEffect(() => { _teamSync.then(ids => { if (ids.length) setTeamSynced(true); }); }, []);
 
   const built = useMemo(() => {
     if (!spec || !spec.walls?.length) return { error: 'No design provided.' };
     try { return { result: buildSolverResult(spec) }; }
     catch (e) { return { error: e?.message || 'Could not build the design.' }; }
-  }, [spec]);
+  }, [spec, teamSynced]);
 
   if (built.error) {
     return <div style={{ padding: 40, textAlign: 'center', color: C.taupe, fontFamily: 'Inter, sans-serif' }}>{built.error}</div>;
@@ -104,20 +109,27 @@ export default function EmbedApp() {
 
   const result = built.result;
   const brand = spec.materials?.brand || spec.brand || 'eclipse';
+  const branding = getTenant(brand).branding || {};
+  // White-label theming: the embed carries the MANUFACTURER's identity —
+  // palette + line name straight from tenant branding, no code per brand.
+  const gold = branding.palette?.gold || C.gold;
   const materials = defaultMaterials(brand, spec.materials || {});
   const construction = getConstruction(materials.frameStyle);
   const trim = spec.trimSelections || {};
-  const titleBlock = { project: 'Your Kitchen', client: '', designer: getTenant(brand).branding?.lineLabel || '', date: '', scale: 'NTS' };
+  const titleBlock = { project: 'Your Kitchen', client: '', designer: branding.lineLabel || '', date: '', scale: 'NTS' };
 
   const tabBtn = (t) => ({
     flex: 1, padding: '10px 8px', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-    border: 'none', borderBottom: `3px solid ${tab === t.id ? C.gold : 'transparent'}`,
+    border: 'none', borderBottom: `3px solid ${tab === t.id ? gold : 'transparent'}`,
     background: 'transparent', color: tab === t.id ? C.espresso : C.taupe,
   });
 
   return (
     <div style={{ minHeight: '100vh', background: C.paper, fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ display: 'flex', borderBottom: `1px solid ${C.line}`, background: '#fff', position: 'sticky', top: 0, zIndex: 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${C.line}`, background: '#fff', position: 'sticky', top: 0, zIndex: 5 }}>
+        <span style={{ padding: '10px 14px', fontSize: 12, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase', color: gold, whiteSpace: 'nowrap' }}>
+          {branding.lineLabel || 'Kitchen'} Designer
+        </span>
         {TABS.map(t => <button key={t.id} style={tabBtn(t)} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
       <div style={{ padding: 12 }}>
