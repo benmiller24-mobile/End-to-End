@@ -459,6 +459,13 @@ export function solve(input) {
     // "overlay" — panels protrude 1-2" proud, 24" enclosure depth (most common)
     // "flush"   — flush inset, 25-27" enclosure depth (true European integrated)
     fridgeIntegration: prefs.fridgeIntegration || "overlay",
+    // ── Generate-and-score internals (AD-3/AD-4) ── pf is a whitelist, so
+    // these MUST be copied through explicitly: _compose gates the composition
+    // passes and _noRecenter stops centerCookingZone from fighting an
+    // arrangement's landing budgets. (They were silently dropped here once —
+    // AD-4's composer was dead code on the product path until this line.)
+    _compose: !!prefs._compose,
+    _noRecenter: !!prefs._noRecenter,
   };
 
   // ── Gola/Handleless Channel enforcement ──
@@ -2193,7 +2200,7 @@ function noteDecision(pass, text, rule = null) {
 
 // ─── COMPOSITION PASSES (AD-4; _compose-gated) ──────────────────────────────
 
-const _SLIVER_KEEP = /^(FC-)?(OVF|F)\d|^(FC-)?(BWDM|BSP|BEP|WEP|REP|FREP|UDEP|BDEP|VDEP|TS-)|^(FC-)?(BL|BBC|BLSB|DSB|WSE|WSC)/;
+const _SLIVER_KEEP = /^(FC-)?(OVF|F)\d|^(FC-)?(BWDM|BSP|BPOS|BEP|WEP|REP|FREP|UDEP|BDEP|VDEP|TS-)|^(FC-)?(BL|BBC|BLSB|DSB|WSE|WSC)/;
 
 /** Merge <12" door/drawer cabinets into an adjacent same-zone neighbor as a
  *  width-mod. Widths conserve; nothing else moves. */
@@ -2246,8 +2253,28 @@ function composeRangeWallUppers(upperLayouts, wallLayouts, appByWall) {
     if (typeof hood.position_end === 'number') hood.position_end = hood.position + hood.width;
 
     const field = cabs.filter(c => c !== hood && !/^(FC-)?RW\d/.test(String(c.sku || '')));
-    const left = field.filter(c => c.position + c.width <= hood.position + 1).sort((a, b) => b.position - a.position)[0];
-    const right = field.filter(c => c.position >= hood.position + hood.width - 1).sort((a, b) => a.position - b.position)[0];
+    let left = field.filter(c => c.position + c.width <= hood.position + 1).sort((a, b) => b.position - a.position)[0];
+    let right = field.filter(c => c.position >= hood.position + hood.width - 1).sort((a, b) => a.position - b.position)[0];
+    // A missing flank is not a reason to leave the hood naked on one side —
+    // when the wall itself has room (a base run under it, e.g. right of a
+    // range near the run end), CREATE the flank upper the designer would.
+    const upperHOf = (c) => c && c.height ? c.height : 39;
+    const mkFlank = (pos, w, mate) => {
+      const u = {
+        sku: `W${Math.round(w)}${upperHOf(mate)}`, width: w, height: upperHOf(mate),
+        type: 'wall', position: pos, wall: ul.wallId, _composedFlank: true,
+      };
+      ul.cabinets.push(u);
+      return u;
+    };
+    if (!right && left) {
+      const span = Math.floor((wallLen - (hood.position + hood.width)) / 1.5) * 1.5;
+      if (span >= 12) right = mkFlank(hood.position + hood.width, Math.min(span, 42), left);
+    }
+    if (!left && right) {
+      const span = Math.floor(hood.position / 1.5) * 1.5;
+      if (span >= 12) left = mkFlank(Math.max(0, hood.position - Math.min(span, 42)), Math.min(span, 42), right);
+    }
     if (!left || !right) continue;
     // available span each side: from the outer neighbor (or run/wall start) to the hood
     const leftOuter = field.filter(c => c !== left && c.position + c.width <= left.position + 1).sort((a, b) => b.position - a.position)[0];
@@ -3818,6 +3845,14 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
       sku = buildSku(cabType, w, golaPrefix);
     }
 
+    // A stand-alone door/drawer box under 12" is a sliver no designer ships —
+    // the catalog answer at this width is the 4-tier pull-out (BPOS-9, a real
+    // Eclipse unit). Only when it's the segment's lone cabinet: multi-cabinet
+    // fills leave slivers to the merge pass, which widens a neighbor instead.
+    if (w < 12 - 0.01 && w >= 6 && result.cabinets.length === 1) {
+      sku = `${golaPrefix || ''}BPOS-${w % 1 === 0 ? w : Math.floor(w) + ' 1/2'}`;
+    }
+
     cabinets.push({
       sku,
       width: w,
@@ -4303,11 +4338,14 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
       // walls keep the legacy 21" fallback.)
       const rwH = rwStdHeights.find(h => h <= availableAboveFridge) || (wallDef.soffit?.drop > 0 ? null : 21);
       if (rwH && rwH >= 21) {  // minimum catalog height is 21"
+        // Width-less appliances (customer said "a fridge") default to 36 —
+        // Math.min(undefined, 36) is NaN and mints an "RWNaN21".
+        const fw = Number.isFinite(fridgeApp.width) ? fridgeApp.width : 36;
         baseCabs.push({
           ...fridgeApp,
           type: "base",
-          sku: `RW${Math.min(fridgeApp.width, 36)}${rwH}`,
-          width: fridgeApp.width,
+          sku: `RW${Math.min(fw, 36)}${rwH}`,
+          width: fw,
           position: fridgeApp.position,
           _isFridgeUpper: true,
           _rwHeight: rwH,

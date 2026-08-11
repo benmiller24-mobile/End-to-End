@@ -59,42 +59,94 @@ function arrangementsFromProbe(input, probe) {
     // (mirror) can. Skip only when the appliances genuinely don't fit.
     if (slack < 0) continue;
 
-    // Budget the slack into the gaps after each appliance (+ run end), scaled.
-    const wants = ordered.map((a, i) => {
-      const t = normType(a.applianceType);
-      const nxt = ordered[i + 1];
-      if (!nxt) return gapAtEnd[t] ?? 12;
-      if (normType(nxt.applianceType) === 'dishwasher' || t === 'dishwasher') return 0;  // DW hugs the sink
-      return gapAfter[t] ?? 12;
-    });
-    const wantTotal = wants.reduce((a, b) => a + b, 0) || 1;
-    const scale = Math.min(1.5, slack / wantTotal);
-    const gaps = wants.map(w => Math.floor((w * scale) / 1.5) * 1.5);
-    const used = gaps.reduce((a, b) => a + b, 0);
-    gaps[gaps.length - 1] += Math.max(0, slack - used);   // remainder to the run end
+    const emit = (s0, s1, tag, cornerLock) => {
+      const spanSlack = (s1 - s0) - totalW;
+      if (spanSlack < 0) return;
+      // Budget the slack into the gaps after each appliance (+ run end), scaled.
+      const wants = ordered.map((a, i) => {
+        const t = normType(a.applianceType);
+        const nxt = ordered[i + 1];
+        if (!nxt) return gapAtEnd[t] ?? 12;
+        if (normType(nxt.applianceType) === 'dishwasher' || t === 'dishwasher') return 0;  // DW hugs the sink
+        return gapAfter[t] ?? 12;
+      });
+      const wantTotal = wants.reduce((a, b) => a + b, 0) || 1;
+      const scale = Math.min(1.5, spanSlack / wantTotal);
+      const gaps = wants.map(w => Math.floor((w * scale) / 1.5) * 1.5);
+      const used = gaps.reduce((a, b) => a + b, 0);
+      gaps[gaps.length - 1] += Math.max(0, spanSlack - used);   // remainder to the run end
 
-    for (const mirror of [false, true]) {
-      const seq = mirror ? [...ordered].reverse() : ordered;
-      const gseq = mirror ? [...gaps].reverse() : gaps;
-      let at = span0;
-      const positions = new Map();
-      seq.forEach((a, i) => {
-        if (mirror && i === 0) at += gseq[0] || 0;   // reversed: leading gap first
-        positions.set(normType(a.applianceType), { wall: wl.wallId, position: Math.round(at * 2) / 2 });
-        at += a.width + (mirror ? (gseq[i + 1] || 0) : (gseq[i] || 0));
-      });
-      arrangements.push({
-        label: `arranged:${wl.wallId}${mirror ? '-mirrored' : ''}`,
-        apply: (a) => {
-          const hit = positions.get(normType(a.type));
-          // pinned: the arrangement IS the design decision — later passes may
-          // not relocate what the landing budget placed.
-          return hit ? { ...a, wall: hit.wall, position: hit.position, pinned: true } : a;
-        },
-      });
+      for (const mirror of [false, true]) {
+        const seq = mirror ? [...ordered].reverse() : ordered;
+        const gseq = mirror ? [...gaps].reverse() : gaps;
+        let at = s0;
+        const positions = new Map();
+        seq.forEach((a, i) => {
+          if (mirror && i === 0) at += gseq[0] || 0;   // reversed: leading gap first
+          // Carry the probe's materialized width: corpus appliances are often
+          // width-less, and a pinned width-less fridge downstream becomes
+          // "RWNaN21" with a 9" sliver upper over it.
+          positions.set(normType(a.applianceType), { wall: wl.wallId, position: Math.round(at * 2) / 2, width: a.width });
+          at += a.width + (mirror ? (gseq[i + 1] || 0) : (gseq[i] || 0));
+        });
+        arrangements.push({
+          label: `arranged:${wl.wallId}${mirror ? '-mirrored' : ''}${tag}`,
+          corner: cornerLock || null,
+          wallId: wl.wallId,
+          apply: (a) => {
+            const hit = positions.get(normType(a.type));
+            // pinned: the arrangement IS the design decision — later passes may
+            // not relocate what the landing budget placed.
+            return hit ? { ...a, wall: hit.wall, position: hit.position, pinned: true, width: a.width ?? hit.width } : a;
+          },
+        });
+      }
+    };
+
+    emit(span0, span1, '', null);
+    // When a corner consumed part of this wall (the probe span stops short of
+    // the wall), the OPEN-corner design frees that leg: full length on the
+    // through wall, 27" clearance where this wall is the corner's B side.
+    // Only worth a candidate when it meaningfully widens the span.
+    const openS0 = span0 > 1 ? 27 : span0;
+    const openS1 = span1 < wallLen - 1 ? wallLen : span1;
+    if ((openS1 - openS0) > (span1 - span0) + 6) emit(openS0, openS1, '-open', 'open');
+  }
+  // Multi-wall combos: an L/U kitchen is designed as a ROOM — the cooking
+  // wall and the sink wall need their landing budgets in the SAME candidate
+  // (arranging only wall A leaves wall B's sink dying at the run end). Pair
+  // one arrangement per wall within the same corner-lock class.
+  const byClass = new Map();
+  for (const arr of arrangements) {
+    const key = arr.corner || '';
+    if (!byClass.has(key)) byClass.set(key, new Map());
+    const wallsMap = byClass.get(key);
+    if (!wallsMap.has(arr.wallId)) wallsMap.set(arr.wallId, []);
+    wallsMap.get(arr.wallId).push(arr);
+  }
+  const combos = [];
+  for (const [, wallsMap] of byClass) {
+    if (wallsMap.size < 2) continue;
+    const [wa, wb] = [...wallsMap.keys()];   // two walls carry ≥2 appliances each; more is exotic
+    for (const a of wallsMap.get(wa)) {
+      for (const b of wallsMap.get(wb)) {
+        combos.push({
+          label: `${a.label}+${b.label.replace('arranged:', '')}`,
+          corner: a.corner || b.corner || null,
+          wallId: null,
+          // Chained pinning is safe: each wall's map only holds the appliance
+          // types the probe materialized on that wall.
+          apply: (x) => b.apply(a.apply(x)),
+        });
+      }
     }
   }
-  return arrangements;
+  // Exploration order: corner-locked combos first (most design information,
+  // cheapest — the lock collapses the corner grid to 1), then locked singles,
+  // then combos, then singles. Without this the 8-variant standard singles
+  // starve everything behind them out of the budget.
+  const rank = (v) => (v.corner ? 0 : 2) + (v.wallId === null ? 0 : 1);
+  return [...combos, ...arrangements].sort((a, b) => rank(a) - rank(b));
 }
 
 // ── Variant enumeration ──────────────────────────────────────────────────────
@@ -119,7 +171,7 @@ function* enumerateVariants(input, probe) {
   // arrangement is the professional correction of that placement.
   for (const arr of [...arrangements, null]) {
     for (const rec of (arr ? [false] : applianceRecOptions)) {
-      for (const corner of cornerOptions) {
+      for (const corner of (arr && arr.corner ? [arr.corner] : cornerOptions)) {
         for (const drawers of drawerOptions) {
           const label = [
             arr ? arr.label : null,

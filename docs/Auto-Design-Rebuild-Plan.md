@@ -67,12 +67,46 @@ below carries file:line references or numbers, they were verified by running
 > range-landing families cleared); Mautz 14/14 checks; battery: evals
 > 462/0, si 180/180, suites at floor, build clean.
 >
-> The next levers, in order of expected pass-rate yield: (1) upper-run
-> composition on long appliance walls — the K013 family fails on 9″ sliver
-> uppers, off-ladder 14″ uppers, and bare hood flanks; (2) prep-zone-aware
-> gap allocation in arrangements (32″ best-side vs the 36″ metric);
-> (3) the `hard-bases`/buffer families are largely honest infeasibility
-> (120″ single walls carrying 3 appliances); (4) the first keyed judge run.
+> **CLIMB 3 (2026-08-11): composition passes revived + room-level
+> arrangements — ratchet 40→50.** The headline find: `pf` in solve() is a
+> preference WHITELIST, and `_compose`/`_noRecenter` were never copied into
+> it — every AD-4 composition pass (sliver merge, focal-wall uppers
+> composer) and the no-recenter contract for arranged candidates had been
+> dead code on the product path. They are now copied through explicitly.
+> With them live, five more fixes landed:
+> (a) arranged pins now carry the probe's materialized appliance width —
+> width-less corpus appliances previously minted "RWNaN21" over-fridge
+> cabinets that degenerated into 9″ sliver uppers; the RW branch also
+> defaults a width-less fridge to 36″.
+> (b) `composeRangeWallUppers` CREATES a missing hood flank when the wall
+> has room (it used to bail, leaving hoods naked on one side near run ends).
+> (c) Corner-locked FULL-SPAN arrangements: when the probe span stops short
+> of the wall (a corner consumed it), an `-open` arrangement re-budgets the
+> full wall and locks the candidate to `corner:'open'` — the U-shape buffer
+> family (K004/K024/K044) went from range-hugs-fridge to 96/100 designs.
+> (d) Room-level combos: one arrangement per wall paired in the SAME
+> candidate (`arranged:A-open+B-open`) — arranging only the cooking wall
+> left the sink dying at the other wall's run end (K003/K051, L-shapes).
+> Exploration order: locked combos → locked singles → combos → singles, so
+> the 8-variant standard singles can't starve the budget.
+> (e) A stand-alone <12″ fill becomes a BPOS pull-out (a real Eclipse unit,
+> BPOS-9 $953) instead of a 9″ three-drawer sliver; BPOS added to the
+> scorer's pull-out families and the merge pass keep-list.
+> Corpus 43→50 mid-climb totals: 40→43 (composition live) →50 (room-level
+> arrangements). Remaining 10 fails: 6 are honest infeasibility (120–144″
+> single walls carrying 3 appliances — sink landing 3″/0″ is unfixable
+> without resizing appliances), 3 more 168″ walls with 48″ ranges where the
+> NKBA arithmetic simply doesn't close, and K043 (one craft metric short —
+> a 1″ appliance nudge produces 23.5″ off-ladder segments).
+> Battery: evals 462/0, si 180/180, Mautz 14/14, suites at floor, build
+> clean; v2-baseline corpusPass raised to 50.
+>
+> The next levers: (1) K043's 1″ post-arrangement appliance nudge (find the
+> pass that shifts a pinned cooktop +1″); (2) prep-zone-aware gap allocation
+> (32-33″ best-side vs the 36″ metric on several passing-but-tight rooms);
+> (3) appliance-rec downsizing candidates for the infeasible-room families
+> (a 30″ range or 30″ sink base makes the arithmetic close — that is what a
+> real designer would quote); (4) the first keyed judge run.
 
 ---
 

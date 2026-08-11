@@ -25,7 +25,7 @@
 const FILLER_RE = /^(FC-)?(OVF|F)\d/;
 const SINKBASE_RE = /^(FC-)?(SB|VSB|DSB|BLSB|IWS|FLVSB)\d/;
 const DRAWER_RE = /^(FC-)?(B[234]D|B2TD|B2HD|DB)\d/;
-const PULLOUT_RE = /^(FC-)?(BWDM|BSP|TRAY|F\d|OVF)/;   // legitimate narrow units
+const PULLOUT_RE = /^(FC-)?(BWDM|BSP|BPOS|TRAY|F\d|OVF)/;   // legitimate narrow units (BPOS = 4-tier pull-out shelf)
 const CORNER_RE = /^(FC-)?(BL|BBC|DSB36|BLSB)/;
 const HOOD_RE = /^(FC-)?P?RH\d|HOOD/i;
 
