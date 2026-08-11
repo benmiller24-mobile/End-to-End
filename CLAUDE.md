@@ -107,3 +107,8 @@ Report docs: `Shiloh-Integration-Plan.md`, `Elevation-Drawing-Audit.md`, `Pricin
 The active build plan is `docs/Finish-Plan-Cyncly-Moat.md` — phased, file-anchored, with
 acceptance gates. Start there when picking up work; it also lists where this file's
 "Current state" section has gone stale (Phase 0 refreshes it).
+**Auto-design quality program:** `docs/Auto-Design-Rebuild-Plan.md` (2026-08-11) — the
+audited diagnosis of why auto-design has never been right (verified solver defects,
+self-referential eval floor) and the phased generate-and-score rebuild (AD-0 … AD-5).
+NOTE: treat the si 180/180 floor as CRASH-FREEDOM only, not design quality — scorer v2
+(AD-1) is the real quality gate once it lands.
