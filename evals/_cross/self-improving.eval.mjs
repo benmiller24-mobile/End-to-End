@@ -1,5 +1,10 @@
 /**
- * Self-improving QA gate (cross-tenant).
+ * Self-improving QA gate (cross-tenant) — CRASH-FREEDOM FLOOR.
+ * ======================================
+ * NOTE (AD-1): this v1 gate proves the pipeline runs and resolves — it is NOT
+ * a design-quality signal (see docs/Auto-Design-Rebuild-Plan.md §7). The
+ * honest quality gates are _cross/scorer-v2.eval.mjs (designer rubric,
+ * ratcheted) and _cross/mautz-design-diff.eval.mjs (decisions-reproduced).
  * ======================================
  * Runs a slice of the deterministic kitchen corpus through the full auto-design
  * pipeline — solve → realize (metric tenants) → score the 5 metrics (design,
@@ -16,7 +21,7 @@ import { corpusArray } from '../si/corpus.mjs';
 const BRANDS = ['eclipse', 'shiloh', 'pronorm'];
 
 export default async function run() {
-  const s = suite('self-improving corpus gate');
+  const s = suite('self-improving corpus gate (CRASH-FREEDOM floor — design quality lives in scorer-v2.eval.mjs)');
   const corpus = corpusArray(18);   // spans single / galley / L / U (+island)
 
   for (const brand of BRANDS) {

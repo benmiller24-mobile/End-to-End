@@ -228,6 +228,28 @@ Acceptance: scorer v2 fails ≥90% of today's corpus for documented reasons;
 Mautz-diff runs in CI; a hand-designed good kitchen (Mautz itself, run through
 buildManualResult) passes ≥90% of rubric items.
 
+> **AD-1 record (2026-08-11) — DONE.** Shipped `evals/si/scoreKitchenV2.mjs`
+> (6 NKBA hard gates + 11 craft metrics; hard-error passthrough with NO
+> rule-name filter; applicability-aware — absent data never earns free points;
+> corner-continuation credit in landing walks), `evals/si/mautzRoom.mjs` (the
+> golden kitchen both ways: real design via the manual path, same room as
+> auto input), ratchet baselines in `evals/si/v2-baseline.json`, gates
+> `_cross/scorer-v2.eval.mjs` + `_cross/mautz-design-diff.eval.mjs`, and a
+> `--v2` sweep mode in run-corpus.mjs. Calibration verified: **the real Mautz
+> design passes at 96/100** (single craft miss: 30″ prep vs 36″ target) while
+> the zero-base kitchen v1 scored 94/100 now HARD-FAILS. Honest baselines
+> locked: **corpus 28/60** (hard fails: range-landing×24, sink-landing×20,
+> 0-base-kitchens×12, dropped-appliance/buffer errors×6, DW-sink×6; craft:
+> sliver×60, flank-sym×38, prep×29) and **Mautz decisions-reproduced 8/12**
+> (up from the audit's 4/16 thanks to AD-0; still missing: blind-corner
+> strategy, tall-anchoring, waste-near-sink, slivers). Both numbers are
+> ratcheted — CI fails if they ever go DOWN. The v1 180/180 gate is now
+> labeled CRASH-FREEDOM in its own header. Note: the acceptance line
+> "fails ≥90% of today's corpus" was written before AD-0 landed — AD-0's
+> fixes already lifted genuine quality, so the honest measured floor is
+> 32/60 failing (53%); the ratchet, not the prediction, is the contract.
+> Floors: evals **439/0**, suites unchanged, build clean.
+
 ### Phase AD-2 — One truth, real geometry (~2 sessions)
 Prerequisites for search — without this, candidates can't be trusted:
 1. Single placement model per wall (one run structure; wallLayouts/appByWall/
