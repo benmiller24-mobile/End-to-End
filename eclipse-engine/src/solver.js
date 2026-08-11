@@ -714,6 +714,14 @@ export function solve(input) {
   normalizeWallOverflows();
   syncAppliancePositions();
 
+  // ── COMPOSITION (AD-4, _compose-gated: the generate-and-score path only) ──
+  // Sliver merge: a door/drawer cabinet under 12" is an amateur tell — absorb
+  // it into a neighbor as a width-mod instead (widths conserve, positions
+  // stay). Runs BEFORE uppers so seams echo the merged bases.
+  if (pf._compose) {
+    try { mergeSliverCabinets(wallLayouts); syncAppliancePositions(); } catch (_e) { /* non-fatal */ }
+  }
+
   // Phase 3: Generate island layout (room-aware sizing first)
   const _islandFitWarnings = [];
   const islandSized = island ? fitIslandToRoom(island, walls, layoutType, _islandFitWarnings) : null;
@@ -776,6 +784,16 @@ export function solve(input) {
   if (pf.featureHood) {
     featureRangeWall(upperLayouts);
     noteDecision('uppers', 'Feature-hood wall: flanking field uppers cleared so the hood reads as the focal point of the cooking wall.');
+  }
+
+  // ── COMPOSITION (AD-4, _compose-gated): the range wall is the FOCAL wall —
+  // hood centered on the range, the flanking uppers resized to MIRROR each
+  // other and set flush against the hood. Upper slivers merge like bases.
+  if (pf._compose) {
+    try {
+      composeRangeWallUppers(upperLayouts, wallLayouts, appByWall);
+      for (const ul of upperLayouts) mergeSliverRun(ul.cabinets, /^(FC-)?(P?RH\d|RW\d)/);
+    } catch (_e) { /* non-fatal */ }
   }
 
   // Phase 4b: Generate upper corner cabinets (WSC pairs + SA angle transitions)
@@ -2150,6 +2168,84 @@ import { computeWallFrames, worldPoint, cornerAdjacency } from './roomGeometry.j
 let __decisions = null;
 function noteDecision(pass, text, rule = null) {
   if (__decisions) __decisions.push({ pass, text, ...(rule ? { rule } : {}) });
+}
+
+
+// ─── COMPOSITION PASSES (AD-4; _compose-gated) ──────────────────────────────
+
+const _SLIVER_KEEP = /^(FC-)?(OVF|F)\d|^(FC-)?(BWDM|BSP|BEP|WEP|REP|FREP|UDEP|BDEP|VDEP|TS-)|^(FC-)?(BL|BBC|BLSB|DSB|WSE|WSC)/;
+
+/** Merge <12" door/drawer cabinets into an adjacent same-zone neighbor as a
+ *  width-mod. Widths conserve; nothing else moves. */
+function mergeSliverRun(cabs, extraKeepRe = null) {
+  if (!Array.isArray(cabs)) return;
+  const run = cabs.filter(c => typeof c.position === 'number' && (c.width || 0) > 0).sort((a, b) => a.position - b.position);
+  for (const c of run) {
+    if (!c.sku || c.type === 'appliance') continue;
+    if (!(c.width < 11.99)) continue;
+    if (_SLIVER_KEEP.test(c.sku) || (extraKeepRe && extraKeepRe.test(c.sku))) continue;
+    const i = run.indexOf(c);
+    const neighbors = [run[i - 1], run[i + 1]].filter(n =>
+      n && n.sku && n.type === c.type && !_SLIVER_KEEP.test(n.sku) && !(extraKeepRe && extraKeepRe.test(n.sku))
+      && (n.width + c.width) <= 48
+      && (Math.abs((n.position + n.width) - c.position) <= 1 || Math.abs((c.position + c.width) - n.position) <= 1));
+    const nb = neighbors[0];
+    if (!nb) continue;
+    const grewLeft = nb.position < c.position;
+    nb.width = Math.round((nb.width + c.width) * 2) / 2;
+    if (!grewLeft) nb.position = c.position;
+    if (typeof nb.position_start === 'number') nb.position_start = nb.position;
+    if (typeof nb.position_end === 'number') nb.position_end = nb.position + nb.width;
+    nb.sku = resizeSkuWidth(nb.sku, nb.width);
+    nb.modified = { ...(nb.modified || {}), type: 'MOD WIDTH N/C', mergedSliver: c.width };
+    const idx = cabs.indexOf(c);
+    if (idx >= 0) cabs.splice(idx, 1);
+    run.splice(run.indexOf(c), 1);
+    noteDecision('composition', `Merged a ${c.width}" sliver (${c.sku}) into its neighbor as a width modification — no cabinet under 12" survives on this run.`);
+  }
+}
+
+function mergeSliverCabinets(wallLayouts) {
+  for (const wl of wallLayouts) mergeSliverRun(wl.cabinets);
+}
+
+/** Focal-wall uppers: center the hood on the range and make the two uppers
+ *  flanking it MIRROR each other, flush against the hood. */
+function composeRangeWallUppers(upperLayouts, wallLayouts, appByWall) {
+  for (const ul of upperLayouts) {
+    const cabs = (ul.cabinets || []).filter(c => typeof c.position === 'number' && (c.width || 0) > 0);
+    const hood = cabs.find(c => /^(FC-)?P?RH\d|HOOD/i.test(String(c.sku || '')));
+    if (!hood) continue;
+    const range = (appByWall[ul.wallId] || []).find(a => /range|cooktop/i.test(String(a.type || '')));
+    if (!range || typeof range.position !== 'number') continue;
+    const wl = wallLayouts.find(w => w.wallId === ul.wallId);
+    const wallLen = (wl && wl.wallLength) || Infinity;
+    const rc = range.position + (range.width || 30) / 2;
+    hood.position = Math.max(0, Math.min(wallLen - hood.width, rc - hood.width / 2));
+    if (typeof hood.position_start === 'number') hood.position_start = hood.position;
+    if (typeof hood.position_end === 'number') hood.position_end = hood.position + hood.width;
+
+    const field = cabs.filter(c => c !== hood && !/^(FC-)?RW\d/.test(String(c.sku || '')));
+    const left = field.filter(c => c.position + c.width <= hood.position + 1).sort((a, b) => b.position - a.position)[0];
+    const right = field.filter(c => c.position >= hood.position + hood.width - 1).sort((a, b) => a.position - b.position)[0];
+    if (!left || !right) continue;
+    // available span each side: from the outer neighbor (or run/wall start) to the hood
+    const leftOuter = field.filter(c => c !== left && c.position + c.width <= left.position + 1).sort((a, b) => b.position - a.position)[0];
+    const rightOuter = field.filter(c => c !== right && c.position >= right.position + right.width - 1).sort((a, b) => a.position - b.position)[0];
+    const availL = hood.position - (leftOuter ? leftOuter.position + leftOuter.width : Math.max(0, left.position + left.width - left.width - 6));
+    const availR = (rightOuter ? rightOuter.position : Math.min(wallLen, right.position + right.width + 6)) - (hood.position + hood.width);
+    const w = Math.floor(Math.min(availL, availR, 42) / 1.5) * 1.5;
+    if (!(w >= 12)) continue;
+    left.width = w; left.position = hood.position - w;
+    right.width = w; right.position = hood.position + hood.width;
+    for (const c of [left, right]) {
+      if (typeof c.position_start === 'number') c.position_start = c.position;
+      if (typeof c.position_end === 'number') c.position_end = c.position + c.width;
+      c.sku = resizeSkuWidth(c.sku, w);
+      c._symmetryEnforced = true;
+    }
+    noteDecision('composition', `Focal wall ${ul.wallId}: hood centered over the range and flanked by mirrored ${w}" uppers — the wall reads as a designed composition.`, 'designer craft — focal-wall symmetry');
+  }
 }
 
 // ─── CORNER RESOLVER ────────────────────────────────────────────────────────

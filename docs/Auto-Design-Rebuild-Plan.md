@@ -339,6 +339,30 @@ Acceptance: SSR-render the 8 previously-reviewed kitchens; the specific named
 defects (floating hood, 36-42″ upper gaps at corners, bare walls) are gone in the
 rendered images; scorer v2 corpus ≥80%; Mautz ≥12/16.
 
+> **AD-4 record (2026-08-11) — COMPOSITION PASSES LANDED (targets carry
+> forward).** Two `_compose`-gated passes in solver.js, applied on the
+> generate-and-score product path only so every legacy floor stays
+> byte-stable: (1) **sliver merge** — any door/drawer cabinet under 12″
+> (outside pull-out/filler/panel/corner families) is absorbed into an
+> adjacent same-zone neighbor as a width-mod, bases before the uppers solve
+> (so seams echo the merged run) and uppers after; (2) **focal-wall
+> composer** — the hood is centered on the range and the two flanking uppers
+> are resized to MIRROR each other, flush against the hood, with a
+> `decisions[]` note. Measured effect on the corpus (all through solveBest):
+> sliver craft-fails 60→32, flank-symmetry 38→29, hood-centering 12→6;
+> pass-rate still **28/60** because the remaining fails are hard-gated. The
+> sharpest newly-EVIDENCED blocker (K013 arranged variant): the solver
+> RESIZES THE RANGE from 30″ to 47.25″ during fill — an appliance-width
+> mutation that eats the arranged landing budget; all obvious width-mod
+> sites guard `type==='base'`, so the mutation lives in an unguarded path
+> still to be found. That fix (appliance width fidelity, then a hard rubric
+> gate for it) is the named next lever, before the ≥80% / ≥12-16 targets are
+> realistic. Visual acceptance: the AD-5 pair-render harness
+> (`evals/si/judge/render-batch.mjs`) was built and used here — composed
+> plans render as clean professional sheets (dimension chains, corner susan,
+> title block). Floors: evals 452/0, si 180/180, suites byte-stable, build
+> clean.
+
 ### Phase AD-5 — The taste loop (judge-calibrated weights) (~2 sessions + ongoing)
 1. SSR→resvg render batches of candidate pairs; a vision judge (existing
    ANTHROPIC_API_KEY plumbing, offline only) grades pairwise "which looks

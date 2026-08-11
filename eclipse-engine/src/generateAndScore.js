@@ -129,7 +129,7 @@ function* enumerateVariants(input, probe) {
             input: {
               ...input,
               applyApplianceRec: rec,
-              prefs: { ...prefs, cornerTreatment: corner, preferDrawerBases: drawers, ...(arr ? { _noRecenter: true } : {}) },
+              prefs: { ...prefs, cornerTreatment: corner, preferDrawerBases: drawers, _compose: true, ...(arr ? { _noRecenter: true } : {}) },
               appliances: apps.map(a => (arr ? arr.apply({ ...a }) : { ...a })),
             },
           };
