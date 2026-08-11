@@ -10,7 +10,7 @@ A configurator that takes a room (walls, appliances, prefs) → solves a cabinet
 - Frontend: **React + Vite** in `frontend/`. Solver: **`eclipse-engine/`** (pure Node ESM). Pricing: **`eclipse-pricing/`**. Serverless: **`netlify/functions/`** (Netlify Functions v2, `export const config = { path: '/api/...' }`).
 - Build: `cd frontend && npm install && npm run build`. Dev: `netlify dev` (needed for `/api/*`); plain `vite` won't proxy the functions.
 - Tests (run from `eclipse-engine/`): `node test-pricing.js` (must stay **153/0**), `node test.js` (31/0), `node test-patterns.js` (194/5 — the 5 are pre-existing lazy-susan/half-moon), `node test-configurator.js` (177/8 pre-existing price/family expectations). Root `npm test` chains several.
-- Evals (run from repo root): `node evals/run.mjs` must stay **397/0**; `node evals/si/run-corpus.mjs` (deterministic 60-kitchen × 3-brand sweep) must stay **180/180**. Floors locked 2026-07-08 through Phase 5 of `docs/Finish-Plan-Cyncly-Moat.md` (Phase 0 baseline was 325/0; each phase added gated evals: counter-quote, design-options, ack-formats, onboarding, share-link).
+- Evals (run from repo root): `node evals/run.mjs` must stay **462/0**; `node evals/si/run-corpus.mjs` (deterministic 60-kitchen × 3-brand sweep) must stay **180/180**. Floors locked 2026-07-08 through Phase 5 of `docs/Finish-Plan-Cyncly-Moat.md` (Phase 0 baseline was 325/0; each phase added gated evals: counter-quote, design-options, ack-formats, onboarding, share-link).
 
 ## Architecture map (the files you'll touch most)
 - `eclipse-engine/src/solver.js` — the whole solver. `solve(input)` where input = `{layoutType, roomType, walls[], appliances[], island, prefs}` (note: templates store this under `.input`). Per-wall 1D packer; emits `walls[]`/`uppers[]`/`talls[]`/`island`/`placements[]`, each cabinet carrying `sku, position, width, _elev{yMount,height,depth,zone}`. Key passes: `normalizeSinkPlacement`, `fitIslandToRoom`, `centerCookingZone`, `featureRangeWall` (prefs.featureHood), `scoreAgainstTraining` (TRAINING_PROFILES).
@@ -110,5 +110,7 @@ acceptance gates. Start there when picking up work; it also lists where this fil
 **Auto-design quality program:** `docs/Auto-Design-Rebuild-Plan.md` (2026-08-11) — the
 audited diagnosis of why auto-design has never been right (verified solver defects,
 self-referential eval floor) and the phased generate-and-score rebuild (AD-0 … AD-5).
-NOTE: treat the si 180/180 floor as CRASH-FREEDOM only, not design quality — scorer v2
-(AD-1) is the real quality gate once it lands.
+NOTE: the si 180/180 floor is CRASH-FREEDOM only. Design quality gates: scorer-v2
+corpus ratchet (28/60) + Mautz decisions-reproduced ratchet (8/12) in evals/_cross —
+both may only go UP (`evals/si/v2-baseline.json`). Auto-design product path is
+`solveBest` (generate-and-score); `prefs._legacySolve` keeps the old single pass.

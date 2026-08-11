@@ -10,6 +10,17 @@ an adversarial verification pass in which every headline defect was independentl
 below carries file:line references or numbers, they were verified by running
 `solve()` on real inputs in this repo.
 
+> ## EXECUTION STATUS (2026-08-11): AD-0 … AD-5 all executed this session —
+> see the per-phase records inline below. Program floors after execution:
+> evals **462/0** (baseline 397/0 pre-program), si crash-freedom 180/180,
+> scorer-v2 corpus ratchet **28/60**, Mautz decisions-reproduced ratchet
+> **8/12** (audit baseline 4/16), engine suites byte-stable throughout.
+> The next levers, in order of expected pass-rate yield: (1) appliance-width
+> fidelity — the solver resizes fixed-width appliances during fill (range
+> 30″→47.25″ evidenced on K013-arranged), eroding arranged landing budgets;
+> (2) landing-aware fill on the remaining hard-gated kitchens; (3) the first
+> keyed judge run to calibrate rubric thresholds.
+
 ---
 
 ## 1. The honest diagnosis: why auto-design has never felt right
@@ -377,6 +388,25 @@ rendered images; scorer v2 corpus ≥80%; Mautz ≥12/16.
 Acceptance: judged preference for new vs old output ≥80% on a 50-pair blind set;
 corpus ≥90% on scorer v2 with documented waivers; the three-option UI ships
 candidates that a designer reviewer signs off as "would present to a customer."
+
+> **AD-5 record (2026-08-11) — HARNESS LANDED (judged runs need a key).**
+> Shipped the full taste-loop toolchain: `evals/si/judge/render-batch.mjs`
+> (legacy-vs-solveBest floor-plan PAIRS rendered headlessly to PNG via the
+> repo-standard esbuild→resvg pipeline, manifest for the judge),
+> `judge-pairs.mjs` (blind A/B vision judging with deterministic side
+> randomization; requires ANTHROPIC_API_KEY, exits 0 with a clear skip
+> message without it — the judge is offline calibration, NEVER a gate),
+> `calibrate.mjs` (rubric-metric ↔ judge agreement REPORT — deliberately not
+> an auto-tuner; scorer changes stay reviewed and the ratchets catch
+> regressions), `corpusArrayX()` (extended corpus with deterministic windows
+> + role-hint variation; ADDITIVE — ids suffixed X, every gated corpus
+> byte-identical), and `/api/design-intent` (Holodeck-split intent planner:
+> free text → whitelisted prefs + a lens hint; key-gated 503; it never
+> touches the solver). Key-free contracts pinned by
+> `_cross/taste-loop.eval.mjs` (10 checks). The ≥80% judged-preference
+> acceptance requires an ANTHROPIC_API_KEY run of
+> render-batch → judge-pairs on ~50 pairs — first live calibration is a
+> deploy-environment task. Floors: evals **462/0**, si 180/180, build clean.
 
 ---
 
