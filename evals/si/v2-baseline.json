@@ -1,7 +1,7 @@
 {
   "comment": "AD-1 ratchet floors — these numbers may only go UP. corpusPass = kitchens passing scorer v2 of corpusTotal; mautzDecisions = real-designer decisions the auto-solver reproduces on the golden Mautz room. Update deliberately when a phase lands, never to make CI green.",
   "recorded": "2026-08-11",
-  "corpusPass": 34,
+  "corpusPass": 40,
   "corpusTotal": 60,
   "mautzDecisions": 8,
   "mautzDecisionsTotal": 12

@@ -108,10 +108,14 @@ function counterBeside(run, edge, dir, opts = {}) {
 // adjoin a resolved corner? (solver results carry corners[]; manual results
 // are covered by the corner-unit check inside counterBeside.)
 function cornerEnds(result, wallId) {
+  // The runs never reach position 0 / wallLen on a cornered wall — they stop
+  // at the corner's CONSUMPTION edge (36" in for a lazy susan, 27" for an
+  // open corner's clearance). Anchoring the credit at 0/wallLen meant the
+  // documented corner-continuation credit never actually fired.
   const out = { start: null, end: null };
   for (const c of (result.corners || [])) {
-    if (c.wallB === wallId) out.start = 0;
-    if (c.wallA === wallId) out.end = wallLen(result, wallId);
+    if (c.wallB === wallId) out.start = c.wallBConsumption ?? c.size ?? 0;
+    if (c.wallA === wallId) out.end = wallLen(result, wallId) - (c.wallAConsumption ?? c.size ?? 0);
   }
   return out;
 }
@@ -234,8 +238,9 @@ export function scoreKitchenV2(result, { room = null } = {}) {
   // C-slivers: no door/drawer cabinet under 12" unless a dedicated pull-out.
   const slivers = [...allBase, ...allUpper].filter(c =>
     c.sku && c.width < 12 - 0.01 && c.type !== 'appliance'
+    && c.type !== 'end_panel' && c.type !== 'panel' && c.type !== 'filler'
     && !FILLER_RE.test(c.sku) && !PULLOUT_RE.test(c.sku)
-    && !/^(FC-)?(BEP|WEP|REP|FREP|UDEP|BDEP|EP)/.test(c.sku));
+    && !/^(FC-)?(F?[BW]EP|REP|FREP|UDEP|BDEP|EP)/.test(c.sku));
   M('sliver', 'no sliver cabinets (<12") outside pull-out families', true, slivers.length === 0,
     slivers.slice(0, 3).map(c => `${c.sku}@${c._wall}`).join(' '));
 
@@ -312,7 +317,10 @@ export function scoreKitchenV2(result, { room = null } = {}) {
     const rc = range.position + range.width / 2;
     M('hood-center', 'hood centered over the range (≤1.5")', (hood._wall === (range._wall || range.wall)),
       near(hc, rc, 1.5), `offset ${Math.abs(hc - rc).toFixed(1)}"`);
-    const ups = upperRun(result, hood._wall).filter(c => !HOOD_RE.test(String(c.sku || '')));
+    // Flanks are CABINETRY: 0.75" end panels and fillers aren't a flank, and
+    // counting them produced degenerate "flanks 1"/0"" verdicts.
+    const ups = upperRun(result, hood._wall).filter(c => !HOOD_RE.test(String(c.sku || ''))
+      && c.type !== 'end_panel' && c.type !== 'panel' && !isCounterPassThrough(c));
     const L = ups.filter(c => c.position + c.width <= hood.position + 0.6 && c.position >= hood.position - 42).reduce((a, c) => a + c.width, 0);
     const R = ups.filter(c => c.position >= hood.position + hood.width - 0.6 && c.position <= hood.position + hood.width + 42).reduce((a, c) => a + c.width, 0);
     M('flank-sym', 'upper flanks around the hood balance (min/max ≥0.5)', L > 0 || R > 0,

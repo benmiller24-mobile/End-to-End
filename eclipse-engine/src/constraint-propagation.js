@@ -216,12 +216,15 @@ export class CabinetRun {
 
     current.cab.width = newWidth;
 
-    // Propagate delta to all downstream cabinets
+    // Propagate delta to all downstream cabinets — including the canonical
+    // `.position` field the rest of the pipeline reads (updating only the
+    // _start/_end pair left downstream boxes overlapping in the output).
     let affected = 0;
     let node = current.next;
     while (node) {
       node.cab.position_start = (node.cab.position_start || 0) + delta;
       node.cab.position_end = (node.cab.position_end || 0) + delta;
+      if (typeof node.cab.position === 'number') node.cab.position += delta;
       affected += 1;
       node = node.next;
     }
@@ -647,8 +650,18 @@ export function validateRuns(runs) {
  *   adjustments: Array<{ wallId, index, type, oldWidth, newWidth, reason }>
  * }}
  */
-export function resolveOverflows(runs) {
+export function resolveOverflows(runs, opts = {}) {
   const adjustments = [];
+  // Optional SKU renamer (solver passes resizeSkuWidth): a resized box must
+  // not keep its old width in its name — a B17 built at 16" is a lying label
+  // that downstream SKU-deriving passes turn back into phantom inches.
+  const rename = typeof opts.renameSku === 'function' ? opts.renameSku : null;
+  const applyResize = (cab, newWidth) => {
+    if (rename && cab.sku) {
+      const renamed = rename(cab.sku, newWidth);
+      if (renamed) cab.sku = renamed;
+    }
+  };
 
   for (const [wallId, run] of runs.entries()) {
     let overflow = run.getOverflow();
@@ -689,6 +702,7 @@ export function resolveOverflows(runs) {
         // Can reduce this cabinet
         const newWidth = oldWidth - remainingOverflow;
         run.updateWidth(index, newWidth);
+        applyResize(cab, newWidth);
 
         adjustments.push({
           wallId,
@@ -696,7 +710,7 @@ export function resolveOverflows(runs) {
           type: 'RESIZE',
           oldWidth,
           newWidth,
-          reason: `Reduced to resolve ${overlap.toFixed(1)}" overflow`,
+          reason: `Reduced to resolve ${(remainingOverflow).toFixed(1)}" overflow`,
         });
 
         remainingOverflow = 0;
@@ -705,6 +719,7 @@ export function resolveOverflows(runs) {
         const newWidth = minWidth;
         const reduction = oldWidth - newWidth;
         run.updateWidth(index, newWidth);
+        applyResize(cab, newWidth);
 
         adjustments.push({
           wallId,

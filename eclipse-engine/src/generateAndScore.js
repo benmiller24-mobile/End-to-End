@@ -54,7 +54,10 @@ function arrangementsFromProbe(input, probe) {
       canonicalOrder.indexOf(normType(a.applianceType)) - canonicalOrder.indexOf(normType(b.applianceType)));
     const totalW = ordered.reduce((s, a) => s + a.width, 0);
     const slack = (span1 - span0) - totalW;
-    if (slack < 6) continue;
+    // Zero slack still leaves a real design decision: the ORDER. A sink that
+    // ends the run has a 0" landing no gap budget can fix — only reordering
+    // (mirror) can. Skip only when the appliances genuinely don't fit.
+    if (slack < 0) continue;
 
     // Budget the slack into the gaps after each appliance (+ run end), scaled.
     const wants = ordered.map((a, i) => {
@@ -106,7 +109,7 @@ function* enumerateVariants(input, probe) {
     ? [prefs.cornerTreatment || 'auto']
     : (prefs.cornerTreatment && prefs.cornerTreatment !== 'auto'
       ? [prefs.cornerTreatment]
-      : ['auto', 'lazySusan', 'blindCorner']);
+      : ['auto', 'lazySusan', 'blindCorner', 'open']);
   const drawerOptions = typeof prefs.preferDrawerBases === 'boolean'
     ? [prefs.preferDrawerBases]
     : [true, false];

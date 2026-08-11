@@ -34,10 +34,45 @@ below carries file:line references or numbers, they were verified by running
 > contract permanently. Battery: evals 462/0, si 180/180, suites at floor,
 > build clean.
 >
-> The next levers, in order of expected pass-rate yield: (1) landing-aware
-> fill on the remaining hard-gated kitchens (10 sink/range-landing fails);
-> (2) the `hard-errors` cluster (13 kitchens — inspect the top validator
-> rules); (3) the first keyed judge run to calibrate rubric thresholds.
+> **CLIMB 2 (2026-08-11): landing-aware search + scorer truth — ratchet
+> 34→40.** Five verified defects fixed:
+> (a) `resolveOverflows` (constraint-propagation.js) had a latent
+> `ReferenceError` — its RESIZE adjustment reason referenced an undefined
+> `overlap` variable, so the function ABORTED mid-flight on every resize it
+> ever made (resize applied, adjustments list lost, swallowed by a bare
+> catch). Resizes now also rename the SKU (`renameSku: resizeSkuWidth` —
+> a B17 built at 16″ was a lying label) and propagate `.position` to
+> downstream boxes, and the solver re-measures walls after resolution to
+> drop stale `wall_overflow` findings (the phantom "1-inch overflow" family:
+> K013/K033/K053 et al. carried errors describing pre-resize geometry).
+> The spatial-validator merge now preserves `err.wall` so those entries are
+> re-measurable too.
+> (b) `cornerEnds` (designScore.js) anchored the corner-continuation credit
+> at position 0/wallLen, but runs stop at the corner's CONSUMPTION edge
+> (36″ in for a lazy susan) — the documented landing credit had never fired
+> on unit corners. It now anchors at the consumption edge; the range-landing
+> family (K020/K040/K060) cleared immediately.
+> (c) 0.75″ end panels counted as sliver "cabinets" and as hood "flanks"
+> (degenerate flanks 1″/0″) — panels/fillers are now structurally exempt
+> from both metrics.
+> (d) `arrangementsFromProbe` skipped zero-slack walls entirely, but ORDER
+> is a design decision that needs no slack (a sink that ends the run has a
+> 0″ landing only reordering can fix) — arrangements now emit whenever the
+> appliances fit.
+> (e) `cornerTreatment: 'open'` is now a first-class treatment (no corner
+> unit; wall A keeps its full run, wall B clears 27″) and a corner-grid
+> option in solveBest — the pro move when a corner unit would starve an
+> appliance wall of its landings.
+> Corpus 34→40 (K007/K010/K013→craft… net +6 passes, phantom-overflow and
+> range-landing families cleared); Mautz 14/14 checks; battery: evals
+> 462/0, si 180/180, suites at floor, build clean.
+>
+> The next levers, in order of expected pass-rate yield: (1) upper-run
+> composition on long appliance walls — the K013 family fails on 9″ sliver
+> uppers, off-ladder 14″ uppers, and bare hood flanks; (2) prep-zone-aware
+> gap allocation in arrangements (32″ best-side vs the 36″ metric);
+> (3) the `hard-bases`/buffer families are largely honest infeasibility
+> (120″ single walls carrying 3 appliances); (4) the first keyed judge run.
 
 ---
 

@@ -610,7 +610,9 @@ export function solve(input) {
   const corners = resolveCorners(walls, layoutType, pf, wallFrames);
   for (const c of corners) {
     if (c.openCorner) {
-      noteDecision('corners', `Walls ${c.wallA}/${c.wallB} meet at ${c.turn}° — no manufactured corner unit fits a non-right corner, so ${c.size}" per leg is reserved open.`);
+      noteDecision('corners', c.patternId === 'open_corner_explicit'
+        ? `Corner ${c.wallA}/${c.wallB} left OPEN — no corner unit, so wall ${c.wallA} keeps its full run for appliances and landings; the countertop wraps the dead corner.`
+        : `Walls ${c.wallA}/${c.wallB} meet at ${c.turn}° — no manufactured corner unit fits a non-right corner, so ${c.size}" per leg is reserved open.`);
     } else {
       const WHY = {
         lazy_susan_explicit: 'as requested', lazy_susan_auto: 'best access for these run lengths',
@@ -1258,10 +1260,12 @@ export function solve(input) {
     spatialReport = validateSpatialLayout({ walls: wallLayouts, uppers: upperLayouts, corners, accessories, talls }) || spatialReport;
   } catch (_e) { validation.push({ severity: 'warning', rule: 'spatial_validation_error', message: `Spatial validation skipped: ${_e.message}` }); }
   for (const err of (spatialReport.errors || [])) {
-    validation.push({ severity: 'error', rule: err.rule, message: err.message, fix: err.fix });
+    // Keep `wall` — the late overflow-resolution pass re-measures per wall to
+    // drop findings the resize just fixed, and can't match an entry without it.
+    validation.push({ severity: 'error', rule: err.rule, message: err.message, fix: err.fix, wall: err.wall });
   }
   for (const warn of (spatialReport.warnings || [])) {
-    validation.push({ severity: 'warning', rule: warn.rule, message: warn.message, fix: warn.fix });
+    validation.push({ severity: 'warning', rule: warn.rule, message: warn.message, fix: warn.fix, wall: warn.wall });
   }
 
   // ── Build path-based molding segments for renderer ──
@@ -1731,7 +1735,7 @@ export function solve(input) {
       }
       // Attempt auto-resolution of overflows
       try {
-        const resolved = resolveOverflows(cabinetRuns);
+        const resolved = resolveOverflows(cabinetRuns, { renameSku: resizeSkuWidth });
         if (resolved && !resolved.resolved) {
           for (const adj of (resolved.adjustments || [])) {
             validation.push({
@@ -1739,6 +1743,22 @@ export function solve(input) {
               rule: 'overflow_unresolved',
               message: adj.message || `Unresolved overflow on wall ${adj.wallId}`,
             });
+          }
+        }
+        // The wall_overflow findings above were recorded BEFORE this resolve —
+        // if the resize just made a wall fit, those findings describe geometry
+        // that no longer exists. Re-measure and drop the stale ones (an entry
+        // for a wall that still overflows stays).
+        if (resolved && (resolved.adjustments || []).some(a => a.type === 'RESIZE')) {
+          for (let i = validation.length - 1; i >= 0; i--) {
+            const v = validation[i];
+            if (v.rule !== 'wall_overflow' || !v.wall) continue;
+            const wl = wallLayouts.find(w => w.wallId === v.wall);
+            if (!wl) continue;
+            const ext = Math.max(0, ...(wl.cabinets || [])
+              .filter(c => typeof c.position === 'number' && c.type !== 'end_panel')
+              .map(c => c.position + (c.width || 0)));
+            if (ext <= wl.wallLength + 0.5) validation.splice(i, 1);
           }
         }
       } catch (_) { /* overflow resolution is best-effort */ }
@@ -2392,6 +2412,20 @@ function selectCornerTreatment(wallA, wallB, prefs) {
   const bLen = wallB.length;
 
   // User explicit overrides
+  // OPEN corner (90°): no corner unit at all — wall A's run dies into the
+  // corner (0" consumed) and wall B's run clears A's 24"-deep boxes + filler.
+  // Trades the corner storage for full run length on A; the countertop still
+  // wraps the dead corner. A real designer reaches for this when the corner
+  // unit would starve an appliance wall of its landings.
+  if (prefs.cornerTreatment === "open") {
+    return {
+      type: "open", sku: null, size: 0,
+      wallAConsumption: 0, wallBConsumption: 27,
+      fillerRequired: false, fillerWidth: 0,
+      openCorner: true, turn: 90,
+      patternId: "open_corner_explicit", efficiency: 50,
+    };
+  }
   if (prefs.cornerTreatment === "lazySusan" && aLen >= 36 && bLen >= 36) {
     return {
       type: "lazySusan", sku: "BL36-SS-PH", size: 36,
