@@ -160,7 +160,9 @@ function better(a, b) {
  */
 export function solveBest(input, opts = {}) {
   const budget = Math.max(1, opts.candidates ?? 16);
-  const room = { walls: input.walls || [] };
+  // appliances ride along so the scorer can hard-gate width fidelity —
+  // requested widths are a contract, not a suggestion.
+  const room = { walls: input.walls || [], appliances: input.appliances || [] };
   const scored = [];
   let best = null, explored = 0;
 

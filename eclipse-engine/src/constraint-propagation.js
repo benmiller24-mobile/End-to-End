@@ -318,6 +318,15 @@ export function classifyAnchor(cabinet) {
   const type = cabinet.type || '';
   const sku = cabinet.sku || '';
 
+  // ── The solver's REAL schema (the checks below predate it): appliances are
+  // { type: 'appliance', applianceType: 'range', sku: undefined } — they are
+  // FIXED-WIDTH objects and must never be resized to resolve an overflow
+  // (this is how a 30" range shipped at 47.25"). Sink bases and corner units
+  // carry family SKUs, not family `type` strings.
+  if (type === 'appliance' || cabinet.applianceType) return ANCHOR_TYPES.SECONDARY;
+  if (/^(FC-)?(BBC|BL\d|BLS|BLSB|WSC|SWSC|WSE|DSB)/.test(sku)) return ANCHOR_TYPES.PRIMARY;
+  if (/^(FC-)?(SB|VSB|IWS|FLVSB)\d/.test(sku)) return ANCHOR_TYPES.SECONDARY;
+
   // PRIMARY ANCHORS: Corner cabinets
   if (
     type === 'BBC' ||

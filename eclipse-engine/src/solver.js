@@ -2565,6 +2565,18 @@ function selectCornerTreatment(wallA, wallB, prefs) {
 // This creates a finished, built-in look instead of showing cabinet sides.
 
 function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
+  // A panel may only go into genuinely FREE space. When a run butts an
+  // appliance (galley fridge at position 0), inserting the 0.75" panel at
+  // minPos-0.75 overlaps the appliance and overflow resolution then shrinks
+  // a real box to pay for it (the fridge shipped at 35.25" this way).
+  const intervalFree = (layout, start, end) =>
+    !layout.cabinets.some(c => {
+      const w = c.width || 0;
+      if (!(w > 0)) return false;
+      const p = c.position || 0;
+      return p < end - 0.01 && p + w > start + 0.01;
+    });
+
   for (const wl of wallLayouts) {
     const baseCabs = wl.cabinets.filter(c => c.type === "base" || c.type === "corner");
     if (baseCabs.length === 0) continue;
@@ -2579,7 +2591,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     const maxPos = Math.max(...positions.map(p => p.pos + p.width));
 
     // Left end panel: add if no left corner consuming that space
-    if (!leftCorner && minPos > 0) {
+    if (!leftCorner && minPos > 0 && intervalFree(wl, minPos - 0.75, minPos)) {
       wl.cabinets.push({
         sku: "BEP3/4-FTK-L/R",
         width: 0.75,
@@ -2594,7 +2606,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     if (!rightCorner) {
       const wallDef = walls.find(w => w.id === wl.wallId);
       const wallLen = wallDef?.length || 96;
-      if (maxPos < wallLen) {
+      if (maxPos < wallLen && intervalFree(wl, maxPos, maxPos + 0.75)) {
         wl.cabinets.push({
           sku: "BEP3/4-FTK-L/R",
           width: 0.75,
@@ -2626,7 +2638,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     const upperH = firstUpper.height || 39;
 
     // Left FWEP
-    if (minPos > 0) {
+    if (minPos > 0 && intervalFree(ul, minPos - 0.75, minPos)) {
       ul.cabinets.push({
         sku: "FWEP3/4-L/R-27\"",
         width: 0.75,
@@ -2641,7 +2653,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     // Right FWEP
     const wallDef = walls.find(w => w.id === ul.wallId);
     const wallLen = wallDef?.length || 96;
-    if (maxPos < wallLen) {
+    if (maxPos < wallLen && intervalFree(ul, maxPos, maxPos + 0.75)) {
       ul.cabinets.push({
         sku: "FWEP3/4-L/R-27\"",
         width: 0.75,

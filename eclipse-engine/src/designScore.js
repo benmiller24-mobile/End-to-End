@@ -172,6 +172,31 @@ export function scoreKitchenV2(result, { room = null } = {}) {
   H('hard-geometry', 'no wall overflow, no unpositioned talls', overflow === 0 && undefPos === 0,
     `${overflow} overflowing wall(s), ${undefPos} unpositioned tall(s)`);
 
+  // H-appliance-width: placed appliances keep their requested widths. The
+  // solver may never resize a fixed-width object to resolve an overflow —
+  // a 30" range once shipped at 47.25" and a 36" fridge at 35.25" this way.
+  // Only gated when the caller supplies the requested appliance list.
+  const wantApps = (room?.appliances || []).filter(a => typeof a.width === 'number');
+  if (wantApps.length) {
+    const wanted = new Map();
+    for (const a of wantApps) {
+      const t = normType(a.type);
+      if (!wanted.has(t)) wanted.set(t, []);
+      wanted.get(t).push(a.width);
+    }
+    const badWidths = [];
+    for (const c of allBase) {
+      if (c.type !== 'appliance') continue;
+      const ws = wanted.get(normType(c.applianceType));
+      if (!ws) continue;
+      if (!ws.some(w => Math.abs(w - (c.width || 0)) <= 0.01)) {
+        badWidths.push(`${c.applianceType} placed ${c.width}" (requested ${ws.join('/')}")`);
+      }
+    }
+    H('hard-appliance-width', 'appliances keep their requested widths', badWidths.length === 0,
+      badWidths.slice(0, 3).join('; '));
+  }
+
   // H-sink-landing: 24"/18" of counter beside the sink (NKBA).
   if (sink) {
     const sw = sink._wall || sink.wall;

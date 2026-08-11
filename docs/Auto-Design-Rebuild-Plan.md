@@ -13,13 +13,31 @@ below carries file:line references or numbers, they were verified by running
 > ## EXECUTION STATUS (2026-08-11): AD-0 … AD-5 all executed this session —
 > see the per-phase records inline below. Program floors after execution:
 > evals **462/0** (baseline 397/0 pre-program), si crash-freedom 180/180,
-> scorer-v2 corpus ratchet **28/60**, Mautz decisions-reproduced ratchet
+> scorer-v2 corpus ratchet **34/60**, Mautz decisions-reproduced ratchet
 > **8/12** (audit baseline 4/16), engine suites byte-stable throughout.
-> The next levers, in order of expected pass-rate yield: (1) appliance-width
-> fidelity — the solver resizes fixed-width appliances during fill (range
-> 30″→47.25″ evidenced on K013-arranged), eroding arranged landing budgets;
-> (2) landing-aware fill on the remaining hard-gated kitchens; (3) the first
-> keyed judge run to calibrate rubric thresholds.
+>
+> **CLIMB 1 (2026-08-11, post-AD-5): appliance-width fidelity — DONE, ratchet
+> 28→34.** A property-setter trap proved the mutation site: `classifyAnchor`
+> (constraint-propagation.js) predates the solver's real schema, so appliances
+> (`{type:'appliance', applianceType, sku:undefined}`) fell through to FLEX and
+> `resolveOverflows`→`CabinetRun.updateWidth` resized them (range 30″→47.25″,
+> fridge 36″→35.25″). Two fixes: (a) classifyAnchor now recognizes the real
+> schema — appliances/sink-bases SECONDARY, corner families PRIMARY; (b) the
+> upstream defect the trap then exposed: `addEndPanels` (solver.js) inserted
+> the 0.75″ BEP/FWEP at `minPos-0.75` without checking the space was FREE — in
+> every galley with a fridge at position 0 the panel landed on top of the
+> fridge and overflow resolution shrank a real box to pay for it. Panels now
+> require a genuinely free interval. Corpus 28→34 (K014/K017/K034/K037/K054/
+> K057 newly pass); appliance widths verified exact on all 60 kitchens; new
+> HARD gate `hard-appliance-width` in scorer v2 (active whenever the caller
+> passes the requested appliance list — solveBest always does) locks the
+> contract permanently. Battery: evals 462/0, si 180/180, suites at floor,
+> build clean.
+>
+> The next levers, in order of expected pass-rate yield: (1) landing-aware
+> fill on the remaining hard-gated kitchens (10 sink/range-landing fails);
+> (2) the `hard-errors` cluster (13 kitchens — inspect the top validator
+> rules); (3) the first keyed judge run to calibrate rubric thresholds.
 
 ---
 
