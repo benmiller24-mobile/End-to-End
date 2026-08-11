@@ -184,6 +184,30 @@ a regression eval:
 Acceptance: new `evals/_cross/autodesign-defects.eval.mjs` red→green on each item;
 existing floors intact.
 
+> **AD-0 record (2026-08-11) — DONE.** All eight defect classes fixed and pinned
+> by `evals/_cross/autodesign-defects.eval.mjs` (22 checks): (1) appliance-
+> position sync extracted and re-run after `centerCookingZone` — galley_island's
+> hood now centers at 0.0″ offset (was 25.5″ off with a cabinet over the
+> cooktop); (2) `resizeSkuWidth()` replaces all six `sku.replace(/\d+/,…)`
+> sites (family prefixes B3D/B4D/B2HD/B2TD/U3D and W{w}{h} uppers preserved);
+> (3) one WSC24-PH per corner (was a duplicated pair — every auto kitchen
+> double-priced its upper corners); (4) dropped-appliance guard: a requested
+> appliance missing from output (and not hosted by a sink base / oven tower /
+> wine tall) raises severity=error — island_double and u_shape_gourmet now
+> carry HONEST errors for wall ovens the solver never placed; (5) wine-cooler
+> integration talls anchor to their placed appliance (were position=undefined
+> in 4 templates), wall-overflow normalization slides stray lead offsets home
+> (single_wall_entertainer 242.25″→240″), zero mid-run end panels; (6) the
+> three always-crashing passes now RUN: part-ID/BOM (room-code map + wall-map
+> adapter + a buildBOM-never-existed fix in part-id-generator.js — 509 parts
+> now generate across templates), style morphing (flat-cabinet adapter),
+> vertical alignment (.position→.x adapter — first honest score: 28/100);
+> (7) `moldingPaths?.length` object-gate fixed — crown + light-rail extrusions
+> generate for the first time; (8) walls[]/placements[] re-compiled after late
+> mutations, so they can never disagree. Door-swing warnings name real objects.
+> Floors: evals **419/0** (was 397/0), si corpus 180/180, engine suites
+> unchanged, build clean.
+
 ### Phase AD-1 — Scorer v2: move the goalposts to reality (~2 sessions)
 Build the scorer that would have failed today's output, BEFORE changing the
 generator (otherwise we can't see improvement):
