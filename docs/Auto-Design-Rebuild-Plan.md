@@ -302,6 +302,33 @@ Acceptance: corpus pass-rate on scorer v2 jumps from single digits to ≥60%;
 Mautz decisions-reproduced ≥10/16; determinism eval (same input → same design,
 twice); solve time <2s per kitchen; all existing suite floors hold.
 
+> **AD-3 record (2026-08-11) — CORE LANDED; quality targets partially met.**
+> Shipped `eclipse-engine/src/generateAndScore.js` — `solveBest(input)`:
+> probe-solve → enumerate candidate compositions (probe-derived DESIGNED
+> ARRANGEMENTS that cluster appliances with NKBA landing budgets in the gaps,
+> treating a probe sink BASE as the sink, pinning arranged positions, and
+> disabling the re-centering pass that fought them via a `_noRecenter` engine
+> flag; plus corner-strategy / drawer / appliance-rec lever grid) → rank every
+> candidate with the engine-side rubric (`designScore.js`, moved from evals
+> with a re-export — one source of truth) → deterministic argmax that EXPLAINS
+> its pick in `result.decisions`. Wired as the product path: dealer app auto
+> mode (`prefs._legacySolve` keeps the old single-pass for A/B) and the
+> consumer embed; both ratchet evals now exercise `solveBest`. Perf: avg
+> ~0.4-0.6s, max 1.2s per kitchen (<2s gate ✓); deterministic ✓; floors all
+> hold (evals 452/0, si 180/180, suites byte-stable).
+> **Honest numbers:** corpus pass stays **28/60** and Mautz **8/12** — the
+> search converts several hard-fails to craft-fails and lifts scores inside
+> failing kitchens, but the PASS thresholds are dominated by (a) craft fails
+> the generator can't reach by re-arranging (sliver ×60, flank-sym ×38 — the
+> AD-4 composer's exact scope), (b) late solver passes still partially
+> fighting arranged landings (diagnosed: pinned positions honored ±6″, then
+> fill/panel passes erode gap budgets), and (c) genuinely NKBA-infeasible
+> corpus rooms (a 120″ single wall with 3 appliances cannot meet 24″/18″ sink
+> landings — correctly failing forever). The ≥60% / ≥10-16 targets carry
+> forward as the ratchet's next climbs, not as claims. En-route fixes: two
+> scorer walk defects (zero-width loop, non-monotonic cursor on overlapping
+> parts — both could hang CI) found and fixed.
+
 ### Phase AD-4 — Vertical composition: the focal wall (~2 sessions)
 The visual review's biggest gap: uppers as designed composition, not base-seam
 echo. Range-wall composer (hood centered ≤1.5″, mirror-symmetric flanking uppers,

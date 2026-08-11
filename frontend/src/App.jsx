@@ -15,6 +15,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // ── Direct solver/pricing imports ──
 import { solve, scoreAgainstTraining } from '../../eclipse-engine/src/solver.js';
+import { solveBest } from '../../eclipse-engine/src/generateAndScore.js';
 import { solveOptions } from '../../eclipse-engine/src/designOptions.js';
 import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
 import { recommendAppliances } from '../../eclipse-engine/src/appliance-recommender.js';
@@ -3036,9 +3037,13 @@ export default function App() {
       if (island) input.island = island;
       if (peninsula) input.peninsula = peninsula;
 
+      // AUTO mode goes through generate-and-score (AD-3): candidate
+      // compositions explored and ranked by the designer rubric; the search
+      // explains its pick in result.decisions. Legacy single-pass behavior is
+      // one flag away for A/B comparison.
       const result = designMode === 'manual'
         ? buildManualResult({ walls: wallsC, items: manualItems, island, roomType, layoutType })
-        : solve(input);
+        : (prefs._legacySolve ? solve(input) : solveBest(input).result);
 
       // Metric / price-group lines (e.g. pronorm) are solved in the W.W. inch
       // lingua franca, then REALIZED into the active tenant's catalogue — the

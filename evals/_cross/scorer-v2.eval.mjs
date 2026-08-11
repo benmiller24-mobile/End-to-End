@@ -13,7 +13,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { suite } from '../_lib.mjs';
-import { solve } from '../../eclipse-engine/src/index.js';
+import { solveBest } from '../../eclipse-engine/src/index.js';
 import { corpusArray } from '../si/corpus.mjs';
 import { scoreKitchenV2 } from '../si/scoreKitchenV2.mjs';
 import { realDesign } from '../si/mautzRoom.mjs';
@@ -52,8 +52,7 @@ export default async function run() {
   for (const k of corpusArray(BASELINE.corpusTotal)) {
     const walls = k.walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || k.ceiling || 96 }));
     const input = { layoutType: k.layoutType, roomType: 'kitchen', walls, appliances: k.appliances, prefs: k.prefs || {}, applyApplianceRec: true, ...(k.island ? { island: k.island } : {}) };
-    let r; try { r = solve(input); } catch { n++; continue; }
-    const v2 = scoreKitchenV2(r, { room: { walls } });
+    let v2; try { v2 = solveBest(input).score; } catch { n++; continue; }
     n++; if (v2.pass) pass++;
     else {
       const key = v2.hardFails[0]?.split(':')[0] || v2.metrics.filter(m => !m.hard && m.applicable && !m.pass).map(m => m.id).slice(0, 2).join('+');

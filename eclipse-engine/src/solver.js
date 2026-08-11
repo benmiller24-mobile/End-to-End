@@ -742,7 +742,9 @@ export function solve(input) {
   // centered range. Reflows only the movable middle, conserves total width, reverts on any
   // anomaly. Part of the "validate proportions & self-correct before finalizing" pass.
   try {
-    centerCookingZone(wallLayouts);
+    // _noRecenter: a generate-and-score arrangement already budgeted the
+    // cooking position — the permutation pass must not fight it.
+    if (!pf._noRecenter) centerCookingZone(wallLayouts);
     // Re-sync: centering moves appliance objects inside wallLayouts; the hood
     // and upper skip-zones read positions from appByWall.
     syncAppliancePositions();

@@ -11,7 +11,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { suite } from '../_lib.mjs';
-import { solve } from '../../eclipse-engine/src/index.js';
+import { solveBest } from '../../eclipse-engine/src/index.js';
 import { setPricingBrand, findSkuNormalized } from '../../frontend/src/skuResolver.js';
 import { roomInput } from '../si/mautzRoom.mjs';
 
@@ -20,7 +20,7 @@ const BASELINE = JSON.parse(readFileSync(join(HERE, '../si/v2-baseline.json'), '
 
 export default async function run() {
   const s = suite('mautz design diff (decisions reproduced)');
-  const r = solve(roomInput());
+  const r = solveBest(roomInput()).result;
   const P = (r.placements || []).filter(p => p.sku);
   const skus = P.map(p => String(p.sku || ''));
   const talls = r.talls || [];

@@ -9,6 +9,7 @@
  */
 import React, { useMemo, useState, Suspense, lazy } from 'react';
 import { solve } from '../../eclipse-engine/src/solver.js';
+import { solveBest } from '../../eclipse-engine/src/generateAndScore.js';
 import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
 import { getTenant, setTenantPriceGroup } from '../../eclipse-pricing/src/tenants/index.js';
 import { setPricingBrand } from './skuResolver.js';
@@ -70,7 +71,7 @@ function buildSolverResult(spec) {
   setPricingBrand(spec.materials?.brand || spec.brand || 'eclipse');
   const result = spec.items?.length
     ? buildManualResult({ walls: wallsC, items: spec.items, island: spec.island || null, roomType: input.roomType, layoutType: spec.layoutType })
-    : solve(input);
+    : solveBest(input).result;   // consumer auto-designs go through generate-and-score too (AD-3)
   const t = getTenant(spec.materials?.brand || spec.brand || 'eclipse');
   if (t?.realize) {
     const group = spec.priceGroup ?? t.pricing?.defaultGroup ?? '0';
