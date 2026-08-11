@@ -388,6 +388,8 @@ export function solve(input) {
   // Fresh rationale trace for this solve — passes call noteDecision() at the
   // moments a designer would explain; the result exposes them as .decisions.
   __decisions = [];
+  // Real 2D wall frames (AD-2): geometry for triangle/aisle math and renderers.
+  const wallFrames = computeWallFrames(walls, layoutType);
   noteDecision('layout', input.layoutType
     ? `Room read as ${layoutType} across ${walls.length} wall${walls.length === 1 ? '' : 's'}.`
     : `No layout given — inferred ${layoutType} from ${walls.length} wall${walls.length === 1 ? '' : 's'}${island ? ' + island' : ''}.`);
@@ -605,7 +607,7 @@ export function solve(input) {
   }
 
   // Phase 1: Resolve corners (skip for single-wall rooms like vanity)
-  const corners = resolveCorners(walls, layoutType, pf);
+  const corners = resolveCorners(walls, layoutType, pf, wallFrames);
   for (const c of corners) {
     if (c.openCorner) {
       noteDecision('corners', `Walls ${c.wallA}/${c.wallB} meet at ${c.turn}° — no manufactured corner unit fits a non-right corner, so ${c.size}" per leg is reserved open.`);
@@ -1177,7 +1179,7 @@ export function solve(input) {
   }
 
   // Phase 7: Validate (pass roomType for context-aware validation)
-  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls, walls);
+  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls, walls, wallFrames);
   const validation = validateLayout(validationInput);
   // Merge filler issues collected during Phase 4d (before `validation` existed)
   if (earlyFillerIssues.length) validation.push(...earlyFillerIssues);
@@ -2041,6 +2043,7 @@ export function solve(input) {
     roomType,
     applianceRecommendation: (() => { const _r = recommendAppliances({ layoutType, walls, island: islandLayout }); _r.applied = _applianceApplied; return _r; })(),
     _inputWalls: walls,
+    _wallFrames: wallFrames,         // real 2D wall frames (AD-2 roomGeometry)
     _spatialModel: spatialModel,     // expose for renderer
     _3dModel,                        // OCP solid geometry validation
     walls: wallLayouts,
@@ -2136,6 +2139,8 @@ export function solve(input) {
 }
 
 
+import { computeWallFrames, worldPoint, cornerAdjacency } from './roomGeometry.js';
+
 // ─── DESIGN RATIONALE TRACE ─────────────────────────────────────────────────
 // solve() resets this at entry and reads it into result.decisions; passes call
 // noteDecision(pass, text, rule?) wherever a real design choice is made. solve()
@@ -2165,24 +2170,32 @@ function normalizeLayoutType(lt) {
   return MAP[s] || lt;
 }
 
-function resolveCorners(walls, layoutType, prefs) {
+function resolveCorners(walls, layoutType, prefs, wallFrames = null) {
   const corners = [];
 
   if (layoutType === "single-wall" || layoutType === "single-wall-island" || layoutType === "galley") return corners;
 
-  // Identify corner pairs based on layout type
-  const pairs = [];
-  if (layoutType === "l-shape" && walls.length >= 2) {
-    pairs.push([walls[0].id, walls[1].id]);
+  // Corner pairs come from GEOMETRY when frames are available (walls that
+  // actually share an endpoint — AD-2), with the historical array-order
+  // mapping as fallback. For the standard CCW walk these agree; for odd wall
+  // orders only the geometric answer is right.
+  let pairs = [];
+  if (wallFrames && wallFrames.length >= 2) {
+    pairs = cornerAdjacency(wallFrames).map(p => [p.wallA, p.wallB]);
   }
-  if (layoutType === "u-shape" && walls.length >= 3) {
-    pairs.push([walls[0].id, walls[1].id]);
-    pairs.push([walls[1].id, walls[2].id]);
-  }
-  if (layoutType === "g-shape" && walls.length >= 4) {
-    pairs.push([walls[0].id, walls[1].id]);
-    pairs.push([walls[1].id, walls[2].id]);
-    pairs.push([walls[2].id, walls[3].id]);
+  if (!pairs.length) {
+    if (layoutType === "l-shape" && walls.length >= 2) {
+      pairs.push([walls[0].id, walls[1].id]);
+    }
+    if (layoutType === "u-shape" && walls.length >= 3) {
+      pairs.push([walls[0].id, walls[1].id]);
+      pairs.push([walls[1].id, walls[2].id]);
+    }
+    if (layoutType === "g-shape" && walls.length >= 4) {
+      pairs.push([walls[0].id, walls[1].id]);
+      pairs.push([walls[1].id, walls[2].id]);
+      pairs.push([walls[2].id, walls[3].id]);
+    }
   }
 
   for (const [wA, wB] of pairs) {
@@ -8412,7 +8425,7 @@ function ensureRecyclingAndCornerStorage(wallLayouts, islandLayout, prefs) {
   }
 }
 
-function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = [], inputWalls = []) {
+function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = [], inputWalls = [], wallFrames = null) {
   // Build appliance list with ACTUAL positions and landing clearances
   // from the solved wall layouts — not estimated from cumulative widths.
   const appWithPositions = [];
@@ -8476,21 +8489,21 @@ function buildValidationInput(wallLayouts, islandLayout, appliances, corners, ro
       // Find original appliance data
       const origApp = appliances.find(a => a.type === ac.applianceType && a.model === ac.model) || {};
 
-      // Compute 2D coordinates for work triangle calculation.
-      // Wall A runs along x-axis (y=0), wall B runs along y-axis (x=wallA.length)
-      // for L-shape layouts.  For single-wall, everything is on x-axis.
-      const wallIdx = wallLayouts.findIndex(w => w.wallId === wall.wallId);
+      // Compute 2D coordinates for work triangle calculation from the REAL
+      // wall frames (AD-2). The old builder collapsed every wall after index 0
+      // onto one axis — wall C of a U got wall B's coordinates and triangle
+      // math was fiction. Falls back to the legacy mapping only when frames
+      // are unavailable.
       const appCenter = ac.position + ac.width / 2;
       let x2d, y2d;
-      if (wallIdx === 0) {
-        // First wall: along x-axis
-        x2d = appCenter;
-        y2d = 0;
+      const frame = wallFrames && wallFrames.find(f => f.id === wall.wallId);
+      if (frame) {
+        const pt = worldPoint(frame, appCenter);
+        x2d = pt.x; y2d = pt.y;
       } else {
-        // Second wall (L-shape): along y-axis from the junction
-        const wallALen = wallLayouts[0]?.wallLength || 0;
-        x2d = wallALen;
-        y2d = appCenter;
+        const wallIdx = wallLayouts.findIndex(w => w.wallId === wall.wallId);
+        if (wallIdx === 0) { x2d = appCenter; y2d = 0; }
+        else { x2d = wallLayouts[0]?.wallLength || 0; y2d = appCenter; }
       }
 
       appWithPositions.push({

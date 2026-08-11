@@ -263,6 +263,27 @@ Acceptance: byte-identical output on the corpus for kitchens with no desync bugs
 (proving the refactor is behavior-preserving), corrected output where bugs fired;
 geometry unit evals (corner pairs, triangle on U-shape).
 
+> **AD-2 record (2026-08-11) — DONE (scoped).** Shipped
+> `eclipse-engine/src/roomGeometry.js`: real 2D wall frames (CCW right-angle
+> walk matching the renderers, 45/135° turns honored, galley as parallel walls
+> at the documented 96″ aisle assumption), `worldPoint()` wall-local→room
+> mapping, and `cornerAdjacency()` (walls that actually share an endpoint).
+> Wired: solve() computes frames once and exposes `_wallFrames`;
+> buildValidationInput's coordinate builder now uses them — **work-triangle
+> math is real on U/G shapes for the first time** (a 156/120/156 U with sink
+> and range on opposite legs now measures 120″/180″ legs instead of fiction);
+> resolveCorners derives pairs from geometry with the historical array-order
+> mapping as fallback. Pinned by `_cross/room-geometry.eval.mjs` (13 checks).
+> Behavior-preservation verified: every floor identical after the change
+> (evals 452/0, si 180/180, v2 28/60, all suites byte-stable).
+> **Honest scope call:** the full "single placement model with derived views"
+> rewrite is NOT done here. AD-0 already made the mirrors coherent at the
+> points that mattered (extracted syncAppliancePositions + late re-compile,
+> both eval-pinned), and rewriting 8,900 lines of state plumbing immediately
+> before AD-3 replaces the generation core would be churn for its own sake —
+> the one-truth run model arrives WITH the AD-3 enumerator, which owns its
+> state from birth.
+
 ### Phase AD-3 — The generate-and-score core (~3-4 sessions)
 1. Refactor the per-wall packer into a **candidate enumerator**: branch points at
    appliance placement (following the professional sequence: appliances first,
