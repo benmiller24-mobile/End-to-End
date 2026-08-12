@@ -2372,11 +2372,15 @@ function resolveCorners(walls, layoutType, prefs, wallFrames = null) {
       // ── 30% WALL CONSUMPTION GUARD ──
       // If the corner consumes >30% of either wall, downgrade to BL36 or blind corner.
       // This ensures enough run remains for appliances + flanking cabinets.
-      const consumeA = treatment.wallAConsumption || treatment.size || 36;
-      const consumeB = treatment.wallBConsumption || treatment.size || 36;
+      // `??` not `||`: an OPEN corner's 0" consumption is a real value — the
+      // old falsy-chain read it as "missing → 36" and downgraded an explicit
+      // open corner to a lazy susan on one junction (a design the user's
+      // corner:open contract never asked for).
+      const consumeA = treatment.wallAConsumption ?? treatment.size ?? 36;
+      const consumeB = treatment.wallBConsumption ?? treatment.size ?? 36;
       const pctA = consumeA / wallA.length;
       const pctB = consumeB / wallB.length;
-      if ((pctA > 0.30 || pctB > 0.30) && treatment.type !== 'blindCorner' && treatment.type !== 'lazySusan') {
+      if ((pctA > 0.30 || pctB > 0.30) && treatment.type !== 'blindCorner' && treatment.type !== 'lazySusan' && !treatment.openCorner) {
         // Downgrade: try BL36 lazy susan (36" per wall, most common in training)
         if (wallA.length >= 36 && wallB.length >= 36) {
           treatment = {
