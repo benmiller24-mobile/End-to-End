@@ -15,6 +15,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 // ── Direct solver/pricing imports ──
 import { solve, scoreAgainstTraining } from '../../eclipse-engine/src/solver.js';
+import { solveBest } from '../../eclipse-engine/src/generateAndScore.js';
+import { solveOptions } from '../../eclipse-engine/src/designOptions.js';
 import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
 import { recommendAppliances } from '../../eclipse-engine/src/appliance-recommender.js';
 import {
@@ -28,13 +30,14 @@ import {
 import { modChargeList, ROT_OPTIONS } from '../../eclipse-pricing/src/modData.js';
 import { SECTIONS, TYPE_NAMES } from '../../eclipse-pricing/src/skuCatalog.js';
 import { setPricingBrand, findSkuNormalized } from './skuResolver.js';
+import { buildCounterQuote, counterQuoteDeltas } from './counterQuote.js';
 export { setPricingBrand, findSkuNormalized };
 import { buildOrderItems, generateOrderPackage } from './orderPackage.js';
 import DesignStudio from './DesignStudio.jsx';
 import { buildManualResult, seedFromSolverResult, competes, newId, ISLAND_WALL } from './manualDesign.js';
 import FloorplanImport from './FloorplanImport.jsx';
 import { evaluateOrderReadiness } from './orderReadiness.js';
-import { parseAcknowledgment, reconcile } from './ackReconcile.js';
+import { parseAcknowledgment, reconcile, buildGoldenOrderEval } from './ackReconcile.js';
 
 // ── Template & data imports ──
 import { TEMPLATES, getTemplate, listTemplates, getTemplateCategories } from '../../eclipse-engine/src/templates.js';
@@ -53,12 +56,13 @@ import {
 import { CONSTRUCTIONS, getConstruction } from './constructionProfiles.js';
 import { getTenant, listTenants, setTenantPriceGroup } from '../../eclipse-pricing/src/tenants/index.js';
 import ProductLinesManager from './ProductLinesManager.jsx';
-import { loadLocalTenantPackages } from './tenantLocal.js';
+import { loadLocalTenantPackages, syncTeamTenantPackages } from './tenantLocal.js';
 
 // Register product lines added on this device (in-app PDF onboarding) before
 // the first render reads the tenant registry.
 loadLocalTenantPackages();
-import { listProjects, loadProject, saveProject, deleteProject, newProjectId, addRevision, getRevisions } from './lib/projectStore.js';
+import { listProjects, loadProject, saveProject, deleteProject, newProjectId, addRevision, getRevisions, syncProjectsFromCloud } from './lib/projectStore.js';
+import { supabaseConfigured, getSupabase } from './lib/supabase.js';
 import FloorPlanView from './FloorPlanView.jsx';
 import ElevationView from './ElevationView.jsx';
 import ApplianceRecommendationPanel from './ApplianceRecommendationPanel.jsx';
@@ -1118,15 +1122,41 @@ function AccessoryCatalogPanel({ lines, onChange, quote }) {
 }
 
 // ==================== ACK RECONCILIATION (T3b) ====================
-// The dealer has 24 hours to review the W.W. Wood confirmation. Paste its
-// text (open the PDF → select all → copy) and diff it against this quote.
-function AckCheckPanel({ quote }) {
+// The dealer has a short window to review the manufacturer's confirmation.
+// Paste its text (open the PDF → select all → copy) and diff it against this
+// quote. The confirmation's SHAPE comes from the tenant's ackFormat config —
+// no manufacturer-specific parsing in code.
+function AckCheckPanel({ quote, brand }) {
   const [text, setText] = useState('');
   const [result, setResult] = useState(null);
+  const tenant = getTenant(brand);
 
   const run = () => {
-    const ack = parseAcknowledgment(text);
+    const ack = parseAcknowledgment(text, tenant.ackFormat);
     setResult({ ack, rec: reconcile(ack, quote) });
+  };
+
+  // Trust flywheel: a ZERO-VARIANCE reconciliation becomes a permanent
+  // regression eval — pin every acknowledged line the live resolver already
+  // reproduces to the penny, download it ready to commit to evals/<tenant>/.
+  const promoteFixture = () => {
+    if (!result?.rec?.clean) return;
+    setPricingBrand(brand);
+    const lines = [], skipped = [];
+    for (const it of (result.ack.items || [])) {
+      let e = null;
+      try { e = findSkuNormalized(it.sku); } catch { /* unpinnable */ }
+      if (e && !e.error && Math.abs((e.p || 0) - it.total) <= 0.02) lines.push([it.sku, e.p]);
+      else skipped.push(it.sku);
+    }
+    if (!lines.length) return;
+    const src = buildGoldenOrderEval({ tenantId: brand, orderNumber: result.rec.orderNumber, lines, skipped });
+    const blob = new Blob([src], { type: 'text/javascript' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `order-${result.rec.orderNumber || 'reconciled'}.eval.mjs`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   return (
@@ -1136,7 +1166,7 @@ function AckCheckPanel({ quote }) {
         When the order confirmation arrives, open the PDF, select all, copy, and paste it here. Every line is diffed against this quote so corrections can go back to orders@wwinc.com the same day.
       </p>
       <textarea value={text} onChange={e => setText(e.target.value)} rows={5}
-        placeholder="Paste the full text of the W.W. Wood order confirmation here…"
+        placeholder={`Paste the full text of the ${tenant.branding.manufacturerName} order confirmation here…`}
         style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 11, resize: 'vertical' }} />
       <button onClick={run} disabled={!text.trim()} style={{ ...btnPrimary, marginTop: 8, opacity: text.trim() ? 1 : 0.5 }}>
         Reconcile against quote
@@ -1154,6 +1184,16 @@ function AckCheckPanel({ quote }) {
                 ? `✓ CLEAN — ${rec.matched.length} line${rec.matched.length === 1 ? '' : 's'} match${ack.orderNumber ? ` (order #${ack.orderNumber})` : ''}. Subtotal agrees${rec.ackTotals.cabinetTotal != null ? ` at ${formatCurrency(rec.ackTotals.cabinetTotal)}` : ''}.`
                 : `✗ VARIANCES FOUND${ack.orderNumber ? ` (order #${ack.orderNumber})` : ''} — mark these on the acknowledgment and resend within 24 hours.`}
             </div>
+            {rec.clean && (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button onClick={promoteFixture} style={{ ...btnOutline, fontSize: 12 }}>
+                  ⤓ Save as regression fixture
+                </button>
+                <span style={{ fontSize: 10.5, color: C.dim }}>
+                  Pins every reconciled line as a golden-order eval — drop the file into <code>evals/{brand}/</code> and commit; this order then guards pricing forever.
+                </span>
+              </div>
+            )}
             {rec.totalDelta != null && Math.abs(rec.totalDelta) > 0.02 && (
               <div style={{ marginTop: 8, fontSize: 13 }}>
                 <strong>Cabinet Total:</strong> acknowledgment {formatCurrency(rec.ackTotals.cabinetTotal)} vs quote {formatCurrency(rec.quoteSubtotal)} —{' '}
@@ -1210,6 +1250,334 @@ const MULTIPLIER_PRESETS = [
 function loadDealerSettings() {
   try { return { ...DEALER_DEFAULTS, ...(JSON.parse(localStorage.getItem(DEALER_SETTINGS_KEY)) || {}) }; }
   catch { return { ...DEALER_DEFAULTS }; }
+}
+
+// ── Dealer taste memory (design-option lenses) ──
+// Every adopted option votes for its lens; future solves surface that lens
+// first. Device-local, honest learning — no model, just counts.
+const LENS_PREF_KEY = 'ekd.lensPrefs.v1';
+function loadLensOrder() {
+  try { const c = JSON.parse(localStorage.getItem(LENS_PREF_KEY)) || {}; return Object.keys(c).sort((a, b) => c[b] - c[a]); }
+  catch { return []; }
+}
+function bumpLensPref(id) {
+  try { const c = JSON.parse(localStorage.getItem(LENS_PREF_KEY)) || {}; c[id] = (c[id] || 0) + 1; localStorage.setItem(LENS_PREF_KEY, JSON.stringify(c)); }
+  catch { /* private mode */ }
+}
+
+/** Tiny top-view schematic of an option — walls walked at right angles with
+ *  base-zone boxes; enough to SEE how the three options differ at a glance.
+ *  (Exported for the headless SSR check.) */
+export function MiniPlan({ result, width = 190 }) {
+  const walls = result._inputWalls || [];
+  if (!walls.length) return null;
+  const D = [[1, 0], [0, -1], [-1, 0], [0, 1]];               // E, N, W, S (CCW walk)
+  const nrm = (d) => [d[1], -d[0]];                           // interior side
+  const segs = [];
+  let dir = 0, px = 0, py = 0;
+  const pts = [[0, 0]];
+  for (const w of walls) {
+    const d = D[dir];
+    segs.push({ id: w.id, x: px, y: py, d, n: nrm(d), len: w.length });
+    px += d[0] * w.length; py += d[1] * w.length;
+    pts.push([px, py]); dir = (dir + 1) % 4;
+  }
+  const boxes = [];
+  for (const p of (result.placements || [])) {
+    if (!p.sku && p.type !== 'appliance') continue;
+    if (!['base', 'tall', 'appliance', 'corner'].includes(p.type)) continue;
+    const seg = segs.find(s => s.id === p.wall || (p.wall || '').startsWith(s.id + '-'));
+    if (!seg || typeof p.position !== 'number') continue;
+    const depth = 24;
+    const x0 = seg.x + seg.d[0] * p.position, y0 = seg.y + seg.d[1] * p.position;
+    const x1 = x0 + seg.d[0] * (p.width || 0) + seg.n[0] * depth;
+    const y1 = y0 + seg.d[1] * (p.width || 0) + seg.n[1] * depth;
+    boxes.push({ x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0), t: p.type });
+  }
+  const allX = [...pts.map(p => p[0]), ...boxes.map(b => b.x), ...boxes.map(b => b.x + b.w)];
+  const allY = [...pts.map(p => p[1]), ...boxes.map(b => b.y), ...boxes.map(b => b.y + b.h)];
+  const minX = Math.min(...allX), maxX = Math.max(...allX), minY = Math.min(...allY), maxY = Math.max(...allY);
+  const island = result.island ? { L: result.island.length || 60, D: result.island.depth || 36 } : null;
+  const pad = 8, sc = (width - 2 * pad) / Math.max(maxX - minX, 1);
+  const H = Math.max((maxY - minY) * sc + 2 * pad, 46) + (island ? 0 : 0);
+  const X = (v) => (v - minX) * sc + pad, Y = (v) => (v - minY) * sc + pad;
+  const FILL = { base: '#d9c9a5', tall: '#b8a074', corner: '#c9b489', appliance: '#e8e6e1' };
+  return (
+    <svg width={width} height={H} style={{ background: '#fcfaf6', borderRadius: 4 }}>
+      {boxes.map((b, i) => (
+        <rect key={i} x={X(b.x)} y={Y(b.y)} width={Math.max(b.w * sc, 1.5)} height={Math.max(b.h * sc, 1.5)}
+          fill={FILL[b.t] || '#ddd'} stroke="#8a7551" strokeWidth={0.5} />
+      ))}
+      {segs.map(s => (
+        <line key={s.id} x1={X(s.x)} y1={Y(s.y)} x2={X(s.x + s.d[0] * s.len)} y2={Y(s.y + s.d[1] * s.len)}
+          stroke="#6b5b3e" strokeWidth={2.5} strokeLinecap="square" />
+      ))}
+      {island && (
+        <rect x={(width - island.L * sc) / 2} y={Y((minY + maxY) / 2) - (island.D * sc) / 2}
+          width={island.L * sc} height={island.D * sc} fill="#d9c9a5" stroke="#6b5b3e" strokeWidth={1} rx={1.5} />
+      )}
+    </svg>
+  );
+}
+
+/** The three-option chooser — the flagship: room in, three explained, priced,
+ *  adoptable designs out. Cyncly accelerates a designer; this replaces the
+ *  blank canvas. */
+export function DesignOptionsPanel({ options, activeLensId, onAdopt, priceResult }) {
+  const prices = useMemo(() => options.map(o => {
+    try { const q = priceResult(o.result); return (q.subtotal || 0) + (q.fabrication?.subtotal || 0); }
+    catch { return null; }
+  }), [options, priceResult]);
+  if (!options || options.length < 2) return null;
+  const bullets = (o) => {
+    const ds = o.result.decisions || [];
+    const pick = ['sink', 'island', 'uppers', 'cooking', 'corners', 'layout'];
+    const out = [];
+    for (const pass of pick) {
+      const d = ds.find(x => x.pass === pass);
+      if (d && out.length < 3) out.push(d.text);
+    }
+    return out;
+  };
+  return (
+    <div style={{ ...panelStyle, border: `1.5px solid ${C.accent}`, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>✦ Three ways to build this room</div>
+        <span style={{ fontSize: 10.5, color: C.dim }}>same walls, three design philosophies — every choice explained, nothing is a black box</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 12, marginTop: 12 }}>
+        {options.map((o) => {
+          const active = o.lens.id === activeLensId;
+          const i = options.indexOf(o);
+          return (
+            <div key={o.lens.id} style={{
+              border: `1.5px solid ${active ? C.accent : C.border}`, borderRadius: 8, padding: 10,
+              background: active ? '#fffdf6' : '#fff',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#5d4d2e' }}>{o.lens.label}</span>
+                {active && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: C.accent, borderRadius: 8, padding: '1px 7px' }}>SHOWING</span>}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.dim, minHeight: 26, marginTop: 2 }}>{o.lens.blurb}</div>
+              <div style={{ margin: '8px 0' }}><MiniPlan result={o.result} /></div>
+              <div style={{ fontSize: 11.5, display: 'flex', gap: 10 }}>
+                <span style={{ fontWeight: 700, color: C.accent }}>{prices[i] != null ? formatCurrency(Math.round(prices[i])) : '—'}</span>
+                <span style={{ color: C.dim }}>{o.summary.cabinets} cabinets</span>
+              </div>
+              {o.training?.closestMatch && (
+                <div style={{ fontSize: 9.5, color: C.dim, marginTop: 2 }}>closest real project: {o.training.closestMatch} ({o.training.confidence}%)</div>
+              )}
+              <ul style={{ margin: '6px 0 0', paddingLeft: 15, fontSize: 10, color: '#555' }}>
+                {bullets(o).map((b, k) => <li key={k} style={{ marginBottom: 2 }}>{b}</li>)}
+              </ul>
+              {!active && (
+                <button onClick={() => onAdopt(o)}
+                  style={{ marginTop: 8, width: '100%', fontSize: 11, fontWeight: 700, padding: '5px 0', cursor: 'pointer', border: 'none', borderRadius: 4, background: C.accent, color: '#fff' }}>
+                  Use this design
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Dealer sign-in (magic link) — appears only when Supabase is configured.
+ *  Signing in turns on cross-device projects + team tenant packages; the app
+ *  is fully functional signed-out (localStorage). */
+function AuthBadge({ onSynced }) {
+  const [session, setSession] = useState(null);
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('');
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const sb = getSupabase();
+    if (!sb) return undefined;
+    sb.auth.getSession().then(({ data }) => setSession(data?.session || null));
+    const { data: sub } = sb.auth.onAuthStateChange((_evt, s) => {
+      setSession(s);
+      if (s) syncProjectsFromCloud().then(n => onSynced?.(n));
+    });
+    return () => sub?.subscription?.unsubscribe();
+  }, [onSynced]);
+  if (!supabaseConfigured) return null;
+  if (session) {
+    return (
+      <span style={{ fontSize: 11.5, color: C.muted, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 7, height: 7, borderRadius: 4, background: '#3a7d44', display: 'inline-block' }} />
+        {session.user?.email}
+        <button onClick={() => getSupabase()?.auth.signOut()} style={{ fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 4, background: 'transparent', color: C.dim }}>
+          sign out
+        </button>
+      </span>
+    );
+  }
+  return (
+    <span style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(o => !o)} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Sign in</button>
+      {open && (
+        <span style={{ position: 'absolute', top: '110%', right: 0, zIndex: 50, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, boxShadow: '0 6px 18px rgba(0,0,0,0.12)', display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="you@dealership.com"
+            style={{ fontSize: 12, padding: '5px 8px', border: `1px solid ${C.border}`, borderRadius: 4, width: 180 }} />
+          <button disabled={!/^\S+@\S+\.\S+$/.test(email)} onClick={async () => {
+            setStatus('sending…');
+            const { error } = await getSupabase().auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
+            setStatus(error ? `failed: ${error.message}` : 'link sent — check your email');
+          }} style={{ fontSize: 12, fontWeight: 700, padding: '5px 10px', cursor: 'pointer', border: 'none', borderRadius: 4, background: C.accent, color: '#fff', whiteSpace: 'nowrap' }}>
+            Send link
+          </button>
+          {status && <span style={{ fontSize: 10.5, color: C.dim, whiteSpace: 'nowrap' }}>{status}</span>}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Design rationale — the active design explains itself, pass by pass. */
+function DesignRationalePanel({ decisions }) {
+  const [open, setOpen] = useState(true);
+  if (!decisions?.length) return null;
+  const TAG = { layout: 'Layout', sink: 'Sink', corners: 'Corners', island: 'Island', cooking: 'Cooking wall', uppers: 'Uppers' };
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>{open ? '▾' : '▸'} Why this design</div>
+        <span style={{ fontSize: 10.5, color: C.dim }}>{decisions.length} decision{decisions.length > 1 ? 's' : ''}, each with its reason — printed on the proposal too</span>
+      </div>
+      {open && (
+        <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 12, color: '#444' }}>
+          {decisions.map((d, i) => (
+            <li key={i} style={{ marginBottom: 5 }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: C.accent, textTransform: 'uppercase', marginRight: 6 }}>{TAG[d.pass] || d.pass}</span>
+              {d.text}
+              {d.rule && <span style={{ fontSize: 9.5, color: C.dim }}> — {d.rule}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Counter-Quote — the landing panel of the competitive re-quote flow: a design
+ *  imported from a competitor's 2020/Cyncly PDF, priced in EVERY line with
+ *  honest per-item resolution grades and a one-click customer-facing PDF.
+ *  Pricing goes through counterQuote.js — the same pure module the
+ *  evals/_cross/counter-quote eval pins, so this panel can't drift. */
+export function CounterQuotePanel({ importMeta, placements, materials }) {
+  const [showAll, setShowAll] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const quoteRows = useMemo(
+    () => (placements || []).filter(p => p.sku && p.type !== 'appliance').map(p => ({ sku: p.sku, qty: p.qty || 1 })),
+    [placements]);
+  const cq = useMemo(() => {
+    try { return buildCounterQuote({ placements: quoteRows, materials }); }
+    catch { return null; }
+  }, [quoteRows, materials]);
+  if (!cq || !cq.columns.length || !quoteRows.length) return null;
+  const deltas = counterQuoteDeltas(cq.columns);
+  const attention = cq.columns[0].rows
+    .map((_, i) => i)
+    .filter(i => cq.columns.some(c => c.rows[i] && c.rows[i].resolution !== 'exact'));
+  const rowIdx = showAll ? cq.columns[0].rows.map((_, i) => i) : attention;
+  const RES_STYLE = {
+    normalized: { color: '#9a6d1a', label: '≈' },
+    substituted: { color: C.warn, label: 'no true match — filler' },
+    missing: { color: C.warn, label: 'no equivalent' },
+  };
+  const doExport = async () => {
+    setExporting(true);
+    try {
+      const { exportCounterQuotePDF } = await import('./pdfExport.js');
+      await exportCounterQuotePDF({
+        title: importMeta.filename ? importMeta.filename.replace(/\.pdf$/i, '') : 'Imported design',
+        sourceNote: `Imported from ${importMeta.filename || 'design PDF'} (${importMeta.source === 'vector' ? 'deterministic 2020/Cyncly read' : 'AI extraction'}) · ${quoteRows.length} line items`,
+        columns: cq.columns, deltas, formatCurrency,
+      });
+    } finally { setExporting(false); }
+  };
+  return (
+    <div style={{ ...panelStyle, border: `1.5px solid ${C.accent}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ ...sectionTitle, marginBottom: 0 }}>⚔ Competitive Re-Quote</div>
+        <span style={{ fontSize: 10.5, color: C.dim }}>
+          {importMeta.filename ? `from ${importMeta.filename}` : 'imported design'} — their design, priced in every line you carry
+        </span>
+        <button onClick={doExport} disabled={exporting}
+          style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '4px 12px', cursor: 'pointer', border: 'none', borderRadius: 4, background: C.accent, color: '#fff' }}>
+          {exporting ? 'Building…' : '⤓ Counter-quote PDF'}
+        </button>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+        {cq.columns.map((c, i) => {
+          const unresolved = c.counts.missing + c.counts.substituted;
+          return (
+            <div key={c.tenantId} style={{ flex: '1 1 150px', background: '#faf8f5', borderRadius: 6, padding: '8px 10px' }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: '#5d4d2e' }}>{c.label}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.accent, fontVariantNumeric: 'tabular-nums' }}>
+                {c.currency}{c.subtotal.toLocaleString()}
+              </div>
+              <div style={{ fontSize: 9.5, color: deltas[i] == null ? C.dim : deltas[i] < 0 ? '#3a7d44' : C.warn }}>
+                {i === 0 ? 'reference line' : deltas[i] == null ? 'different currency' :
+                  `${deltas[i] < 0 ? '−' : '+'}${c.currency}${Math.abs(Math.round(deltas[i])).toLocaleString()} vs ${cq.columns[0].label}`}
+              </div>
+              {unresolved > 0 && (
+                <div style={{ fontSize: 9.5, color: C.warn, fontWeight: 700 }}>{unresolved} item{unresolved > 1 ? 's' : ''} without a true equivalent</div>
+              )}
+              {c.note && <div style={{ fontSize: 8.5, color: C.dim, marginTop: 3 }}>{c.note}</div>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 10, fontSize: 10.5, color: C.dim }}>
+        {attention.length === 0
+          ? 'Every item resolved exactly in every line.'
+          : `${attention.length} of ${cq.columns[0].rows.length} items resolve by rule or lack an equivalent somewhere — review below; nothing is silently dropped.`}
+        {cq.columns[0].rows.length > (showAll ? 0 : attention.length) && (
+          <button onClick={() => setShowAll(s => !s)}
+            style={{ marginLeft: 8, fontSize: 10, padding: '1px 8px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 3, background: 'transparent', color: C.dim }}>
+            {showAll ? 'show attention items only' : 'show all items'}
+          </button>
+        )}
+      </div>
+      {rowIdx.length > 0 && (
+        <div style={{ overflowX: 'auto', marginTop: 6 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                <th style={{ padding: '4px 8px', textAlign: 'left', color: C.dim, fontSize: 9.5, textTransform: 'uppercase' }}>Design SKU</th>
+                {cq.columns.map(c => <th key={c.tenantId} style={{ padding: '4px 8px', textAlign: 'right', color: C.dim, fontSize: 9.5, textTransform: 'uppercase' }}>{c.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rowIdx.map(i => (
+                <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
+                  <td style={{ padding: '3px 8px', fontFamily: 'monospace' }}>{cq.columns[0].rows[i].srcSku}</td>
+                  {cq.columns.map(c => {
+                    const r = c.rows[i];
+                    if (!r) return <td key={c.tenantId} />;
+                    const st = RES_STYLE[r.resolution];
+                    return (
+                      <td key={c.tenantId} style={{ padding: '3px 8px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: st ? st.color : C.text }}>
+                        {r.resolution === 'missing' ? 'no equivalent'
+                          : r.resolution === 'substituted' ? `${st.label} ${c.currency}${Math.round(r.total).toLocaleString()}`
+                          : <>{r.sku !== r.srcSku ? <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{r.sku} </span> : null}{st ? st.label + ' ' : ''}{c.currency}{Math.round(r.total).toLocaleString()}</>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ marginTop: 8, fontSize: 9.5, color: C.dim }}>
+        Cabinet list prices. Imported dimensions are customer-supplied — this sheet is budget-grade until a field measure; trim &amp; fabrication price on the full proposal.
+      </div>
+    </div>
+  );
 }
 
 /** Multi-Quote (ProKitchen's killer sales feature): the SAME design priced in
@@ -1332,10 +1700,12 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
   materials, selectedAppliances, countertopColor, prefs, trimSelections,
   projectMeta = {}, revisions = [], onRestoreRevision, walls = [], orderSpec = {},
   lineMods = {}, onChangeLineMods, onEditInStudio, priceWith = null,
-  accessoryLines = [], onChangeAccessoryLines = () => {} }) {
+  accessoryLines = [], onChangeAccessoryLines = () => {}, importMeta = null,
+  designOptions = null, activeLensId = 'balanced', onAdoptOption = () => {}, priceResult = null }) {
   const [tab, setTab] = useState('floorplan');
   const [debugOverlay, setDebugOverlay] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [dealer, setDealer] = useState(loadDealerSettings);
   useEffect(() => {
     try { localStorage.setItem(DEALER_SETTINGS_KEY, JSON.stringify(dealer)); } catch { /* private mode */ }
@@ -1390,6 +1760,13 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
         </div>
       )}
 
+      {/* Three-option auto-design chooser + the active design's rationale */}
+      {designOptions && priceResult && (
+        <DesignOptionsPanel options={designOptions} activeLensId={activeLensId}
+          onAdopt={onAdoptOption} priceResult={priceResult} />
+      )}
+      <DesignRationalePanel decisions={solverResult.decisions} />
+
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
         {[
@@ -1430,6 +1807,27 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             {t.label}
           </button>
         ))}
+        {/* Customer share link — the design reopens read-only in the branded
+            consumer embed, verbatim (items, not a re-solve), with a budget-
+            grade estimate band. */}
+        <button onClick={() => {
+          try {
+            const items = seedFromSolverResult(solverResult).map(({ id: _id, ...it }) => it);
+            const spec = {
+              layoutType: solverResult.layoutType, roomType: solverResult.roomType,
+              walls: (solverResult._inputWalls || walls).map(w => ({ id: w.id, length: w.length, ceilingHeight: w.ceilingHeight })),
+              island: solverResult.island ? { length: solverResult.island.length, depth: solverResult.island.depth } : null,
+              prefs, materials, items,
+              estimate: { label: `${getTenant(materials.brand).branding.lineLabel} cabinetry (list)`, value: cabinetTotal },
+            };
+            const url = `${window.location.origin}/embed.html?design=${encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(spec)))))}`;
+            navigator.clipboard?.writeText(url);
+            setShareCopied(true); setTimeout(() => setShareCopied(false), 2500);
+          } catch (e) { console.error('share link failed:', e); }
+        }} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.accent}`,
+          background: 'transparent', color: C.accent, fontWeight: 600, marginLeft: 'auto' }}>
+          {shareCopied ? '✓ Link copied' : '🔗 Customer link'}
+        </button>
         {/* PDF Export button */}
         <button onClick={async () => {
           setExporting(true);
@@ -1459,6 +1857,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               'All dimensions to face of finished cabinet U.N.O. — verify in field before fabrication.',
               'Appliances & fixtures by others — confirm rough-ins and cut-outs against manufacturer specs.',
             ];
+            const rationale = (solverResult.decisions || []).map(d => d.text + (d.rule ? ` (${d.rule})` : ''));
             await exportPDF({
               title: projectMeta.name
                 ? `${projectMeta.name}${projectMeta.customer ? ' — ' + projectMeta.customer : ''}`
@@ -1472,12 +1871,13 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               formatCurrency,
               bom,
               specs,
+              rationale,
             });
           } catch (e) { console.error('PDF export failed:', e); }
           setExporting(false);
         }} disabled={exporting}
           style={{ padding: '6px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer', border: `1px solid ${C.accent}`,
-            background: 'transparent', color: C.accent, fontWeight: 600, marginLeft: 'auto' }}>
+            background: 'transparent', color: C.accent, fontWeight: 600, marginLeft: 8 }}>
           {exporting ? 'Exporting...' : 'Export PDF'}
         </button>
         <button onClick={() => setDebugOverlay(d => !d)}
@@ -1977,6 +2377,11 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
             </div>
           )}
 
+          {/* Competitive Re-Quote: an imported (2020/Cyncly) design priced in every line */}
+          {importMeta?.items > 0 && (
+            <CounterQuotePanel importMeta={importMeta} placements={solverResult.placements} materials={materials} />
+          )}
+
           {/* Multi-Quote: same design, up to 4 styles side-by-side */}
           {priceWith && <MultiQuotePanel baseMaterials={materials} priceWith={priceWith} />}
 
@@ -2153,7 +2558,7 @@ function ResultsView({ solverResult, quote, trainingScore, applianceTotal, count
               </p>
             </div>
 
-            <AckCheckPanel quote={quote} />
+            <AckCheckPanel quote={quote} brand={materials.brand} />
           </div>
         );
       })()}
@@ -2256,12 +2661,28 @@ export default function App() {
   // The uploader collects the project spec (line, wood, door, construction +
   // cover-sheet fields); apply it so drawings + the 3-line pricing come out per
   // the customer's spec rather than app defaults.
+  // importMeta (source/filename/count) survives to the quote step and switches
+  // on the Competitive Re-Quote panel — the deliverable of a 2020-PDF import.
+  const [importMeta, setImportMeta] = useState(null);
+
+  // Three-option auto-design: computed at Solve for auto-mode rooms; the
+  // active lens tracks which option the dealer is looking at / adopted.
+  const [designOptions, setDesignOptions] = useState(null);
+  const [activeLensId, setActiveLensId] = useState('balanced');
+
+  // Team tenant packages (Supabase-gated): pull lines onboarded on OTHER
+  // devices; a tick re-renders the brand pickers when new ones arrive.
+  const [, setTenantSyncTick] = useState(0);
+  useEffect(() => {
+    syncTeamTenantPackages().then(ids => { if (ids.length) setTenantSyncTick(t => t + 1); });
+  }, []);
   const applyImportedSpec = (spec) => {
     if (!spec) return;
     if (spec.materials) setMaterials(m => ({ ...m, ...spec.materials }));
     if (spec.orderSpec) setOrderSpec(o => ({ ...o, ...spec.orderSpec }));
   };
   const applyImportedRoom = (payload) => {
+    setImportMeta(payload.importMeta || null);
     setLayoutType(payload.layoutType || 'l-shape');
     setWalls(payload.walls);
     setAppliances(payload.appliances?.length ? payload.appliances : []);
@@ -2555,6 +2976,7 @@ export default function App() {
   const handleTemplateSelect = useCallback((templateId) => {
     const tmpl = getTemplate(templateId);
     if (!tmpl) return;
+    setImportMeta(null);   // a template is a fresh design, not an import
     setSelectedTemplate(templateId);
     setLayoutType(tmpl.input.layoutType);
     setRoomType(tmpl.input.roomType);
@@ -2586,6 +3008,17 @@ export default function App() {
   }, [accessoryLines, priceGroup]);
   const priceDesign = useCallback((result, mods) => priceWithMaterials(result, mods, materials), [priceWithMaterials, materials]);
 
+  // Adopt one of the three design options: it becomes THE design (and votes
+  // for its lens in the dealer taste memory).
+  const adoptOption = useCallback((o) => {
+    setSolverResult(o.result);
+    setActiveLensId(o.lens.id);
+    bumpLensPref(o.lens.id);
+    if (o.lens.prefs && Object.keys(o.lens.prefs).length) setPrefs(p => ({ ...p, ...o.lens.prefs }));
+    try { setTrainingScore(scoreAgainstTraining(o.result)); } catch (_e) { setTrainingScore(null); }
+    setQuote(priceDesign(o.result, lineMods));
+  }, [priceDesign, lineMods]);
+
   useEffect(() => {
     if (solverResult) setQuote(priceDesign(solverResult, lineMods));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2604,9 +3037,13 @@ export default function App() {
       if (island) input.island = island;
       if (peninsula) input.peninsula = peninsula;
 
+      // AUTO mode goes through generate-and-score (AD-3): candidate
+      // compositions explored and ranked by the designer rubric; the search
+      // explains its pick in result.decisions. Legacy single-pass behavior is
+      // one flag away for A/B comparison.
       const result = designMode === 'manual'
         ? buildManualResult({ walls: wallsC, items: manualItems, island, roomType, layoutType })
-        : solve(input);
+        : (prefs._legacySolve ? solve(input) : solveBest(input).result);
 
       // Metric / price-group lines (e.g. pronorm) are solved in the W.W. inch
       // lingua franca, then REALIZED into the active tenant's catalogue — the
@@ -2636,6 +3073,25 @@ export default function App() {
       }
 
       setSolverResult(result);
+
+      // Three-option auto-design: same room under the other design lenses.
+      // Auto-mode only; metric (realize) tenants price per-option later once
+      // realization is per-option — honest gate, not a stub.
+      let optionsOut = null;
+      if (designMode !== 'manual' && !activeTenant?.realize) {
+        try {
+          const { options } = solveOptions(input, { count: 3, lensOrder: loadLensOrder() });
+          for (const o of options) {
+            o.result._inputWalls = (o.result._inputWalls || wallsC).map(w => ({
+              ...w, id: w.id, length: w.length,
+              ceilingHeight: w._realCeilingHeight || w.ceilingHeight || ceilH,
+            }));
+          }
+          if (options.length >= 2) optionsOut = options;
+        } catch (_e) { /* options are additive — never block the solve */ }
+      }
+      setDesignOptions(optionsOut);
+      setActiveLensId('balanced');
 
       const score = designMode === 'manual' ? null : scoreAgainstTraining(result);
       setTrainingScore(score);
@@ -2731,6 +3187,7 @@ export default function App() {
             </span>
           )}
           {saveFlash && <span style={{ fontSize: 12, color: C.accent, fontWeight: 600 }}>{saveFlash}</span>}
+          <AuthBadge onSynced={(n) => { if (n > 0) { setSaveFlash(`☁ ${n} project${n > 1 ? 's' : ''} synced`); setTimeout(() => setSaveFlash(''), 3000); } }} />
           <button onClick={handleSaveProject} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Save</button>
           <button onClick={() => setShowProjects(true)} style={{ ...btnOutline, padding: '5px 12px', fontSize: 12 }}>Projects</button>
         </div>
@@ -2782,6 +3239,9 @@ export default function App() {
             lineMods={lineMods} onChangeLineMods={setLineMods}
             accessoryLines={accessoryLines} onChangeAccessoryLines={setAccessoryLines}
             priceWith={(mats) => priceWithMaterials(solverResult, lineMods, mats)}
+            importMeta={importMeta}
+            designOptions={designOptions} activeLensId={activeLensId} onAdoptOption={adoptOption}
+            priceResult={(r) => priceWithMaterials(r, lineMods, materials)}
             onEditInStudio={() => {
               setManualItems(seedFromSolverResult(solverResult));
               setDesignMode('manual');

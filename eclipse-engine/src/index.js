@@ -45,6 +45,9 @@
 export { recommendAppliances } from './appliance-recommender.js';
 export { priceRange } from './priceRange.js';
 export { solve, selectTallPattern, selectUpperPattern, selectGlassStyle, selectMullionPattern, resolveTwoTone, applyDrawerUpgrades, scoreCornerEfficiency, scoreAesthetics, generateComparisonQuotes, scoreAgainstTraining } from './solver.js';
+export { solveOptions, DESIGN_LENSES } from './designOptions.js';
+export { solveBest } from './generateAndScore.js';
+export { scoreKitchenV2 } from './designScore.js';
 
 // Constraints — Layer 1 (NKBA) and Layer 2 (Eclipse catalog rules)
 export {

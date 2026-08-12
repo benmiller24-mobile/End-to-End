@@ -385,6 +385,14 @@ export function solve(input) {
     };
   });
   const layoutType = normalizeLayoutType(input.layoutType) || inferLayoutType(walls, !!peninsula, !!island);
+  // Fresh rationale trace for this solve — passes call noteDecision() at the
+  // moments a designer would explain; the result exposes them as .decisions.
+  __decisions = [];
+  // Real 2D wall frames (AD-2): geometry for triangle/aisle math and renderers.
+  const wallFrames = computeWallFrames(walls, layoutType);
+  noteDecision('layout', input.layoutType
+    ? `Room read as ${layoutType} across ${walls.length} wall${walls.length === 1 ? '' : 's'}.`
+    : `No layout given — inferred ${layoutType} from ${walls.length} wall${walls.length === 1 ? '' : 's'}${island ? ' + island' : ''}.`);
   // Opt-in: snap cooking-appliance widths to the layout recommendation (default off).
   let _applianceApplied = [];
   if (input.applyApplianceRec || (prefs && prefs.applyApplianceRec)) {
@@ -451,6 +459,13 @@ export function solve(input) {
     // "overlay" — panels protrude 1-2" proud, 24" enclosure depth (most common)
     // "flush"   — flush inset, 25-27" enclosure depth (true European integrated)
     fridgeIntegration: prefs.fridgeIntegration || "overlay",
+    // ── Generate-and-score internals (AD-3/AD-4) ── pf is a whitelist, so
+    // these MUST be copied through explicitly: _compose gates the composition
+    // passes and _noRecenter stops centerCookingZone from fighting an
+    // arrangement's landing budgets. (They were silently dropped here once —
+    // AD-4's composer was dead code on the product path until this line.)
+    _compose: !!prefs._compose,
+    _noRecenter: !!prefs._noRecenter,
   };
 
   // ── Gola/Handleless Channel enforcement ──
@@ -572,10 +587,21 @@ export function solve(input) {
     const islandHasSink = assignedAppliances.some(a => a.type === 'sink' && a.wall === 'island' && a !== sink);
     const islandFits = island && (island.length || 0) >= 96 && !islandHasSink;
 
-    if (windowWall) { sink.wall = windowWall.id; if (!sink.position) sink.position = 'center'; moveDW(windowWall.id); return; }
-    if (islandFits) { moveDW('island'); sink.wall = 'island'; if (!sink.position) sink.position = 'center'; return; }
+    if (windowWall) {
+      sink.wall = windowWall.id; if (!sink.position) sink.position = 'center'; moveDW(windowWall.id);
+      noteDecision('sink', `Sink shared the range wall — moved under the window on wall ${windowWall.id} (classic sink-at-window; separates prep from cooking)${dw && dw.wall === windowWall.id ? ', dishwasher follows to stay beside it' : ''}.`, 'NKBA 21/23 — work-zone separation & DW adjacency');
+      return;
+    }
+    if (islandFits) {
+      moveDW('island'); sink.wall = 'island'; if (!sink.position) sink.position = 'center';
+      noteDecision('sink', `Sink shared the range wall — moved onto the ${island.length}" island so prep faces the room${dw && dw.wall === 'island' ? '; dishwasher follows' : ''}.`, 'NKBA 21/23 — work-zone separation & DW adjacency');
+      return;
+    }
     const alt = (walls || []).filter(w => w.id !== range.wall).sort((a, b) => b.length - a.length)[0];
-    if (alt) { sink.wall = alt.id; moveDW(alt.id); }
+    if (alt) {
+      sink.wall = alt.id; moveDW(alt.id);
+      noteDecision('sink', `Sink shared the range wall — moved to wall ${alt.id} (the longest other run)${dw && dw.wall === alt.id ? '; dishwasher follows' : ''}.`, 'NKBA 21/23 — work-zone separation & DW adjacency');
+    }
   })();
 
   // Build appliance lookup
@@ -588,7 +614,23 @@ export function solve(input) {
   }
 
   // Phase 1: Resolve corners (skip for single-wall rooms like vanity)
-  const corners = resolveCorners(walls, layoutType, pf);
+  const corners = resolveCorners(walls, layoutType, pf, wallFrames);
+  for (const c of corners) {
+    if (c.openCorner) {
+      noteDecision('corners', c.patternId === 'open_corner_explicit'
+        ? `Corner ${c.wallA}/${c.wallB} left OPEN — no corner unit, so wall ${c.wallA} keeps its full run for appliances and landings; the countertop wraps the dead corner.`
+        : `Walls ${c.wallA}/${c.wallB} meet at ${c.turn}° — no manufactured corner unit fits a non-right corner, so ${c.size}" per leg is reserved open.`);
+    } else {
+      const WHY = {
+        lazy_susan_explicit: 'as requested', lazy_susan_auto: 'best access for these run lengths',
+        lazy_susan_auto_standard: 'the most-used treatment in comparable projects',
+        lazy_susan_default: 'the dependable default here',
+        lazy_susan_30pct_downgrade: `a larger unit would eat over 30% of a wall — downsized to keep run for cabinets`,
+        blind_30pct_downgrade: 'kept compact so the short wall still holds cabinetry',
+      };
+      noteDecision('corners', `Corner ${c.wallA}/${c.wallB}: ${c.sku} ${c.type === 'lazySusan' ? 'lazy susan' : c.type} (${c.wallAConsumption || c.size}"+${c.wallBConsumption || c.size}" of run), ${WHY[c.patternId] || 'chosen for access and storage efficiency'}.`, 'NKBA 29 — corner storage must stay functional');
+    }
+  }
 
   // ── Build 3D Spatial Model ──
   // Creates the vertical zone + depth tier framework that the solver uses
@@ -627,23 +669,77 @@ export function solve(input) {
   // positionAppliances() sets positions on new objects inside solveWall, but
   // appByWall still references the original unpositioned appliance objects.
   // solveUppers() needs accurate positions to place hoods above ranges and
-  // build correct skip zones.  Sync them here.
-  for (const wl of wallLayouts) {
-    const positionedApps = wl.cabinets.filter(c => c.type === "appliance");
-    const wallApps = appByWall[wl.wallId] || [];
-    for (const pa of positionedApps) {
-      const orig = wallApps.find(a => a.type === pa.applianceType && a.model === pa.model);
-      if (orig) {
-        orig.position = pa.position;
-        orig._depth = pa._depth;
-        orig._depthOverhang = pa._depthOverhang;
+  // build correct skip zones. Runs after the wall solve AND after every later
+  // pass that moves appliances (centerCookingZone) — a stale copy here is how
+  // the hood ended up rendered 25.5" off the range on galley_island.
+  const syncAppliancePositions = () => {
+    for (const wl of wallLayouts) {
+      const positionedApps = wl.cabinets.filter(c => c.type === "appliance");
+      const wallApps = appByWall[wl.wallId] || [];
+      for (const pa of positionedApps) {
+        const orig = wallApps.find(a => a.type === pa.applianceType && a.model === pa.model);
+        if (orig) {
+          orig.position = pa.position;
+          orig._depth = pa._depth;
+          orig._depthOverhang = pa._depthOverhang;
+        }
       }
     }
+  };
+  syncAppliancePositions();
+
+  // ── WALL-OVERFLOW NORMALIZATION ──
+  // A packed run that starts past 0 (stray lead offset) and spills past the
+  // wall end by the same amount just needs to slide home: shift left into the
+  // free lead space, then trim trailing FILLERS that still overhang. Runs
+  // right after the wall solve (so uppers align) AND again before the final
+  // compile (later passes append terminal fillers — single_wall_entertainer
+  // shipped 242.25" on a 240" wall with 2.25" of empty lead).
+  const normalizeWallOverflows = () => {
+    for (const wl of wallLayouts) {
+      const cabs = (wl.cabinets || []).filter(c => typeof c.position === 'number');
+      if (!cabs.length || !(wl.wallLength > 0)) continue;
+      const runEnd = Math.max(...cabs.map(c => c.position + (c.width || 0)));
+      const lead = Math.min(...cabs.map(c => c.position));
+      const overflow = runEnd - wl.wallLength;
+      if (overflow > 0.01 && lead > 0.01) {
+        const shift = Math.min(lead, overflow);
+        for (const c of cabs) {
+          c.position -= shift;
+          if (typeof c.position_start === 'number') c.position_start -= shift;
+          if (typeof c.position_end === 'number') c.position_end -= shift;
+        }
+      }
+      // Trailing fillers that still overhang the wall get clamped to it.
+      for (const c of cabs) {
+        const end = c.position + (c.width || 0);
+        if (end > wl.wallLength + 0.01 && /^(FC-)?(OVF|F)\d/.test(String(c.sku || ''))) {
+          c.width = Math.max(0.5, wl.wallLength - c.position);
+          if (typeof c.position_end === 'number') c.position_end = c.position + c.width;
+        }
+      }
+    }
+  };
+  normalizeWallOverflows();
+  syncAppliancePositions();
+
+  // ── COMPOSITION (AD-4, _compose-gated: the generate-and-score path only) ──
+  // Sliver merge: a door/drawer cabinet under 12" is an amateur tell — absorb
+  // it into a neighbor as a width-mod instead (widths conserve, positions
+  // stay). Runs BEFORE uppers so seams echo the merged bases.
+  if (pf._compose) {
+    try { mergeSliverCabinets(wallLayouts); syncAppliancePositions(); } catch (_e) { /* non-fatal */ }
   }
 
   // Phase 3: Generate island layout (room-aware sizing first)
   const _islandFitWarnings = [];
   const islandSized = island ? fitIslandToRoom(island, walls, layoutType, _islandFitWarnings) : null;
+  for (const w of _islandFitWarnings) {
+    noteDecision('island', w.message, 'NKBA 6 — 42" work aisle / 36" walkway');
+  }
+  if (island && islandSized && !_islandFitWarnings.length) {
+    noteDecision('island', `${islandSized.length}"×${islandSized.depth}" island fits with full work aisles on both sides.`, 'NKBA 6 — 42" work aisle');
+  }
   let islandLayout = null;
   if (islandSized) {
     const islandAppliances = appByWall["island"] || [];
@@ -662,7 +758,19 @@ export function solve(input) {
   // classic "auto-generated" tell. Runs BEFORE the uppers solve so the hood follows the
   // centered range. Reflows only the movable middle, conserves total width, reverts on any
   // anomaly. Part of the "validate proportions & self-correct before finalizing" pass.
-  try { centerCookingZone(wallLayouts); } catch (_e) { /* non-fatal */ }
+  try {
+    // _noRecenter: a generate-and-score arrangement already budgeted the
+    // cooking position — the permutation pass must not fight it.
+    if (!pf._noRecenter) centerCookingZone(wallLayouts);
+    // Re-sync: centering moves appliance objects inside wallLayouts; the hood
+    // and upper skip-zones read positions from appByWall.
+    syncAppliancePositions();
+    for (const wl of wallLayouts) {
+      if (wl._cookingCentered != null) {
+        noteDecision('cooking', `Range re-centered at ${wl._cookingCentered}" on wall ${wl.wallId} with balanced flanking cabinets — an off-center cooktop reads as an accident.`);
+      }
+    }
+  } catch (_e) { /* non-fatal */ }
 
   // Phase 4: Generate upper cabinets (skip for non-kitchen rooms that don't use uppers)
   const upperLayouts = [];
@@ -682,7 +790,20 @@ export function solve(input) {
   closeUpperGaps(upperLayouts, wallLayouts, walls);
 
   // Phase 4a-feature: optionally feature the hood by clearing the range wall’s field uppers
-  if (pf.featureHood) featureRangeWall(upperLayouts);
+  if (pf.featureHood) {
+    featureRangeWall(upperLayouts);
+    noteDecision('uppers', 'Feature-hood wall: flanking field uppers cleared so the hood reads as the focal point of the cooking wall.');
+  }
+
+  // ── COMPOSITION (AD-4, _compose-gated): the range wall is the FOCAL wall —
+  // hood centered on the range, the flanking uppers resized to MIRROR each
+  // other and set flush against the hood. Upper slivers merge like bases.
+  if (pf._compose) {
+    try {
+      composeRangeWallUppers(upperLayouts, wallLayouts, appByWall);
+      for (const ul of upperLayouts) mergeSliverRun(ul.cabinets, /^(FC-)?(P?RH\d|RW\d)/);
+    } catch (_e) { /* non-fatal */ }
+  }
 
   // Phase 4b: Generate upper corner cabinets (WSC pairs + SA angle transitions)
   const upperCorners = pf.upperApproach !== "none" ? solveUpperCorners(corners, upperLayouts, pf, walls) : [];
@@ -858,6 +979,37 @@ export function solve(input) {
     }
   }
 
+  // ── POSITION APPLIANCE-INTEGRATION TALLS ──
+  // Wine-cooler (and similar) integration groups are minted with a wall but no
+  // position — they used to compile with position=undefined, unplaceable by any
+  // renderer. Anchor the group to its placed appliance; flank panels sit
+  // against the unit, trim/upper stack directly above it.
+  {
+    const wcApp = (wallId) => {
+      const wl = wallLayouts.find(w => w.wallId === wallId);
+      return (wl?.cabinets || []).find(c => c.type === 'appliance' && /wine/i.test(c.applianceType || ''));
+    };
+    for (const tl of talls) {
+      if (typeof tl.position === 'number' || !tl.wall) continue;
+      const app = wcApp(tl.wall);
+      if (!app) continue;
+      if (tl.role === 'wine_cooler') tl.position = app.position;
+      else if (tl.role === 'wine_cooler_end_panel') tl.position = tl.side === 'left' ? app.position - (tl.width || 1.5) : app.position + (app.width || 24);
+      else if (tl.role === 'wine_cooler_trim' || tl.role === 'wine_cooler_upper') tl.position = app.position;
+      else tl.position = app.position;   // stacked upper over the unit
+    }
+    // Anything STILL unpositioned lands at the end of its wall's packed run —
+    // visible and flagged, never undefined.
+    for (const tl of talls) {
+      if (typeof tl.position === 'number' || !tl.wall) continue;
+      const wl = wallLayouts.find(w => w.wallId === tl.wall);
+      if (!wl) continue;
+      const runEnd = Math.max(0, ...((wl.cabinets || []).filter(c => typeof c.position === 'number').map(c => c.position + (c.width || 0))));
+      tl.position = runEnd;
+      tl._autoPositioned = true;
+    }
+  }
+
   let placements = compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, accessories, talls, upperCorners);
 
   // Phase 6b: Resolve two-tone materials
@@ -965,7 +1117,7 @@ export function solve(input) {
             const newWidth = curr.width - overlap;
             if (newWidth >= 9) {
               curr.width = newWidth;
-              curr.sku = curr.sku.replace(/\d+/, String(newWidth));
+              curr.sku = resizeSkuWidth(curr.sku, newWidth);
               fixedThisPass++;
             } else {
               // Too small — remove it
@@ -977,7 +1129,7 @@ export function solve(input) {
             if (newWidth >= 9) {
               next.position += overlap;
               next.width = newWidth;
-              next.sku = next.sku.replace(/\d+/, String(newWidth));
+              next.sku = resizeSkuWidth(next.sku, newWidth);
               fixedThisPass++;
             } else {
               const idx = wl.cabinets.indexOf(next);
@@ -996,7 +1148,7 @@ export function solve(input) {
         if (gap > 0 && gap < 9 && curr.type === 'base') {
           // Absorb gap into current cabinet (width mod)
           curr.width += gap;
-          curr.sku = curr.sku.replace(/\d+/, String(Math.round(curr.width)));
+          curr.sku = resizeSkuWidth(curr.sku, Math.round(curr.width));
           if (!curr.modified) curr.modified = {};
           curr.modified.type = "MOD WIDTH N/C";
           curr.modified.gapAbsorbed = gap;
@@ -1009,11 +1161,58 @@ export function solve(input) {
     if (fixedThisPass === 0) break; // No more fixes needed
   }
 
+  // ── RE-COMPILE after late mutations ──
+  // Phase 6d's waste swap, centerSinkUnderWindow, ensureRecyclingAndCornerStorage
+  // and the correction loop above all mutate wallLayouts AFTER the first
+  // compilePlacements — which used to leave walls[] and placements[] DISAGREEING
+  // about which cabinet occupies a position (the Mautz-diff audit caught a
+  // BWDMB in walls[] while placements[] still said B3D at the same spot).
+  // Placements are re-derived from the mutated sources so there is one truth.
+  normalizeWallOverflows();   // later passes can re-introduce lead offsets/terminal fillers
+  syncAppliancePositions();
+  placements = resolveTwoTone(
+    compilePlacements(wallLayouts, upperLayouts, islandLayout, peninsulaLayout, corners, accessories, talls, upperCorners),
+    pf);
+
+  // ── DROPPED-APPLIANCE GUARD ──
+  // Every requested appliance must exist in the output — as a placed appliance
+  // or hosted in a tall (wall ovens/microwaves live in oven towers, FIO/FIOM).
+  // A silently vanished appliance (the audit caught a wall oven) is a design
+  // ERROR, not a shrug.
+  const _droppedApplianceErrors = [];
+  {
+    const normType = (s) => String(s || '').replace(/[^a-z]/gi, '').toLowerCase();
+    const placedTypes = new Set(placements.filter(p => p.type === 'appliance').map(p => normType(p.applianceType)));
+    const skus = placements.map(p => String(p.sku || '').toUpperCase());
+    const tallRole = (re) => (talls || []).some(tl => re.test(tl.role || ''));
+    // Hosted forms: an appliance realized as/inside cabinetry still counts.
+    const present = (t) => {
+      if (placedTypes.has(t)) return true;
+      if (t === 'sink') return skus.some(s => /^(FC-)?(SB|VSB|DSB|BLSB|IWS|FLVSB)\d/.test(s));
+      if (t === 'walloven' || t === 'doubleoven') return skus.some(s => /^(FC-)?(FIOM?\d|OC\d)/.test(s)) || tallRole(/oven/i);
+      if (t === 'microwave' || t === 'microwavedrawer') return skus.some(s => /^(FC-)?(FIOM|MWS|BMC|WMC)/.test(s)) || tallRole(/micro/i);
+      if (t === 'winecooler') return skus.some(s => /^(FC-)?(BWC|WC\d)/.test(s)) || tallRole(/wine/i);
+      if (t === 'hood' || t === 'rangehood') return skus.some(s => /^P?RH\d|HOOD/.test(s));
+      return false;
+    };
+    for (const app of (appliances || [])) {
+      const t = normType(app.type);
+      if (!t) continue;
+      if (!present(t)) {
+        _droppedApplianceErrors.push({
+          severity: 'error', rule: 'appliance_dropped',
+          message: `Requested ${app.type}${app.width ? ` (${app.width}")` : ''} is missing from the layout — it was silently dropped during placement.`,
+        });
+      }
+    }
+  }
+
   // Phase 7: Validate (pass roomType for context-aware validation)
-  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls, walls);
+  const validationInput = buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, pf, accessories, talls, walls, wallFrames);
   const validation = validateLayout(validationInput);
   // Merge filler issues collected during Phase 4d (before `validation` existed)
   if (earlyFillerIssues.length) validation.push(...earlyFillerIssues);
+  if (_droppedApplianceErrors.length) validation.push(..._droppedApplianceErrors);
 
   // Add correction loop metadata
   if (correctionsMade > 0) {
@@ -1068,10 +1267,12 @@ export function solve(input) {
     spatialReport = validateSpatialLayout({ walls: wallLayouts, uppers: upperLayouts, corners, accessories, talls }) || spatialReport;
   } catch (_e) { validation.push({ severity: 'warning', rule: 'spatial_validation_error', message: `Spatial validation skipped: ${_e.message}` }); }
   for (const err of (spatialReport.errors || [])) {
-    validation.push({ severity: 'error', rule: err.rule, message: err.message, fix: err.fix });
+    // Keep `wall` — the late overflow-resolution pass re-measures per wall to
+    // drop findings the resize just fixed, and can't match an entry without it.
+    validation.push({ severity: 'error', rule: err.rule, message: err.message, fix: err.fix, wall: err.wall });
   }
   for (const warn of (spatialReport.warnings || [])) {
-    validation.push({ severity: 'warning', rule: warn.rule, message: warn.message, fix: warn.fix });
+    validation.push({ severity: 'warning', rule: warn.rule, message: warn.message, fix: warn.fix, wall: warn.wall });
   }
 
   // ── Build path-based molding segments for renderer ──
@@ -1336,11 +1537,17 @@ export function solve(input) {
   try {
     swingArcResult = calculateSwingArcs(placements, wallLayouts, islandLayout);
     if (swingArcResult?.collisions?.length) {
+      // Collision payloads vary by producer (appliance objects, island hits,
+      // wall hits) — name them robustly; "undefined vs undefined" is garbage.
+      const nameOf = (a) => typeof a === 'string' ? a
+        : (a && (a.subtype || a.applianceSubtype || a.type || a.applianceType || a.id)) || null;
       for (const c of swingArcResult.collisions) {
+        const A = nameOf(c.applianceA) || nameOf(c.appliance) || c.applianceSubtype || c.applianceType || 'appliance door';
+        const B = nameOf(c.obstruction) || nameOf(c.applianceB) || (c.island ? 'island' : null) || nameOf(c.wall) || (c.type === 'island-collision' ? 'island' : 'adjacent object');
         validation.push({
-          severity: c.severity || 'warning',
+          severity: c.severity === 'high' ? 'warning' : (c.severity || 'warning'),
           rule: 'door_swing_collision',
-          message: c.message || `Door swing collision: ${c.applianceA} vs ${c.obstruction || c.applianceB}`,
+          message: c.message || `Door swing collision: ${A} vs ${B}${c.intersectionArea ? ` (${Math.round(c.intersectionArea)} sq in overlap)` : ''}`,
           fix: c.suggestedFix || c.fix || null,
         });
       }
@@ -1354,8 +1561,13 @@ export function solve(input) {
   // Generates rail cut list with stud-aligned screw locations.
   let mountingRails = null;
   try {
-    const wallDefs = walls.map(w => ({ id: w.id, length: w.length, ceilingHeight: w.ceilingHeight || _ceilH }));
-    mountingRails = generateMountingRails(upperLayouts, wallDefs, {
+    const wallDefs = walls.map(w => ({ wallId: w.id, length: w.length, ceilingHeight: w.ceilingHeight || _ceilH }));
+    // generateMountingRails wants a FLAT cabinet list ({wallId, x, width, height}),
+    // not the per-wall layout objects — flatten, skipping appliances (no box to hang).
+    const upperCabs = upperLayouts.flatMap(ul => (ul.cabinets || [])
+      .filter(c => c.type !== 'appliance' && Number.isFinite(Number(c.width)))
+      .map(c => ({ wallId: ul.wallId, x: Number(c.position) || 0, width: Number(c.width), height: Number(c._elev?.height ?? c.height) || 30 })));
+    mountingRails = generateMountingRails(upperCabs, wallDefs, {
       lightingEnabled: prefs?.underCabinetLighting || false,
       studSpacing: 16,
     });
@@ -1484,13 +1696,25 @@ export function solve(input) {
   let partIds = null;
   let bom = null;
   try {
-    const layoutResult = {
-      walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout,
-      peninsula: peninsulaLayout, accessories, corners,
-    };
-    partIds = generatePartIds(layoutResult, roomType);
+    // generatePartIds wants { walls: { <id>: { base, upper, tall, fillers,
+    // endPanels, … } } } and a ROOM CODE (KIT/LAU/BTH/VAN/OFF). The solver
+    // passed its own array shape + 'kitchen' — every solve threw and part
+    // IDs/BOM have been null since integration. Adapt both.
+    const wallMap = {};
+    for (const wl of wallLayouts) {
+      const cabs = (wl.cabinets || []).filter(c => typeof c.position === 'number');
+      wallMap[wl.wallId] = {
+        base: cabs.filter(c => c.type === 'base' && !/^(FC-)?(OVF|F)\d/.test(String(c.sku || ''))),
+        upper: (upperLayouts.find(u => u.wallId === wl.wallId)?.cabinets || []).filter(c => c.sku),
+        tall: (talls || []).filter(t => t.wall === wl.wallId),
+        fillers: cabs.filter(c => /^(FC-)?(OVF|F)\d/.test(String(c.sku || ''))),
+        endPanels: cabs.filter(c => c.type === 'end_panel'),
+      };
+    }
+    const ROOM_CODE = { kitchen: 'KIT', laundry: 'LAU', bathroom: 'BTH', master_bath: 'BTH', vanity: 'VAN', powder: 'VAN', office: 'OFF' };
+    partIds = generatePartIds({ walls: wallMap }, ROOM_CODE[roomType] || 'KIT');
     if (partIds?.parts?.length) {
-      bom = generateBOM(partIds.parts, null); // pricing data applied downstream
+      bom = generateBOM(partIds.parts); // pricing data applied downstream (null options crashed the default destructure)
     }
   } catch (e) {
     validation.push({ severity: 'info', rule: 'part_id_error', message: `Part ID generation: ${e.message}` });
@@ -1518,7 +1742,7 @@ export function solve(input) {
       }
       // Attempt auto-resolution of overflows
       try {
-        const resolved = resolveOverflows(cabinetRuns);
+        const resolved = resolveOverflows(cabinetRuns, { renameSku: resizeSkuWidth });
         if (resolved && !resolved.resolved) {
           for (const adj of (resolved.adjustments || [])) {
             validation.push({
@@ -1526,6 +1750,22 @@ export function solve(input) {
               rule: 'overflow_unresolved',
               message: adj.message || `Unresolved overflow on wall ${adj.wallId}`,
             });
+          }
+        }
+        // The wall_overflow findings above were recorded BEFORE this resolve —
+        // if the resize just made a wall fit, those findings describe geometry
+        // that no longer exists. Re-measure and drop the stale ones (an entry
+        // for a wall that still overflows stays).
+        if (resolved && (resolved.adjustments || []).some(a => a.type === 'RESIZE')) {
+          for (let i = validation.length - 1; i >= 0; i--) {
+            const v = validation[i];
+            if (v.rule !== 'wall_overflow' || !v.wall) continue;
+            const wl = wallLayouts.find(w => w.wallId === v.wall);
+            if (!wl) continue;
+            const ext = Math.max(0, ...(wl.cabinets || [])
+              .filter(c => typeof c.position === 'number' && c.type !== 'end_panel')
+              .map(c => c.position + (c.width || 0)));
+            if (ext <= wl.wallLength + 0.5) validation.splice(i, 1);
           }
         }
       } catch (_) { /* overflow resolution is best-effort */ }
@@ -1615,36 +1855,45 @@ export function solve(input) {
     const doorStyleName = prefs?.doorStyle || prefs?.doorStyleName || 'Shaker';
     const designPreset = prefs?.designPreset || null;
 
+    // morphStyle/applyDesignPreset expect a FLAT { cabinets: [...] } — passing
+    // the structured {walls, uppers, …} crashed (undefined.forEach) on every
+    // solve and styleMorph has been null since integration.
+    const flatCabinets = [
+      ...wallLayouts.flatMap(wl => (wl.cabinets || [])),
+      ...upperLayouts.flatMap(ul => (ul.cabinets || [])),
+      ...(talls || []),
+      ...(islandLayout ? [...(islandLayout.workSide || []), ...(islandLayout.backSide || [])] : []),
+    ].filter(c => c && c.sku);
     if (designPreset && DESIGN_PRESETS[designPreset]) {
-      styleMorphResult = applyDesignPreset(
-        { walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout },
-        designPreset
-      );
+      styleMorphResult = applyDesignPreset({ cabinets: flatCabinets }, designPreset);
     } else {
-      styleMorphResult = morphStyle(
-        { walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout },
-        doorStyleName,
-        prefs || {}
-      );
+      styleMorphResult = morphStyle({ cabinets: flatCabinets }, doorStyleName, prefs || {});
     }
 
-    // Extrude crown molding along upper perimeter
+    // Extrude crown molding along upper perimeter. moldingPaths is an OBJECT
+    // {crown, lightRail}; the old `moldingPaths?.length` gate tested an object
+    // for array length and permanently disabled both extrusions.
+    // The path builder emits per-wall 1D runs ({segments:[{start,end}]}); the
+    // extruders want {x,y} point segments — adapt (they crashed on .x before).
+    const toXYSegments = (paths) => (paths || []).flatMap(p => (p.segments || []).map(s => ({
+      start: { x: s.start, y: 0 }, end: { x: s.end, y: 0 }, wall: p.wall || s.wall,
+    })));
+    const toZones = (paths) => (paths || []).flatMap(p => (p.skipZones || []).map(z => ({
+      x1: z.start ?? z.x1 ?? 0, y1: -1, x2: z.end ?? z.x2 ?? 0, y2: 1,
+    })));
     const crownProfile = prefs?.crownProfile || (prefs?.crownMolding === 'none' ? null : 'Simple');
-    if (crownProfile && moldingPaths?.length) {
-      moldingExtrusion = extrudeMoldingProfile(crownProfile, moldingPaths);
+    if (crownProfile && moldingPaths?.crown?.length) {
+      moldingExtrusion = extrudeMoldingProfile(crownProfile, toXYSegments(moldingPaths.crown), { hoodZones: toZones(moldingPaths.crown) });
     }
 
     // Extrude light rail along bottom of uppers
     const lrProfile = prefs?.lightRailProfile || 'SQ';
-    if (lrProfile !== 'none' && moldingPaths?.length) {
-      lightRailExtrusion = extrudeLightRailProfile(lrProfile, moldingPaths);
+    if (lrProfile !== 'none' && moldingPaths?.lightRail?.length) {
+      lightRailExtrusion = extrudeLightRailProfile(lrProfile, toXYSegments(moldingPaths.lightRail), { hoodZones: toZones(moldingPaths.lightRail) });
     }
 
     // Calculate finish metrics (total door weight, paintable area, glass area, hinges)
-    finishMetrics = calculateFinishMetrics(
-      { walls: wallLayouts, uppers: upperLayouts, talls, island: islandLayout },
-      doorStyleName
-    );
+    finishMetrics = calculateFinishMetrics({ cabinets: flatCabinets }, doorStyleName);
   } catch (e) {
     validation.push({ severity: 'info', rule: 'style_morph_error', message: `Style morphing: ${e.message}` });
   }
@@ -1662,8 +1911,12 @@ export function solve(input) {
     for (const wl of wallLayouts) {
       const ul = upperLayouts.find(u => u.wallId === wl.wallId);
       if (!ul || !ul.cabinets?.length || !wl.cabinets?.length) continue;
-      const baseCabs = wl.cabinets.filter(c => c.width && typeof c.position === 'number');
-      const upperCabs = ul.cabinets.filter(c => c.width && typeof c.position === 'number');
+      // scoreAlignment/detectCommonLines read `.x`, the solver stores
+      // `.position` — the raw objects crashed (undefined.toFixed) on every
+      // solve and alignmentReport has been null since integration.
+      const asXW = (c) => ({ ...c, x: c.position });
+      const baseCabs = wl.cabinets.filter(c => c.width && typeof c.position === 'number').map(asXW);
+      const upperCabs = ul.cabinets.filter(c => c.width && typeof c.position === 'number').map(asXW);
       if (!baseCabs.length || !upperCabs.length) continue;
 
       const wallAlignment = scoreAlignment(baseCabs, upperCabs);
@@ -1837,6 +2090,7 @@ export function solve(input) {
     roomType,
     applianceRecommendation: (() => { const _r = recommendAppliances({ layoutType, walls, island: islandLayout }); _r.applied = _applianceApplied; return _r; })(),
     _inputWalls: walls,
+    _wallFrames: wallFrames,         // real 2D wall frames (AD-2 roomGeometry)
     _spatialModel: spatialModel,     // expose for renderer
     _3dModel,                        // OCP solid geometry validation
     walls: wallLayouts,
@@ -1850,6 +2104,7 @@ export function solve(input) {
     placements,
     coordinatedPlacements,
     validation,
+    decisions: __decisions || [],   // design rationale trace (see noteDecision)
     moldingPaths,           // path-based molding segments for renderer
     spatialValidation: spatialReport, // full spatial validation report
     countertopPolyline,     // automated countertop path (Z=34.5, 1.5" thick)
@@ -1931,6 +2186,115 @@ export function solve(input) {
 }
 
 
+import { computeWallFrames, worldPoint, cornerAdjacency } from './roomGeometry.js';
+
+// ─── DESIGN RATIONALE TRACE ─────────────────────────────────────────────────
+// solve() resets this at entry and reads it into result.decisions; passes call
+// noteDecision(pass, text, rule?) wherever a real design choice is made. solve()
+// is synchronous and never re-enters itself, so a module slot is safe.
+let __decisions = null;
+function noteDecision(pass, text, rule = null) {
+  if (__decisions) __decisions.push({ pass, text, ...(rule ? { rule } : {}) });
+}
+
+
+// ─── COMPOSITION PASSES (AD-4; _compose-gated) ──────────────────────────────
+
+const _SLIVER_KEEP = /^(FC-)?(OVF|F)\d|^(FC-)?(BWDM|BSP|BPOS|BEP|WEP|REP|FREP|UDEP|BDEP|VDEP|TS-)|^(FC-)?(BL|BBC|BLSB|DSB|WSE|WSC)/;
+
+/** Merge <12" door/drawer cabinets into an adjacent same-zone neighbor as a
+ *  width-mod. Widths conserve; nothing else moves. */
+function mergeSliverRun(cabs, extraKeepRe = null) {
+  if (!Array.isArray(cabs)) return;
+  const run = cabs.filter(c => typeof c.position === 'number' && (c.width || 0) > 0).sort((a, b) => a.position - b.position);
+  for (const c of run) {
+    if (!c.sku || c.type === 'appliance') continue;
+    if (!(c.width < 11.99)) continue;
+    if (_SLIVER_KEEP.test(c.sku) || (extraKeepRe && extraKeepRe.test(c.sku))) continue;
+    const i = run.indexOf(c);
+    const neighbors = [run[i - 1], run[i + 1]].filter(n =>
+      n && n.sku && n.type === c.type && !_SLIVER_KEEP.test(n.sku) && !(extraKeepRe && extraKeepRe.test(n.sku))
+      && (n.width + c.width) <= 48
+      && (Math.abs((n.position + n.width) - c.position) <= 1 || Math.abs((c.position + c.width) - n.position) <= 1));
+    const nb = neighbors[0];
+    if (!nb) continue;
+    const grewLeft = nb.position < c.position;
+    nb.width = Math.round((nb.width + c.width) * 2) / 2;
+    if (!grewLeft) nb.position = c.position;
+    if (typeof nb.position_start === 'number') nb.position_start = nb.position;
+    if (typeof nb.position_end === 'number') nb.position_end = nb.position + nb.width;
+    nb.sku = resizeSkuWidth(nb.sku, nb.width);
+    nb.modified = { ...(nb.modified || {}), type: 'MOD WIDTH N/C', mergedSliver: c.width };
+    const idx = cabs.indexOf(c);
+    if (idx >= 0) cabs.splice(idx, 1);
+    run.splice(run.indexOf(c), 1);
+    noteDecision('composition', `Merged a ${c.width}" sliver (${c.sku}) into its neighbor as a width modification — no cabinet under 12" survives on this run.`);
+  }
+}
+
+function mergeSliverCabinets(wallLayouts) {
+  for (const wl of wallLayouts) mergeSliverRun(wl.cabinets);
+}
+
+/** Focal-wall uppers: center the hood on the range and make the two uppers
+ *  flanking it MIRROR each other, flush against the hood. */
+function composeRangeWallUppers(upperLayouts, wallLayouts, appByWall) {
+  for (const ul of upperLayouts) {
+    const cabs = (ul.cabinets || []).filter(c => typeof c.position === 'number' && (c.width || 0) > 0);
+    const hood = cabs.find(c => /^(FC-)?P?RH\d|HOOD/i.test(String(c.sku || '')));
+    if (!hood) continue;
+    const range = (appByWall[ul.wallId] || []).find(a => /range|cooktop/i.test(String(a.type || '')));
+    if (!range || typeof range.position !== 'number') continue;
+    const wl = wallLayouts.find(w => w.wallId === ul.wallId);
+    const wallLen = (wl && wl.wallLength) || Infinity;
+    const rc = range.position + (range.width || 30) / 2;
+    hood.position = Math.max(0, Math.min(wallLen - hood.width, rc - hood.width / 2));
+    if (typeof hood.position_start === 'number') hood.position_start = hood.position;
+    if (typeof hood.position_end === 'number') hood.position_end = hood.position + hood.width;
+
+    const field = cabs.filter(c => c !== hood && !/^(FC-)?RW\d/.test(String(c.sku || '')));
+    let left = field.filter(c => c.position + c.width <= hood.position + 1).sort((a, b) => b.position - a.position)[0];
+    let right = field.filter(c => c.position >= hood.position + hood.width - 1).sort((a, b) => a.position - b.position)[0];
+    // A missing flank is not a reason to leave the hood naked on one side —
+    // when the wall itself has room (a base run under it, e.g. right of a
+    // range near the run end), CREATE the flank upper the designer would.
+    const upperHOf = (c) => c && c.height ? c.height : 39;
+    const mkFlank = (pos, w, mate) => {
+      const u = {
+        sku: `W${Math.round(w)}${upperHOf(mate)}`, width: w, height: upperHOf(mate),
+        type: 'wall', position: pos, wall: ul.wallId, _composedFlank: true,
+      };
+      ul.cabinets.push(u);
+      return u;
+    };
+    if (!right && left) {
+      const span = Math.floor((wallLen - (hood.position + hood.width)) / 1.5) * 1.5;
+      if (span >= 12) right = mkFlank(hood.position + hood.width, Math.min(span, 42), left);
+    }
+    if (!left && right) {
+      const span = Math.floor(hood.position / 1.5) * 1.5;
+      if (span >= 12) left = mkFlank(Math.max(0, hood.position - Math.min(span, 42)), Math.min(span, 42), right);
+    }
+    if (!left || !right) continue;
+    // available span each side: from the outer neighbor (or run/wall start) to the hood
+    const leftOuter = field.filter(c => c !== left && c.position + c.width <= left.position + 1).sort((a, b) => b.position - a.position)[0];
+    const rightOuter = field.filter(c => c !== right && c.position >= right.position + right.width - 1).sort((a, b) => a.position - b.position)[0];
+    const availL = hood.position - (leftOuter ? leftOuter.position + leftOuter.width : Math.max(0, left.position + left.width - left.width - 6));
+    const availR = (rightOuter ? rightOuter.position : Math.min(wallLen, right.position + right.width + 6)) - (hood.position + hood.width);
+    const w = Math.floor(Math.min(availL, availR, 42) / 1.5) * 1.5;
+    if (!(w >= 12)) continue;
+    left.width = w; left.position = hood.position - w;
+    right.width = w; right.position = hood.position + hood.width;
+    for (const c of [left, right]) {
+      if (typeof c.position_start === 'number') c.position_start = c.position;
+      if (typeof c.position_end === 'number') c.position_end = c.position + c.width;
+      c.sku = resizeSkuWidth(c.sku, w);
+      c._symmetryEnforced = true;
+    }
+    noteDecision('composition', `Focal wall ${ul.wallId}: hood centered over the range and flanked by mirrored ${w}" uppers — the wall reads as a designed composition.`, 'designer craft — focal-wall symmetry');
+  }
+}
+
 // ─── CORNER RESOLVER ────────────────────────────────────────────────────────
 
 // Accept short layout codes (consumer funnel sends "L"/"U"/"single") as well as
@@ -1951,24 +2315,32 @@ function normalizeLayoutType(lt) {
   return MAP[s] || lt;
 }
 
-function resolveCorners(walls, layoutType, prefs) {
+function resolveCorners(walls, layoutType, prefs, wallFrames = null) {
   const corners = [];
 
   if (layoutType === "single-wall" || layoutType === "single-wall-island" || layoutType === "galley") return corners;
 
-  // Identify corner pairs based on layout type
-  const pairs = [];
-  if (layoutType === "l-shape" && walls.length >= 2) {
-    pairs.push([walls[0].id, walls[1].id]);
+  // Corner pairs come from GEOMETRY when frames are available (walls that
+  // actually share an endpoint — AD-2), with the historical array-order
+  // mapping as fallback. For the standard CCW walk these agree; for odd wall
+  // orders only the geometric answer is right.
+  let pairs = [];
+  if (wallFrames && wallFrames.length >= 2) {
+    pairs = cornerAdjacency(wallFrames).map(p => [p.wallA, p.wallB]);
   }
-  if (layoutType === "u-shape" && walls.length >= 3) {
-    pairs.push([walls[0].id, walls[1].id]);
-    pairs.push([walls[1].id, walls[2].id]);
-  }
-  if (layoutType === "g-shape" && walls.length >= 4) {
-    pairs.push([walls[0].id, walls[1].id]);
-    pairs.push([walls[1].id, walls[2].id]);
-    pairs.push([walls[2].id, walls[3].id]);
+  if (!pairs.length) {
+    if (layoutType === "l-shape" && walls.length >= 2) {
+      pairs.push([walls[0].id, walls[1].id]);
+    }
+    if (layoutType === "u-shape" && walls.length >= 3) {
+      pairs.push([walls[0].id, walls[1].id]);
+      pairs.push([walls[1].id, walls[2].id]);
+    }
+    if (layoutType === "g-shape" && walls.length >= 4) {
+      pairs.push([walls[0].id, walls[1].id]);
+      pairs.push([walls[1].id, walls[2].id]);
+      pairs.push([walls[2].id, walls[3].id]);
+    }
   }
 
   for (const [wA, wB] of pairs) {
@@ -2000,11 +2372,15 @@ function resolveCorners(walls, layoutType, prefs) {
       // ── 30% WALL CONSUMPTION GUARD ──
       // If the corner consumes >30% of either wall, downgrade to BL36 or blind corner.
       // This ensures enough run remains for appliances + flanking cabinets.
-      const consumeA = treatment.wallAConsumption || treatment.size || 36;
-      const consumeB = treatment.wallBConsumption || treatment.size || 36;
+      // `??` not `||`: an OPEN corner's 0" consumption is a real value — the
+      // old falsy-chain read it as "missing → 36" and downgraded an explicit
+      // open corner to a lazy susan on one junction (a design the user's
+      // corner:open contract never asked for).
+      const consumeA = treatment.wallAConsumption ?? treatment.size ?? 36;
+      const consumeB = treatment.wallBConsumption ?? treatment.size ?? 36;
       const pctA = consumeA / wallA.length;
       const pctB = consumeB / wallB.length;
-      if ((pctA > 0.30 || pctB > 0.30) && treatment.type !== 'blindCorner' && treatment.type !== 'lazySusan') {
+      if ((pctA > 0.30 || pctB > 0.30) && treatment.type !== 'blindCorner' && treatment.type !== 'lazySusan' && !treatment.openCorner) {
         // Downgrade: try BL36 lazy susan (36" per wall, most common in training)
         if (wallA.length >= 36 && wallB.length >= 36) {
           treatment = {
@@ -2067,6 +2443,20 @@ function selectCornerTreatment(wallA, wallB, prefs) {
   const bLen = wallB.length;
 
   // User explicit overrides
+  // OPEN corner (90°): no corner unit at all — wall A's run dies into the
+  // corner (0" consumed) and wall B's run clears A's 24"-deep boxes + filler.
+  // Trades the corner storage for full run length on A; the countertop still
+  // wraps the dead corner. A real designer reaches for this when the corner
+  // unit would starve an appliance wall of its landings.
+  if (prefs.cornerTreatment === "open") {
+    return {
+      type: "open", sku: null, size: 0,
+      wallAConsumption: 0, wallBConsumption: 27,
+      fillerRequired: false, fillerWidth: 0,
+      openCorner: true, turn: 90,
+      patternId: "open_corner_explicit", efficiency: 50,
+    };
+  }
   if (prefs.cornerTreatment === "lazySusan" && aLen >= 36 && bLen >= 36) {
     return {
       type: "lazySusan", sku: "BL36-SS-PH", size: 36,
@@ -2240,6 +2630,18 @@ function selectCornerTreatment(wallA, wallB, prefs) {
 // This creates a finished, built-in look instead of showing cabinet sides.
 
 function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
+  // A panel may only go into genuinely FREE space. When a run butts an
+  // appliance (galley fridge at position 0), inserting the 0.75" panel at
+  // minPos-0.75 overlaps the appliance and overflow resolution then shrinks
+  // a real box to pay for it (the fridge shipped at 35.25" this way).
+  const intervalFree = (layout, start, end) =>
+    !layout.cabinets.some(c => {
+      const w = c.width || 0;
+      if (!(w > 0)) return false;
+      const p = c.position || 0;
+      return p < end - 0.01 && p + w > start + 0.01;
+    });
+
   for (const wl of wallLayouts) {
     const baseCabs = wl.cabinets.filter(c => c.type === "base" || c.type === "corner");
     if (baseCabs.length === 0) continue;
@@ -2254,7 +2656,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     const maxPos = Math.max(...positions.map(p => p.pos + p.width));
 
     // Left end panel: add if no left corner consuming that space
-    if (!leftCorner && minPos > 0) {
+    if (!leftCorner && minPos > 0 && intervalFree(wl, minPos - 0.75, minPos)) {
       wl.cabinets.push({
         sku: "BEP3/4-FTK-L/R",
         width: 0.75,
@@ -2269,7 +2671,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     if (!rightCorner) {
       const wallDef = walls.find(w => w.id === wl.wallId);
       const wallLen = wallDef?.length || 96;
-      if (maxPos < wallLen) {
+      if (maxPos < wallLen && intervalFree(wl, maxPos, maxPos + 0.75)) {
         wl.cabinets.push({
           sku: "BEP3/4-FTK-L/R",
           width: 0.75,
@@ -2301,7 +2703,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     const upperH = firstUpper.height || 39;
 
     // Left FWEP
-    if (minPos > 0) {
+    if (minPos > 0 && intervalFree(ul, minPos - 0.75, minPos)) {
       ul.cabinets.push({
         sku: "FWEP3/4-L/R-27\"",
         width: 0.75,
@@ -2316,7 +2718,7 @@ function addEndPanels(wallLayouts, upperLayouts, walls, corners, prefs) {
     // Right FWEP
     const wallDef = walls.find(w => w.id === ul.wallId);
     const wallLen = wallDef?.length || 96;
-    if (maxPos < wallLen) {
+    if (maxPos < wallLen && intervalFree(ul, maxPos, maxPos + 0.75)) {
       ul.cabinets.push({
         sku: "FWEP3/4-L/R-27\"",
         width: 0.75,
@@ -2572,7 +2974,7 @@ function solveWall(wall, appliances, corners, prefs, golaPrefix) {
     if (newWidth <= 54) {
       lastCab.width = newWidth;
       lastCab.position_end = lastCab.position_start + newWidth;
-      lastCab.sku = buildSku(lastCab.sku.replace(/\d+/, ''), newWidth, golaPrefix);
+      lastCab.sku = resizeSkuWidth(lastCab.sku, newWidth);
       lastCab.modified = { type: "MOD WIDTH N/C", gapAbsorbed: terminalGap };
       lastCab._chainEnforced = true;
     }
@@ -3447,6 +3849,14 @@ function fillWallSegment(segment, wallRole, prefs, golaPrefix) {
       sku = buildSku(cabType, w, golaPrefix);
     }
 
+    // A stand-alone door/drawer box under 12" is a sliver no designer ships —
+    // the catalog answer at this width is the 4-tier pull-out (BPOS-9, a real
+    // Eclipse unit). Only when it's the segment's lone cabinet: multi-cabinet
+    // fills leave slivers to the merge pass, which widens a neighbor instead.
+    if (w < 12 - 0.01 && w >= 6 && result.cabinets.length === 1) {
+      sku = `${golaPrefix || ''}BPOS-${w % 1 === 0 ? w : Math.floor(w) + ' 1/2'}`;
+    }
+
     cabinets.push({
       sku,
       width: w,
@@ -3637,6 +4047,25 @@ function selectCabinetType(zone, prefs, golaPrefix, rangePattern, sinkPattern) {
 
 
 // ─── SKU BUILDER ────────────────────────────────────────────────────────────
+
+// Rewrite ONLY the width digits of a cabinet SKU, preserving family prefixes
+// that embed other digits. A bare sku.replace(/\d+/, w) corrupts them:
+// B3D30→B24D30 (drawer count eaten), W2339L→W24L (height eaten).
+function resizeSkuWidth(sku, newWidth) {
+  if (!sku) return sku;
+  const wStr = newWidth % 1 === 0 ? String(newWidth) : `${Math.floor(newWidth)} 1/2`;
+  const fc = sku.startsWith('FC-') ? 'FC-' : '';
+  const s = fc ? sku.slice(3) : sku;
+  // Digit-bearing family prefixes: the width FOLLOWS the family code.
+  let m = s.match(/^(B3D|B4D|B2HD|B2TD|U3D)(\d+(?:\s?1\/2)?)(.*)$/);
+  if (m) return fc + m[1] + wStr + m[3];
+  // Uppers W{width}{height}[hinge]: the trailing two digits are the height.
+  m = s.match(/^(W)(\d{1,2}(?:\s?1\/2)?)(\d{2})([LR]?)$/);
+  if (m) return fc + m[1] + wStr + m[3] + m[4];
+  // Everything else (B30, SB36, B30-RT, BBC45R, BWDMA30…): the first digit
+  // group IS the width.
+  return fc + s.replace(/\d+(?:\s?1\/2)?/, wStr);
+}
 
 function buildSku(cabType, width, golaPrefix) {
   // Handle half-widths
@@ -3913,11 +4342,14 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
       // walls keep the legacy 21" fallback.)
       const rwH = rwStdHeights.find(h => h <= availableAboveFridge) || (wallDef.soffit?.drop > 0 ? null : 21);
       if (rwH && rwH >= 21) {  // minimum catalog height is 21"
+        // Width-less appliances (customer said "a fridge") default to 36 —
+        // Math.min(undefined, 36) is NaN and mints an "RWNaN21".
+        const fw = Number.isFinite(fridgeApp.width) ? fridgeApp.width : 36;
         baseCabs.push({
           ...fridgeApp,
           type: "base",
-          sku: `RW${Math.min(fridgeApp.width, 36)}${rwH}`,
-          width: fridgeApp.width,
+          sku: `RW${Math.min(fw, 36)}${rwH}`,
+          width: fw,
           position: fridgeApp.position,
           _isFridgeUpper: true,
           _rwHeight: rwH,
@@ -4572,10 +5004,10 @@ function solveUppers(wallLayout, wallDef, wallAppliances, prefs) {
     if (leftFlank && rightFlank && leftFlank.width !== rightFlank.width) {
       const symmetricWidth = Math.min(leftFlank.width, rightFlank.width);
       leftFlank.width = symmetricWidth;
-      leftFlank.sku = leftFlank.sku.replace(/\d+/, String(symmetricWidth));
+      leftFlank.sku = resizeSkuWidth(leftFlank.sku, symmetricWidth);
       leftFlank._symmetryEnforced = true;
       rightFlank.width = symmetricWidth;
-      rightFlank.sku = rightFlank.sku.replace(/\d+/, String(symmetricWidth));
+      rightFlank.sku = resizeSkuWidth(rightFlank.sku, symmetricWidth);
       rightFlank._symmetryEnforced = true;
     }
 
@@ -4710,8 +5142,11 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       continue;
     }
 
-    // Standard WSC: 24" pie-hinged pair
-    // Catalog format: WSC24-PH (single SKU, no height suffix, no L/R — one per corner)
+    // Standard WSC: 24" pie-hinged corner unit.
+    // Catalog format: WSC24-PH — a SINGLE unit that occupies the corner and
+    // spans both legs (like BL36 at base level). This used to push TWO per
+    // corner (side left + right) despite the one-per-corner comment — every
+    // auto kitchen double-counted and double-priced its upper corners.
     upperCorners.push({
       sku: `WSC24-PH`,
       width: 24,
@@ -4720,17 +5155,6 @@ function solveUpperCorners(corners, upperLayouts, prefs, walls) {
       role: "upper_corner",
       wall: `${corner.wallA}-${corner.wallB}`,
       patternId: "wall_square_corner",
-      side: "left",
-    });
-    upperCorners.push({
-      sku: `WSC24-PH`,
-      width: 24,
-      height: upperH,
-      type: "wall_corner",
-      role: "upper_corner",
-      wall: `${corner.wallA}-${corner.wallB}`,
-      patternId: "wall_square_corner",
-      side: "right",
     });
 
     // ── Stacked wall angle (SA) for tall ceiling corner transitions ──
@@ -8187,7 +8611,7 @@ function ensureRecyclingAndCornerStorage(wallLayouts, islandLayout, prefs) {
   }
 }
 
-function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = [], inputWalls = []) {
+function buildValidationInput(wallLayouts, islandLayout, appliances, corners, roomType, prefs, accessories = [], talls = [], inputWalls = [], wallFrames = null) {
   // Build appliance list with ACTUAL positions and landing clearances
   // from the solved wall layouts — not estimated from cumulative widths.
   const appWithPositions = [];
@@ -8251,21 +8675,21 @@ function buildValidationInput(wallLayouts, islandLayout, appliances, corners, ro
       // Find original appliance data
       const origApp = appliances.find(a => a.type === ac.applianceType && a.model === ac.model) || {};
 
-      // Compute 2D coordinates for work triangle calculation.
-      // Wall A runs along x-axis (y=0), wall B runs along y-axis (x=wallA.length)
-      // for L-shape layouts.  For single-wall, everything is on x-axis.
-      const wallIdx = wallLayouts.findIndex(w => w.wallId === wall.wallId);
+      // Compute 2D coordinates for work triangle calculation from the REAL
+      // wall frames (AD-2). The old builder collapsed every wall after index 0
+      // onto one axis — wall C of a U got wall B's coordinates and triangle
+      // math was fiction. Falls back to the legacy mapping only when frames
+      // are unavailable.
       const appCenter = ac.position + ac.width / 2;
       let x2d, y2d;
-      if (wallIdx === 0) {
-        // First wall: along x-axis
-        x2d = appCenter;
-        y2d = 0;
+      const frame = wallFrames && wallFrames.find(f => f.id === wall.wallId);
+      if (frame) {
+        const pt = worldPoint(frame, appCenter);
+        x2d = pt.x; y2d = pt.y;
       } else {
-        // Second wall (L-shape): along y-axis from the junction
-        const wallALen = wallLayouts[0]?.wallLength || 0;
-        x2d = wallALen;
-        y2d = appCenter;
+        const wallIdx = wallLayouts.findIndex(w => w.wallId === wall.wallId);
+        if (wallIdx === 0) { x2d = appCenter; y2d = 0; }
+        else { x2d = wallLayouts[0]?.wallLength || 0; y2d = appCenter; }
       }
 
       appWithPositions.push({

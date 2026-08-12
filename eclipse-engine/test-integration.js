@@ -28,6 +28,14 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TRAINING_DIR = path.join(__dirname, '..', 'trainingData');
 
+// The training JSONs live outside the repo (only their PDFs are gitignored;
+// the JSONs were never committed) — on a fresh clone this suite has nothing
+// to run against. Skip loudly instead of crashing the npm-test chain.
+if (!fs.existsSync(path.join(TRAINING_DIR, 'lofton_doris.json'))) {
+  console.log('Integration tests SKIPPED — trainingData/*.json not present in this checkout.');
+  process.exit(0);
+}
+
 let pass = 0;
 let fail = 0;
 

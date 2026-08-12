@@ -89,6 +89,7 @@ registerTenant({
     'shiloh_modern_flush_inset', 'shiloh_modern_beaded_inset', 'shiloh_modern_square_bead_inset',
   ],
   defaultConstruction: 'shiloh_overlay_half',
+  consumer: { frameStyle: 'shiloh_overlay_125' },   // the embed shows the 1¼" overlay look
   validation: { styleCompat: false },            // style matrix is Eclipse v8.8 data
   pricing: { fallbackTenant: 'eclipse' },
   coverFields: { field10Label: '10. Hinge / Cabinet Style', field10Key: 'hingeStyle' },

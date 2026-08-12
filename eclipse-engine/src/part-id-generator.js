@@ -447,8 +447,9 @@ export function generatePartIds(layoutResult, roomType, options = {}) {
     processAccessories(wallData.corbels, 'CBL');
   });
 
-  // Build BOM grouped by wall and type
-  const bom = buildBOM(parts);
+  // Build BOM grouped by wall and type (buildBOM never existed — this threw
+  // "buildBOM is not defined" on every call once the room-code gate was fixed)
+  const bom = generateBOM(parts);
 
   return {
     parts,

@@ -13,6 +13,7 @@ import { realizeInTenant } from '../../eclipse-engine/src/tenantRealize.js';
 import { getTenant } from '../../eclipse-pricing/src/tenants/index.js';
 import { scoreKitchen } from './scoreKitchen.mjs';
 import { corpusArray } from './corpus.mjs';
+import { scoreKitchenV2 } from './scoreKitchenV2.mjs';
 
 const BRANDS = ['eclipse', 'shiloh', 'pronorm'];
 
@@ -73,9 +74,42 @@ function aggregate(rows, brands) {
   return out;
 }
 
+/** Scorer v2 sweep (AD-1): the DESIGN-QUALITY view. v1 remains the
+ *  crash-freedom floor; run `node evals/si/run-corpus.mjs --v2` for the
+ *  honest rubric pass-rate with per-metric failure histogram. */
+export function runCorpusV2(n = 60) {
+  const rows = [];
+  for (const k of corpusArray(n)) {
+    const walls = k.walls.map(w => ({ ...w, ceilingHeight: w.ceilingHeight || k.ceiling || 96 }));
+    const input = { layoutType: k.layoutType, roomType: 'kitchen', walls, appliances: k.appliances,
+      prefs: k.prefs || {}, applyApplianceRec: true, ...(k.island ? { island: k.island } : {}) };
+    let r = null, err = null;
+    try { r = solve(input); } catch (e) { err = e; }
+    rows.push({ kitchen: k.id, v2: err ? { pass: false, score: 0, hardFails: ['crash'], metrics: [] } : scoreKitchenV2(r, { room: { walls } }) });
+  }
+  return rows;
+}
+
+function mainV2(n) {
+  const rows = runCorpusV2(n);
+  const pass = rows.filter(r => r.v2.pass).length;
+  const hard = {}, craft = {};
+  for (const r of rows) {
+    for (const h of (r.v2.hardFails || [])) { const k = h.split(':')[0]; hard[k] = (hard[k] || 0) + 1; }
+    for (const m of (r.v2.metrics || []).filter(m => !m.hard && m.applicable && !m.pass)) craft[m.id] = (craft[m.id] || 0) + 1;
+  }
+  console.log(`\n══ Scorer v2 (designer rubric): ${pass}/${rows.length} kitchens pass ══`);
+  console.log('   hard fails:', Object.entries(hard).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}×${v}`).join('  ') || 'none');
+  console.log('   craft fails:', Object.entries(craft).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}×${v}`).join('  ') || 'none');
+  for (const r of rows.filter(r => !r.v2.pass).slice(0, 8)) {
+    console.log(`   ✗ ${r.kitchen} score=${r.v2.score} ${r.v2.hardFails[0] || r.v2.metrics.filter(m => m.applicable && !m.pass).map(m => m.id).slice(0, 3).join(',')}`);
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
   const n = parseInt(args.find(a => /^\d+$/.test(a)) || '60', 10);
+  if (args.includes('--v2')) return mainV2(n);
   const brandArg = args.find(a => a.startsWith('--brand='));
   const brands = brandArg ? [brandArg.split('=')[1]] : BRANDS;
   const showFail = args.includes('--fail');

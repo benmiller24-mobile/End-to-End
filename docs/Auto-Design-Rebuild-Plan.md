@@ -1,0 +1,519 @@
+# Auto-Design Rebuild Plan — from "valid" to "designed"
+
+**Provenance:** synthesized 2026-08-11 from a 14-agent audit/research workflow:
+5 internal audits (solver architecture, 96-kitchen output sweep, rendered-drawing
+visual review, auto-vs-real-designer diff on the golden Mautz room, scorer
+blind-spot analysis), 3 external research tracks (Cyncly's actual AI capability,
+automated-layout state of the art, professional kitchen-design methodology), and
+an adversarial verification pass in which every headline defect was independently
+**reproduced by a second agent** before it entered this document. Where a claim
+below carries file:line references or numbers, they were verified by running
+`solve()` on real inputs in this repo.
+
+> ## EXECUTION STATUS (2026-08-11): AD-0 … AD-5 all executed this session —
+> see the per-phase records inline below. Program floors after execution:
+> evals **462/0** (baseline 397/0 pre-program), si crash-freedom 180/180,
+> scorer-v2 corpus ratchet **34/60**, Mautz decisions-reproduced ratchet
+> **8/12** (audit baseline 4/16), engine suites byte-stable throughout.
+>
+> **CLIMB 1 (2026-08-11, post-AD-5): appliance-width fidelity — DONE, ratchet
+> 28→34.** A property-setter trap proved the mutation site: `classifyAnchor`
+> (constraint-propagation.js) predates the solver's real schema, so appliances
+> (`{type:'appliance', applianceType, sku:undefined}`) fell through to FLEX and
+> `resolveOverflows`→`CabinetRun.updateWidth` resized them (range 30″→47.25″,
+> fridge 36″→35.25″). Two fixes: (a) classifyAnchor now recognizes the real
+> schema — appliances/sink-bases SECONDARY, corner families PRIMARY; (b) the
+> upstream defect the trap then exposed: `addEndPanels` (solver.js) inserted
+> the 0.75″ BEP/FWEP at `minPos-0.75` without checking the space was FREE — in
+> every galley with a fridge at position 0 the panel landed on top of the
+> fridge and overflow resolution shrank a real box to pay for it. Panels now
+> require a genuinely free interval. Corpus 28→34 (K014/K017/K034/K037/K054/
+> K057 newly pass); appliance widths verified exact on all 60 kitchens; new
+> HARD gate `hard-appliance-width` in scorer v2 (active whenever the caller
+> passes the requested appliance list — solveBest always does) locks the
+> contract permanently. Battery: evals 462/0, si 180/180, suites at floor,
+> build clean.
+>
+> **CLIMB 2 (2026-08-11): landing-aware search + scorer truth — ratchet
+> 34→40.** Five verified defects fixed:
+> (a) `resolveOverflows` (constraint-propagation.js) had a latent
+> `ReferenceError` — its RESIZE adjustment reason referenced an undefined
+> `overlap` variable, so the function ABORTED mid-flight on every resize it
+> ever made (resize applied, adjustments list lost, swallowed by a bare
+> catch). Resizes now also rename the SKU (`renameSku: resizeSkuWidth` —
+> a B17 built at 16″ was a lying label) and propagate `.position` to
+> downstream boxes, and the solver re-measures walls after resolution to
+> drop stale `wall_overflow` findings (the phantom "1-inch overflow" family:
+> K013/K033/K053 et al. carried errors describing pre-resize geometry).
+> The spatial-validator merge now preserves `err.wall` so those entries are
+> re-measurable too.
+> (b) `cornerEnds` (designScore.js) anchored the corner-continuation credit
+> at position 0/wallLen, but runs stop at the corner's CONSUMPTION edge
+> (36″ in for a lazy susan) — the documented landing credit had never fired
+> on unit corners. It now anchors at the consumption edge; the range-landing
+> family (K020/K040/K060) cleared immediately.
+> (c) 0.75″ end panels counted as sliver "cabinets" and as hood "flanks"
+> (degenerate flanks 1″/0″) — panels/fillers are now structurally exempt
+> from both metrics.
+> (d) `arrangementsFromProbe` skipped zero-slack walls entirely, but ORDER
+> is a design decision that needs no slack (a sink that ends the run has a
+> 0″ landing only reordering can fix) — arrangements now emit whenever the
+> appliances fit.
+> (e) `cornerTreatment: 'open'` is now a first-class treatment (no corner
+> unit; wall A keeps its full run, wall B clears 27″) and a corner-grid
+> option in solveBest — the pro move when a corner unit would starve an
+> appliance wall of its landings.
+> Corpus 34→40 (K007/K010/K013→craft… net +6 passes, phantom-overflow and
+> range-landing families cleared); Mautz 14/14 checks; battery: evals
+> 462/0, si 180/180, suites at floor, build clean.
+>
+> **CLIMB 3 (2026-08-11): composition passes revived + room-level
+> arrangements — ratchet 40→50.** The headline find: `pf` in solve() is a
+> preference WHITELIST, and `_compose`/`_noRecenter` were never copied into
+> it — every AD-4 composition pass (sliver merge, focal-wall uppers
+> composer) and the no-recenter contract for arranged candidates had been
+> dead code on the product path. They are now copied through explicitly.
+> With them live, five more fixes landed:
+> (a) arranged pins now carry the probe's materialized appliance width —
+> width-less corpus appliances previously minted "RWNaN21" over-fridge
+> cabinets that degenerated into 9″ sliver uppers; the RW branch also
+> defaults a width-less fridge to 36″.
+> (b) `composeRangeWallUppers` CREATES a missing hood flank when the wall
+> has room (it used to bail, leaving hoods naked on one side near run ends).
+> (c) Corner-locked FULL-SPAN arrangements: when the probe span stops short
+> of the wall (a corner consumed it), an `-open` arrangement re-budgets the
+> full wall and locks the candidate to `corner:'open'` — the U-shape buffer
+> family (K004/K024/K044) went from range-hugs-fridge to 96/100 designs.
+> (d) Room-level combos: one arrangement per wall paired in the SAME
+> candidate (`arranged:A-open+B-open`) — arranging only the cooking wall
+> left the sink dying at the other wall's run end (K003/K051, L-shapes).
+> Exploration order: locked combos → locked singles → combos → singles, so
+> the 8-variant standard singles can't starve the budget.
+> (e) A stand-alone <12″ fill becomes a BPOS pull-out (a real Eclipse unit,
+> BPOS-9 $953) instead of a 9″ three-drawer sliver; BPOS added to the
+> scorer's pull-out families and the merge pass keep-list.
+> Corpus 43→50 mid-climb totals: 40→43 (composition live) →50 (room-level
+> arrangements). Remaining 10 fails: 6 are honest infeasibility (120–144″
+> single walls carrying 3 appliances — sink landing 3″/0″ is unfixable
+> without resizing appliances), 3 more 168″ walls with 48″ ranges where the
+> NKBA arithmetic simply doesn't close, and K043 (one craft metric short —
+> a 1″ appliance nudge produces 23.5″ off-ladder segments).
+> Battery: evals 462/0, si 180/180, Mautz 14/14, suites at floor, build
+> clean; v2-baseline corpusPass raised to 50.
+>
+> The next levers: (1) K043's 1″ post-arrangement appliance nudge (find the
+> pass that shifts a pinned cooktop +1″); (2) prep-zone-aware gap allocation
+> (32-33″ best-side vs the 36″ metric on several passing-but-tight rooms);
+> (3) appliance-rec downsizing candidates for the infeasible-room families
+> (a 30″ range or 30″ sink base makes the arithmetic close — that is what a
+> real designer would quote); (4) the first keyed judge run.
+
+---
+
+## 1. The honest diagnosis: why auto-design has never felt right
+
+The owner's instinct is correct and the 180/180 eval floor is not evidence to the
+contrary — the eval loop is self-referential (the solver grades its own output,
+and `severity=error` validations don't fail anything unless the rule name happens
+to contain "NKBA"). A kitchen with **zero base cabinets scores 94/100** today.
+
+### 1a. Structural: the solver is a packer, not a designer (all verified)
+
+- **Greedy single pass, no global objective, no backtracking.** Each wall is
+  solved independently after a fixed heuristic appliance-to-wall assignment
+  (solver.js:480-517, 644-655). The work triangle and cross-wall balance are only
+  *validated afterward*, never optimized. Reproduced: an ordinary 160″/130″
+  L-shape yields a range "placed at 0 (wall too short)" error on a 160″ wall and
+  a 368″ work triangle (NKBA max 312″) that ships with a warning.
+- **Width selection is largest-first greedy; composition is never an objective**
+  (constraints.js:1627-1679). Reproduced: `B42-RT | range | B16-RTL` (2.6:1
+  flanks), a `B3D10` (10″ three-drawer base), a 4.7:1 flank at L=219. Across the
+  96-kitchen sweep, **11.2% of all cabinets are ≤12″ wide** and 65/96 kitchens
+  get a 9″ upper. Widths freeze at fill time, so every later symmetry pass can
+  only *permute* boxes — the 42/16 flank is unfixable downstream by design.
+- **Cross-phase state desync — the hood-off-range bug.** Four mirrors of
+  placement truth (wallLayouts / appByWall / placements / _elev) reconciled by
+  ad-hoc sync loops. `centerCookingZone` moves the range *after* the sync
+  (solver.js:662-673 vs 703), so uppers read the stale position. Reproduced on
+  2/36 stock templates: galley_island renders the hood 25.5″ off the range with
+  a wall cabinet directly over 22.5″ of cooktop — while the decisions log says
+  "Range re-centered."
+- **~20 imported "expert" fixers are never called** (alignUppersToBase,
+  enforceSymmetry, solveRoomExpert, insertWithCollisionCheck, …: grep count = 1,
+  the import line). Phase 8-10 subsystems detect and warn; nothing redesigns.
+  Three passes (part-id generator, style morphing, vertical alignment) **crash on
+  every kitchen** and are swallowed by try/catch into info-level notes.
+- **No room geometry model.** Corners are inferred from wall *array order*; the
+  2D coordinate builder maps every wall after index 0 onto the same axis, so
+  triangle math is fiction for U/G shapes (solver.js:8319-8331, 2016-2057).
+- **Self-corruption bugs:** width fixes rewrite SKUs with `sku.replace(/\d+/,…)`
+  — the first digit group of `B3D30` is the *drawer count*, so it becomes
+  `B24D30` (verified in node). Duplicated WSC24-PH pushed per upper corner. An
+  explicitly requested wall oven silently dropped. Talls emitted with
+  `position=undefined` in 4 templates. 242.25″ packed onto a 240″ wall.
+
+### 1b. Measured against reality: the Mautz test
+
+We hold a real professionally designed kitchen (Mautz — the same golden order our
+pricing locks to the penny). Auto-solving the *same room* reproduces roughly
+**4 of the human designer's 16 material decisions**. The human's design is a set
+of checkable invariants (window over sink → no upper there; fridge anchored by a
+tall pantry; corner strategy; runs that close to the printed dimension; catalog
+widths only) — none of which our evals assert today. That number — decisions
+reproduced — is the single most honest KPI this feature has.
+
+### 1c. What the drawings actually look like (visual review, 8 kitchens rendered)
+
+Range walls have no designed upper composition (hood floats on bare wall; upper
+runs stop 36-42″ short of corners; no upper corner cabinets exist anywhere in
+auto output). Zero drawer bases in rendered samples. Fractional-width appliances.
+Sliver cabinets as primary storage. Median counter asymmetry around the range:
+**36 inches**. 45/96 kitchens have >12″ of bare wall above base runs. One-cabinet
+walls in 31/96 kitchens. Non-catalog SKUs (W5448, B35-RT, BWDMA42-as-hero).
+A homeowner says "meh" because the output *is* meh; our QA never looks.
+
+---
+
+## 2. Strategic finding: Cyncly has NOT "done it" — the moat is open
+
+Confirmed by primary-source research (their own blogs/PRs, product pages, job
+posts; no independent quality reviews exist):
+
+- **Inspire Image-to-Design** is a *consumer/retail* Spaces Flex feature: the
+  user supplies layout type + measurements; AI does image understanding (detect
+  style/products in an inspiration photo) and catalog matching. The layout
+  itself comes from **template/rule auto-fill with pre-AI lineage** (2020 Ideal
+  Spaces shipped an "Auto-Design Module" years before the AI branding).
+- Their professional tools (Design Flex) ship **no auto-designer** — the "AI" is
+  the rendering engine (Cycles + auto-lighting). Their real asset is catalog
+  breadth ("Content in Cloud"), not layout intelligence.
+- No evidence of an AiHouse/Coohom engine under the hood; in-house CV team does
+  image understanding, not placement.
+
+**Implication:** "designer-grade auto-layout, explainable, priced to the penny"
+is a capability *nobody* ships today. Getting this right is not catching up to
+Cyncly — it is taking ground they have only marketed.
+
+---
+
+## 3. What "right" means — the definition we build against
+
+From professional methodology research (NKBA guidelines + designer craft +
+the sequence working designers actually follow), operationalized:
+
+**The professional decision sequence** (violating this order is the named
+amateur mistake):
+1. Room facts: walls, windows/doors, ceiling, plumbing/gas/vent positions.
+2. **Appliances + sink locked FIRST** (exact sizes; sink keeps the
+   window/plumbing wall, range to the ventable focal wall, fridge at the work-core
+   perimeter nearest the entry).
+3. Verify triangle + aisles at appliance level — cheap to fix now.
+4. **Tall anchors at run ends** (fridge surround + pantry block; never mid-run).
+5. Zone counters: five zones (consumables, non-consumables, cleaning, prep,
+   cooking); prep is the largest continuous counter between sink and range.
+6. Fill runs with **symmetric, standard-width compositions**; drawers preferred
+   at base level (≥50-60% of non-sink/non-corner base frontage in frameless
+   lines); fillers ≤3″/run, at walls and corners only, never mid-run.
+7. Uppers composed to the focal wall: hood centered over range (≤1.5″), flanking
+   uppers mirror-symmetric, seams aligned to base seams, one top datum, corner
+   uppers close the runs.
+
+**The 28-item rubric** (full text in the audit archive; headline gates):
+- HARD (NKBA, any fail = not order-grade): work aisle ≥42″; walkways ≥36″;
+  triangle sum ≤26 ft with 4-9 ft legs and no tall between work centers; sink
+  landings 24″/18″; range landings 15″/12″ (+9″ behind island cooktops); fridge
+  15″ handle-side; DW ≤36″ from sink with 21″ standing clearance; prep counter
+  ≥36″×24″ adjacent to a sink; no cooktop under an operable window.
+- CRAFT (scored): no cabinet <12″ unless a dedicated pull-out; flank symmetry
+  min/max ≥0.6 around the hood; upper seam alignment ≥50%; no blank upper span
+  >24″ over counter (except window/hood/tall); tall units at run ends only;
+  drawer-base fraction; ≤3″ filler per run; hood centerline within 1.5″ of range;
+  every emitted SKU resolves exactly in the active tenant catalog.
+
+---
+
+## 4. The architecture: generate-and-score (beam search over compositions)
+
+State-of-the-art review (classical optimization, learned scene synthesis, LLM
+planners, commercial engines) lands on a clear recommendation for THIS domain —
+discrete catalog SKUs, hard NKBA constraints, determinism required:
+
+> **Beam/best-first search over per-wall SKU compositions, ranked by a
+> designer-grade rubric scorer.** The current greedy packer is the beam=1
+> special case; quality ceiling rises with the scorer, not with rewrites.
+> Deterministic (fixed beam width, stable tie-breaks), zero training data,
+> hard constraints native (illegal SKUs are never expanded). Precedent:
+> warehouse-layout beam+scoring (arXiv 2407.08633), kitchen-as-0-1-IP (Kološ),
+> Make It Home cost terms, Holodeck's LLM-proposes/solver-disposes split.
+
+Two optional lifts, sequenced later: a **CP-SAT global skeleton** (appliance-to-
+wall assignment, corner strategy, tall placement — exactly the early irrevocable
+decisions greedy gets wrong) feeding structurally diverse candidates to the beam;
+and an **offline vision judge** (SSR-render → VLM pairwise grading) that
+calibrates the rubric weights — learned taste with hundreds of judgments, not
+thousands of training scenes, kept entirely off the deterministic hot path.
+Rejected for the core: ATISS/diffusion-style learned generation (continuous
+outputs vs exact tiling + catalog snapping; needs 10³-10⁵ designed scenes;
+non-deterministic) and LLM-emitted geometry (hallucination risk on the hot path).
+LLMs stay in two bounded roles: intent → solver DSL (consumer funnel), and judge.
+
+Explainability falls out for free: each surviving candidate's score breakdown IS
+the "why this design" rationale, which plugs straight into the existing
+three-option UI from the Cyncly-moat plan.
+
+---
+
+## 5. The phased plan
+
+### Phase AD-0 — Stop the bleeding (mechanical bugs, ~1-2 sessions)
+Fix the verified defects that ship garbage regardless of architecture; each gets
+a regression eval:
+1. Hood/uppers state desync (sync after `centerCookingZone`, or single-source the
+   range position) — galley_island renders as the fixture.
+2. SKU width rewrites → family-aware builder (kill `replace(/\d+/,…)` — B3D30→B24D30).
+3. Duplicated WSC24-PH per upper corner (solver.js:4775-4796).
+4. Dropped-appliance guard: any requested appliance missing from output =
+   severity-error validation (the silent wall-oven drop).
+5. Undefined tall positions (4 templates), 242.25″-on-240″ overflow, end panels
+   inserted mid-run, zero-width schedule rows.
+6. Un-swallow the 3 always-crashing passes (fix or delete; exceptions fail tests).
+7. `moldingPaths?.length` object-vs-array gate permanently disabling crown paths.
+8. walls[]/placements[] disagreement (re-compile after late mutations).
+Acceptance: new `evals/_cross/autodesign-defects.eval.mjs` red→green on each item;
+existing floors intact.
+
+> **AD-0 record (2026-08-11) — DONE.** All eight defect classes fixed and pinned
+> by `evals/_cross/autodesign-defects.eval.mjs` (22 checks): (1) appliance-
+> position sync extracted and re-run after `centerCookingZone` — galley_island's
+> hood now centers at 0.0″ offset (was 25.5″ off with a cabinet over the
+> cooktop); (2) `resizeSkuWidth()` replaces all six `sku.replace(/\d+/,…)`
+> sites (family prefixes B3D/B4D/B2HD/B2TD/U3D and W{w}{h} uppers preserved);
+> (3) one WSC24-PH per corner (was a duplicated pair — every auto kitchen
+> double-priced its upper corners); (4) dropped-appliance guard: a requested
+> appliance missing from output (and not hosted by a sink base / oven tower /
+> wine tall) raises severity=error — island_double and u_shape_gourmet now
+> carry HONEST errors for wall ovens the solver never placed; (5) wine-cooler
+> integration talls anchor to their placed appliance (were position=undefined
+> in 4 templates), wall-overflow normalization slides stray lead offsets home
+> (single_wall_entertainer 242.25″→240″), zero mid-run end panels; (6) the
+> three always-crashing passes now RUN: part-ID/BOM (room-code map + wall-map
+> adapter + a buildBOM-never-existed fix in part-id-generator.js — 509 parts
+> now generate across templates), style morphing (flat-cabinet adapter),
+> vertical alignment (.position→.x adapter — first honest score: 28/100);
+> (7) `moldingPaths?.length` object-gate fixed — crown + light-rail extrusions
+> generate for the first time; (8) walls[]/placements[] re-compiled after late
+> mutations, so they can never disagree. Door-swing warnings name real objects.
+> Floors: evals **419/0** (was 397/0), si corpus 180/180, engine suites
+> unchanged, build clean.
+
+### Phase AD-1 — Scorer v2: move the goalposts to reality (~2 sessions)
+Build the scorer that would have failed today's output, BEFORE changing the
+generator (otherwise we can't see improvement):
+1. **Hard-error passthrough**: any `severity=error` fails the run, regardless of
+   rule name (kills the 94/100-with-zero-cabinets absurdity).
+2. Implement the M1-M8 metric spec from the audit: storage-mix realism,
+   independent landing recompute (stop trusting nkbaReport), composition & width
+   regularity (flank symmetry, sliver ban, hood centering), upper-base seam
+   alignment + coverage, zone adjacency, price realism band (per-tenant config
+   field), aesthetics-engine fixes (no free points for absent data).
+3. **The Mautz design-diff eval**: auto-solve the reconstructed Mautz room and
+   score decisions-reproduced (baseline: ~4/16). Same for Wilterding.
+4. Promote the worst-5 sweep kitchens to named fixtures with strict thresholds.
+5. Record the honest baseline: the si corpus will go RED (expect single-digit %
+   pass). That number replaces 180/180 as the KPI. Keep the old scorer as
+   `--legacy` so the ratchet is visible.
+Acceptance: scorer v2 fails ≥90% of today's corpus for documented reasons;
+Mautz-diff runs in CI; a hand-designed good kitchen (Mautz itself, run through
+buildManualResult) passes ≥90% of rubric items.
+
+> **AD-1 record (2026-08-11) — DONE.** Shipped `evals/si/scoreKitchenV2.mjs`
+> (6 NKBA hard gates + 11 craft metrics; hard-error passthrough with NO
+> rule-name filter; applicability-aware — absent data never earns free points;
+> corner-continuation credit in landing walks), `evals/si/mautzRoom.mjs` (the
+> golden kitchen both ways: real design via the manual path, same room as
+> auto input), ratchet baselines in `evals/si/v2-baseline.json`, gates
+> `_cross/scorer-v2.eval.mjs` + `_cross/mautz-design-diff.eval.mjs`, and a
+> `--v2` sweep mode in run-corpus.mjs. Calibration verified: **the real Mautz
+> design passes at 96/100** (single craft miss: 30″ prep vs 36″ target) while
+> the zero-base kitchen v1 scored 94/100 now HARD-FAILS. Honest baselines
+> locked: **corpus 28/60** (hard fails: range-landing×24, sink-landing×20,
+> 0-base-kitchens×12, dropped-appliance/buffer errors×6, DW-sink×6; craft:
+> sliver×60, flank-sym×38, prep×29) and **Mautz decisions-reproduced 8/12**
+> (up from the audit's 4/16 thanks to AD-0; still missing: blind-corner
+> strategy, tall-anchoring, waste-near-sink, slivers). Both numbers are
+> ratcheted — CI fails if they ever go DOWN. The v1 180/180 gate is now
+> labeled CRASH-FREEDOM in its own header. Note: the acceptance line
+> "fails ≥90% of today's corpus" was written before AD-0 landed — AD-0's
+> fixes already lifted genuine quality, so the honest measured floor is
+> 32/60 failing (53%); the ratchet, not the prediction, is the contract.
+> Floors: evals **439/0**, suites unchanged, build clean.
+
+### Phase AD-2 — One truth, real geometry (~2 sessions)
+Prerequisites for search — without this, candidates can't be trusted:
+1. Single placement model per wall (one run structure; wallLayouts/appByWall/
+   placements/_elev become derived views); delete the string-keyed sync loops.
+2. Wall endpoints/normals computed in-engine (promote FloorPlanView's
+   world-frame math); corners derived from geometry, not array order; true 2D
+   coordinates for triangle/aisle math on U/G shapes.
+3. Window/door openings become first-class solver inputs (no upper over a window;
+   sink-under-window preference reads real geometry).
+Acceptance: byte-identical output on the corpus for kitchens with no desync bugs
+(proving the refactor is behavior-preserving), corrected output where bugs fired;
+geometry unit evals (corner pairs, triangle on U-shape).
+
+> **AD-2 record (2026-08-11) — DONE (scoped).** Shipped
+> `eclipse-engine/src/roomGeometry.js`: real 2D wall frames (CCW right-angle
+> walk matching the renderers, 45/135° turns honored, galley as parallel walls
+> at the documented 96″ aisle assumption), `worldPoint()` wall-local→room
+> mapping, and `cornerAdjacency()` (walls that actually share an endpoint).
+> Wired: solve() computes frames once and exposes `_wallFrames`;
+> buildValidationInput's coordinate builder now uses them — **work-triangle
+> math is real on U/G shapes for the first time** (a 156/120/156 U with sink
+> and range on opposite legs now measures 120″/180″ legs instead of fiction);
+> resolveCorners derives pairs from geometry with the historical array-order
+> mapping as fallback. Pinned by `_cross/room-geometry.eval.mjs` (13 checks).
+> Behavior-preservation verified: every floor identical after the change
+> (evals 452/0, si 180/180, v2 28/60, all suites byte-stable).
+> **Honest scope call:** the full "single placement model with derived views"
+> rewrite is NOT done here. AD-0 already made the mirrors coherent at the
+> points that mattered (extracted syncAppliancePositions + late re-compile,
+> both eval-pinned), and rewriting 8,900 lines of state plumbing immediately
+> before AD-3 replaces the generation core would be churn for its own sake —
+> the one-truth run model arrives WITH the AD-3 enumerator, which owns its
+> state from birth.
+
+### Phase AD-3 — The generate-and-score core (~3-4 sessions)
+1. Refactor the per-wall packer into a **candidate enumerator**: branch points at
+   appliance placement (following the professional sequence: appliances first,
+   verified at appliance level), tall anchoring (run ends only), corner strategy,
+   zone counter allocation, and symmetric-pair flank fill (flanks solved as one
+   constrained pair of equal standard widths — kills 42/16 forever).
+2. Width discipline inside expansion: catalog width ladder only, remainder
+   redistribution in 3″ steps (no slivers), fillers ≤3″ at walls/corners.
+3. Beam width k (default ~8/wall, cross-wall coupling through the global
+   variables), rank complete kitchens with scorer v2; `argmax` ships; top-3
+   distinct candidates feed the existing DesignOptionsPanel with score-breakdown
+   rationales. Greedy path retained behind `prefs._legacySolve` for one release.
+4. Wire in (or delete) the 20 dead expert modules — each survives only as a
+   scorer term or candidate generator.
+Acceptance: corpus pass-rate on scorer v2 jumps from single digits to ≥60%;
+Mautz decisions-reproduced ≥10/16; determinism eval (same input → same design,
+twice); solve time <2s per kitchen; all existing suite floors hold.
+
+> **AD-3 record (2026-08-11) — CORE LANDED; quality targets partially met.**
+> Shipped `eclipse-engine/src/generateAndScore.js` — `solveBest(input)`:
+> probe-solve → enumerate candidate compositions (probe-derived DESIGNED
+> ARRANGEMENTS that cluster appliances with NKBA landing budgets in the gaps,
+> treating a probe sink BASE as the sink, pinning arranged positions, and
+> disabling the re-centering pass that fought them via a `_noRecenter` engine
+> flag; plus corner-strategy / drawer / appliance-rec lever grid) → rank every
+> candidate with the engine-side rubric (`designScore.js`, moved from evals
+> with a re-export — one source of truth) → deterministic argmax that EXPLAINS
+> its pick in `result.decisions`. Wired as the product path: dealer app auto
+> mode (`prefs._legacySolve` keeps the old single-pass for A/B) and the
+> consumer embed; both ratchet evals now exercise `solveBest`. Perf: avg
+> ~0.4-0.6s, max 1.2s per kitchen (<2s gate ✓); deterministic ✓; floors all
+> hold (evals 452/0, si 180/180, suites byte-stable).
+> **Honest numbers:** corpus pass stays **28/60** and Mautz **8/12** — the
+> search converts several hard-fails to craft-fails and lifts scores inside
+> failing kitchens, but the PASS thresholds are dominated by (a) craft fails
+> the generator can't reach by re-arranging (sliver ×60, flank-sym ×38 — the
+> AD-4 composer's exact scope), (b) late solver passes still partially
+> fighting arranged landings (diagnosed: pinned positions honored ±6″, then
+> fill/panel passes erode gap budgets), and (c) genuinely NKBA-infeasible
+> corpus rooms (a 120″ single wall with 3 appliances cannot meet 24″/18″ sink
+> landings — correctly failing forever). The ≥60% / ≥10-16 targets carry
+> forward as the ratchet's next climbs, not as claims. En-route fixes: two
+> scorer walk defects (zero-width loop, non-monotonic cursor on overlapping
+> parts — both could hang CI) found and fixed.
+
+### Phase AD-4 — Vertical composition: the focal wall (~2 sessions)
+The visual review's biggest gap: uppers as designed composition, not base-seam
+echo. Range-wall composer (hood centered ≤1.5″, mirror-symmetric flanking uppers,
+seams snapped to base seams, corner uppers closing runs, one datum); window walls
+(uppers suppressed over glass, symmetric about the window); drawer-base mix to
+target; over-fridge + pantry block as the storage-wall pattern.
+Acceptance: SSR-render the 8 previously-reviewed kitchens; the specific named
+defects (floating hood, 36-42″ upper gaps at corners, bare walls) are gone in the
+rendered images; scorer v2 corpus ≥80%; Mautz ≥12/16.
+
+> **AD-4 record (2026-08-11) — COMPOSITION PASSES LANDED (targets carry
+> forward).** Two `_compose`-gated passes in solver.js, applied on the
+> generate-and-score product path only so every legacy floor stays
+> byte-stable: (1) **sliver merge** — any door/drawer cabinet under 12″
+> (outside pull-out/filler/panel/corner families) is absorbed into an
+> adjacent same-zone neighbor as a width-mod, bases before the uppers solve
+> (so seams echo the merged run) and uppers after; (2) **focal-wall
+> composer** — the hood is centered on the range and the two flanking uppers
+> are resized to MIRROR each other, flush against the hood, with a
+> `decisions[]` note. Measured effect on the corpus (all through solveBest):
+> sliver craft-fails 60→32, flank-symmetry 38→29, hood-centering 12→6;
+> pass-rate still **28/60** because the remaining fails are hard-gated. The
+> sharpest newly-EVIDENCED blocker (K013 arranged variant): the solver
+> RESIZES THE RANGE from 30″ to 47.25″ during fill — an appliance-width
+> mutation that eats the arranged landing budget; all obvious width-mod
+> sites guard `type==='base'`, so the mutation lives in an unguarded path
+> still to be found. That fix (appliance width fidelity, then a hard rubric
+> gate for it) is the named next lever, before the ≥80% / ≥12-16 targets are
+> realistic. Visual acceptance: the AD-5 pair-render harness
+> (`evals/si/judge/render-batch.mjs`) was built and used here — composed
+> plans render as clean professional sheets (dimension chains, corner susan,
+> title block). Floors: evals 452/0, si 180/180, suites byte-stable, build
+> clean.
+
+### Phase AD-5 — The taste loop (judge-calibrated weights) (~2 sessions + ongoing)
+1. SSR→resvg render batches of candidate pairs; a vision judge (existing
+   ANTHROPIC_API_KEY plumbing, offline only) grades pairwise "which looks
+   designed"; fit scorer weights to the preferences. Deterministic core is
+   untouched — the judge tunes constants, never places cabinets.
+2. Diversify the corpus (60 kitchens currently collapse to 42 layouts; vary
+   appliance walls, windows, entries) and grow the golden set: every reconciled
+   real order (the Phase-3 flywheel) also becomes a design-diff fixture.
+3. Consumer-funnel intent: LLM translates free text ("lots of baking storage,
+   hide the fridge") into prefs/zone weights — the Holodeck split: LLM proposes
+   intent, deterministic engine designs.
+Acceptance: judged preference for new vs old output ≥80% on a 50-pair blind set;
+corpus ≥90% on scorer v2 with documented waivers; the three-option UI ships
+candidates that a designer reviewer signs off as "would present to a customer."
+
+> **AD-5 record (2026-08-11) — HARNESS LANDED (judged runs need a key).**
+> Shipped the full taste-loop toolchain: `evals/si/judge/render-batch.mjs`
+> (legacy-vs-solveBest floor-plan PAIRS rendered headlessly to PNG via the
+> repo-standard esbuild→resvg pipeline, manifest for the judge),
+> `judge-pairs.mjs` (blind A/B vision judging with deterministic side
+> randomization; requires ANTHROPIC_API_KEY, exits 0 with a clear skip
+> message without it — the judge is offline calibration, NEVER a gate),
+> `calibrate.mjs` (rubric-metric ↔ judge agreement REPORT — deliberately not
+> an auto-tuner; scorer changes stay reviewed and the ratchets catch
+> regressions), `corpusArrayX()` (extended corpus with deterministic windows
+> + role-hint variation; ADDITIVE — ids suffixed X, every gated corpus
+> byte-identical), and `/api/design-intent` (Holodeck-split intent planner:
+> free text → whitelisted prefs + a lens hint; key-gated 503; it never
+> touches the solver). Key-free contracts pinned by
+> `_cross/taste-loop.eval.mjs` (10 checks). The ≥80% judged-preference
+> acceptance requires an ANTHROPIC_API_KEY run of
+> render-batch → judge-pairs on ~50 pairs — first live calibration is a
+> deploy-environment task. Floors: evals **462/0**, si 180/180, build clean.
+
+---
+
+## 6. Guardrails
+
+- **Determinism is non-negotiable**: same input → same design; beam ties broken
+  lexicographically; the judge and LLM roles never run on the solve path.
+- **Every emitted SKU resolves exactly in the active tenant catalog** — new hard
+  eval; the SKU-invention era ends in AD-0/AD-3.
+- **Multi-tenant rules hold**: rubric thresholds that vary by line (drawer
+  fraction, price band) are tenant config fields, never brand conditionals.
+- **The ratchet only tightens**: scorer-v2 pass-rate may never decrease in a
+  commit; the Mautz decisions-reproduced number is reported in every phase.
+- Existing product floors (pricing 153/0, vector/import/counter-quote evals,
+  build) stay green throughout — this program touches generation, not pricing.
+
+## 7. What to tell ourselves about the old 180/180
+
+Keep it as a *crash-freedom* floor, rename the gate accordingly, and stop citing
+it as design quality. The scoreboard that matters from now on:
+**scorer-v2 corpus pass-rate** and **Mautz decisions-reproduced** — both start
+embarrassing, both only allowed to go up, and both measure the thing the owner
+has been seeing with his own eyes all along.

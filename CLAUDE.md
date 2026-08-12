@@ -9,7 +9,8 @@ A configurator that takes a room (walls, appliances, prefs) → solves a cabinet
 - GitHub: `benmiller24-mobile/End-to-End`, branch `main`. Netlify: `endtoendeclipse.netlify.app`.
 - Frontend: **React + Vite** in `frontend/`. Solver: **`eclipse-engine/`** (pure Node ESM). Pricing: **`eclipse-pricing/`**. Serverless: **`netlify/functions/`** (Netlify Functions v2, `export const config = { path: '/api/...' }`).
 - Build: `cd frontend && npm install && npm run build`. Dev: `netlify dev` (needed for `/api/*`); plain `vite` won't proxy the functions.
-- Tests (run from `eclipse-engine/`): `node test-pricing.js` (must stay **153/0**), `node test.js`, `node test-patterns.js` (194/5 — the 5 are pre-existing lazy-susan/half-moon), `node test-configurator.js` (177/8 pre-existing price/family expectations). Root `npm test` chains several.
+- Tests (run from `eclipse-engine/`): `node test-pricing.js` (must stay **153/0**), `node test.js` (31/0), `node test-patterns.js` (194/5 — the 5 are pre-existing lazy-susan/half-moon), `node test-configurator.js` (177/8 pre-existing price/family expectations). Root `npm test` chains several.
+- Evals (run from repo root): `node evals/run.mjs` must stay **462/0**; `node evals/si/run-corpus.mjs` (deterministic 60-kitchen × 3-brand sweep) must stay **180/180**. Floors locked 2026-07-08 through Phase 5 of `docs/Finish-Plan-Cyncly-Moat.md` (Phase 0 baseline was 325/0; each phase added gated evals: counter-quote, design-options, ack-formats, onboarding, share-link).
 
 ## Architecture map (the files you'll touch most)
 - `eclipse-engine/src/solver.js` — the whole solver. `solve(input)` where input = `{layoutType, roomType, walls[], appliances[], island, prefs}` (note: templates store this under `.input`). Per-wall 1D packer; emits `walls[]`/`uppers[]`/`talls[]`/`island`/`placements[]`, each cabinet carrying `sku, position, width, _elev{yMount,height,depth,zone}`. Key passes: `normalizeSinkPlacement`, `fitIslandToRoom`, `centerCookingZone`, `featureRangeWall` (prefs.featureHood), `scoreAgainstTraining` (TRAINING_PROFILES).
@@ -37,9 +38,20 @@ A configurator that takes a room (walls, appliances, prefs) → solves a cabinet
 - The uploaded catalog PDFs (`shiloh_catalog_v342_interactive 2.pdf`, `eclipse_catalog_v880_interactive.pdf`, brochures) are the source of truth for specs/drawings/prices.
 
 ## Current state (recently shipped)
-Shiloh framed line + all 9 overlay/inset constructions; brand/construction UI; interim Shiloh pricing + brand-aware lookup; sculptural plaster hood + arched zellige niche; "feature the hood" (drops flanking uppers); 3D View (Three.js) + img2img photoreal pass; design-accurate AI prompt with per-wall composition; full elevation SKU audit + fixes (blind base/wall corners, waste base, wine, vanity combinations, angle corners, panels/mouldings, the "no door > 24″" rule). See the report docs in the project folder: `Shiloh-Integration-Plan.md`, `Elevation-Drawing-Audit.md`, `Pricing-Audit-Report.md`, `Current-Trends-Integration.md`.
+Shiloh framed line + all 9 overlay/inset constructions; brand/construction UI; interim Shiloh pricing + brand-aware lookup; 3D View (Three.js) + img2img photoreal pass; design-accurate AI prompts; full elevation SKU audit + fixes. Since then (June–July 2026):
+- **2020/Cyncly import in-app**: decode dialect in the importer + brand-aware Multi-Quote + price-group realize in the resolver (`frontend/src/decode2020.js`, `tools/decode2020.mjs`, `tools/price-2020.mjs`); real competitor orders (Wong, Mark&Jane) reconstruct and re-price.
+- **Order desk**: `frontend/src/ackReconcile.js` (paste a W.W. Wood confirmation → variance report; calibrated on real acks #45923/28/33), `orderReadiness.js` (order-grade vs budget-grade gate per the Dealer Hub SOP), `orderPackage.js` (cutout forms etc.).
+- **In-app tenant onboarding**: `frontend/src/ProductLinesManager.jsx` + `tenantLocal.js` — upload a spec-book PDF → ingest (same `ingestCore` as the CLI) → validation report → registered line (localStorage persistence, package JSON download for repo promotion).
+- **Consumer funnel**: `frontend/src/EmbedApp.jsx` (`embed-main.jsx`) + `netlify/functions/consumer-design.js` — engine-as-API, light theme, floor plan/elevations/3D/AI render, posts render URL to parent page.
+- **Self-improving QA**: `evals/si/` — deterministic kitchen corpus + 5-metric scorer (design/price/floorplan/NKBA/aesthetic, `scoreKitchen.mjs`), live-vision corpus of 95 real plans; gated cross-tenant in `evals/_cross/self-improving.eval.mjs`.
+- **Project persistence**: `frontend/src/lib/projectStore.js` (localStorage, schema mirrors `supabase/schema.sql`; Supabase adapter pending — see roadmap Phase 5).
+- **Phase 0 fixes (2026-07-08)**: si scorer now credits corner units' two-leg span in base-run fill (it scored lazy susans as zero — the eval only looked green before `c3ec705` because short-code kitchens skipped corner resolution entirely); solver now passes `generateMountingRails` the flat `{wallId,x,width,height}` cabinet list it expects (rails were silently skipped for every kitchen: wall lookup keyed `wallId`, solver sent `id`).
+Report docs: `Shiloh-Integration-Plan.md`, `Elevation-Drawing-Audit.md`, `Pricing-Audit-Report.md`, `Current-Trends-Integration.md`, `docs/Design-Studio-Competitive-Research.md`, `docs/Multi-Tenant-Architecture.md`.
 
 ## Likely next tasks
+0. Execute the phased plan in **`docs/Finish-Plan-Cyncly-Moat.md`** (competitive
+   differentiation vs Cyncly: re-quote weapon → three-option explainable auto-design →
+   trust flywheel → self-serve onboarding → product shell).
 1. Load the **official Shiloh price CSV** → replace `SHILOH_RAW_SKU_DATA`, wire the 1¼″-overlay per-door charge, flip pricing from interim to verified (`Shiloh-Scraped-Prices-v342.csv` is there to diff).
 2. Polish the **3D view** materials/lighting/camera and the **Leonardo** depth/img2img tuning (validate on the deployed Netlify site — can't be done headless).
 3. Optional deeper **dimensional** drawing audit (toe heights, rail widths, drawer-face heights, mullion patterns) per cabinet family vs each catalog spec page.
@@ -87,5 +99,18 @@ Shiloh framed line + all 9 overlay/inset constructions; brand/construction UI; i
   sales manuals → pronorm.package.json (10,308 SKUs, 46 front ranges) → manifest.js. Extraction
   verified by an adversarial workflow (25/25 sampled price cells exact). The Y-line group-5 column
   is legitimately dashed for some ranges — absence there is correct, not a parser miss.
-- LIMITATION (honest): no full priced pronorm kitchen order was available locally to reconcile to
-  the penny; pricing is verified against the spec books, not yet against a pronorm order ack.
+- Pricing is now verified against REAL pronorm order confirmations: 8 orders reconcile at
+  100% (multi-front model; see `tools/reconcile-pronorm-order.mjs` and the eval fixtures).
+  The old "spec-book-only" limitation is resolved.
+
+## ROADMAP
+The active build plan is `docs/Finish-Plan-Cyncly-Moat.md` — phased, file-anchored, with
+acceptance gates. Start there when picking up work; it also lists where this file's
+"Current state" section has gone stale (Phase 0 refreshes it).
+**Auto-design quality program:** `docs/Auto-Design-Rebuild-Plan.md` (2026-08-11) — the
+audited diagnosis of why auto-design has never been right (verified solver defects,
+self-referential eval floor) and the phased generate-and-score rebuild (AD-0 … AD-5).
+NOTE: the si 180/180 floor is CRASH-FREEDOM only. Design quality gates: scorer-v2
+corpus ratchet (28/60) + Mautz decisions-reproduced ratchet (8/12) in evals/_cross —
+both may only go UP (`evals/si/v2-baseline.json`). Auto-design product path is
+`solveBest` (generate-and-score); `prefs._legacySolve` keeps the old single pass.

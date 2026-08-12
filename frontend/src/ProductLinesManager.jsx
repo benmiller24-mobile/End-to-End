@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import { listTenants } from '../../eclipse-pricing/src/tenants/index.js';
 import { ingestPages } from '../../eclipse-pricing/src/tenants/ingestCore.js';
 import { saveLocalTenantPackage, removeLocalTenantPackage, localTenantIds, getLocalTenantPackage, extractPdfPages } from './tenantLocal.js';
+import { buildEvalScaffold } from './evalScaffold.js';
 
 const C = { accent: '#b8944e', danger: '#c0392b', dim: '#8a8a8a', border: '#e4ddd2', text: '#1a1a1a' };
 const input = { width: '100%', padding: '6px 9px', border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 12, boxSizing: 'border-box' };
@@ -85,6 +86,18 @@ export default function ProductLinesManager({ activeBrand, onBrandChange }) {
     URL.revokeObjectURL(a.href);
   };
 
+  // Onboarding isn't done until the line is GUARDED: download a ready-to-commit
+  // evals/<id>/catalog-sanity.eval.mjs pinning the ingest's own spot prices.
+  const downloadScaffold = (pkg) => {
+    if (!pkg) return;
+    const blob = new Blob([buildEvalScaffold(pkg)], { type: 'text/javascript' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `catalog-sanity.eval.mjs`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   return (
     <div data-bump={bump} style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.border}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -99,6 +112,11 @@ export default function ProductLinesManager({ activeBrand, onBrandChange }) {
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${pkg.id}.package.json`; a.click(); URL.revokeObjectURL(a.href); }
             }} style={{ fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 4, background: '#fff' }}>
               ⤓ Download package
+            </button>
+            <button onClick={() => downloadScaffold(getLocalTenantPackage(activeBrand))}
+              title="A ready-to-commit evals/<id>/catalog-sanity.eval.mjs pinning this ingest's spot prices — onboarding isn't done until the line is guarded."
+              style={{ fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: `1px solid ${C.border}`, borderRadius: 4, background: '#fff' }}>
+              ⤓ Eval scaffold
             </button>
             <button onClick={() => { if (confirm(`Remove the "${activeBrand}" line from this device?`)) { removeLocalTenantPackage(activeBrand); onBrandChange && onBrandChange('eclipse'); setBump(b => b + 1); } }}
               style={{ fontSize: 10.5, padding: '2px 8px', cursor: 'pointer', border: `1px solid ${C.danger}`, color: C.danger, borderRadius: 4, background: '#fff' }}>
