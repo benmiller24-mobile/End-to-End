@@ -10,6 +10,8 @@
 //   - no initImage → standard PhotoReal perspective render.
 // GET  /api/leonardo?id=<generationId>  -> { status, url? }
 
+import { guardPaidCall } from '../lib/paidCallGuard.js';
+
 const LEONARDO_KEY = process.env.LEONARDO_API_KEY;
 const BASE = 'https://cloud.leonardo.ai/api/rest/v1';
 const MODEL_KINO_XL = 'aa77f04e-3eec-4034-9c07-d0f619684628'; // SDXL (supports PhotoReal v2 + Edge ControlNet 19)
@@ -32,10 +34,13 @@ async function uploadInitImage(buffer) {
   return u.id;
 }
 
-export default async (req) => {
+export default async (req, context) => {
   try {
     if (!LEONARDO_KEY) return json({ error: 'LEONARDO_API_KEY is not configured on the server' }, 503);
     if (req.method === 'POST') {
+      // Each POST starts a paid generation: origin allowlist + rate caps.
+      const denied = await guardPaidCall(req, context, 'leonardo');
+      if (denied) return denied;
       const { prompt, initImage, controlnetWeight, mode } = await req.json();
       if (!prompt) return json({ error: 'prompt required' }, 400);
 

@@ -9,17 +9,21 @@
 // whitespace heartbeats so the CDN doesn't 504 a quiet connection — leading
 // whitespace is valid JSON, so callers still just res.json().
 import { runExtraction } from '../lib/floorplanCore.js';
+import { corsFor, guardPaidCall } from '../lib/paidCallGuard.js';
 
-// CORS-open so the separate FAKS / Showroom Atlas consumer site can post photos.
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
-const json = (o, status = 200) =>
-  new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
-
-export default async (req) => {
+// Callable from this site and the Showroom Atlas consumer site (origin
+// allowlist + per-IP/daily caps in ../lib/paidCallGuard.js — every call spends
+// Anthropic credits).
+export default async (req, context) => {
+  const CORS = corsFor(req);
+  const json = (o, status = 200) =>
+    new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
   try {
     if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: CORS });
     if (!process.env.ANTHROPIC_API_KEY) return json({ error: 'ANTHROPIC_API_KEY is not configured on the server — add it in Netlify site settings to enable floorplan import.' }, 503);
     if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+    const denied = await guardPaidCall(req, context, 'floorplan', CORS);
+    if (denied) return denied;
     const body = await req.json();
     if (!body.image || !body.mediaType) return json({ error: 'image (base64) and mediaType required' }, 400);
 
