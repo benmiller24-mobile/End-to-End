@@ -3,14 +3,19 @@
 // accept multi-MB bodies; background invocations do not), then kicks the
 // background runner with just the id. Client polls /api/floorplan-result.
 import { getStore } from '@netlify/blobs';
+import { corsFor, guardPaidCall } from '../../lib/paidCallGuard.js';
 
-const json = (o, status = 200) =>
-  new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
-
-export default async (req) => {
+export default async (req, context) => {
+  const CORS = corsFor(req);
+  const json = (o, status = 200) =>
+    new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
   try {
+    if (req.method === 'OPTIONS') return new Response('', { status: 204, headers: CORS });
     if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+    const denied = await guardPaidCall(req, context, 'floorplan', CORS);
+    if (denied) return denied;
     const body = await req.json();
+    if (typeof body.id !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(body.id)) return json({ error: 'invalid id' }, 400);
     if (!body.id || !body.image || !body.mediaType) return json({ error: 'id, image, mediaType required' }, 400);
     const store = getStore({ name: 'floorplan', consistency: 'strong' });
     await store.set(`${body.id}:input`, JSON.stringify(body));
